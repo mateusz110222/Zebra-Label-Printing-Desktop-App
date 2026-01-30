@@ -1,7 +1,10 @@
 node_modules
+build
 dist
 out
 .env
 .DS_Store
 .eslintcache
 *.log*
+.vscode
+.idea
