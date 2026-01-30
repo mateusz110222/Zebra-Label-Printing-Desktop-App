@@ -1,0 +1,29 @@
+export default `
+    ^XA
+    ~TA000
+    ~JSN
+    ^LT0
+    ^MNW
+    ^MTT
+    ^PON
+    ^PMN
+    ^LH0,0
+    ^JMA
+    ^PR2,2
+    ~SD15
+    ^JUS
+    ^LRN
+    ^CI27
+    ^PA0,1,1,0
+    ^XZ^XA
+    ^MMT
+    ^PW614
+    ^LL354
+    ^LS0
+    ^FT75,270^BXN,10,200,0,0,1,_,1
+    ^FH\^FD3377*JDATE**SERIALNUM1*^FS
+    ^FT116,100^A0N,66,66^FH\^CI28^FD3377*JDATE**SERIALNUM1*^FS^CI27
+    ^FT296,286^A0N,63,63^FH\^CI28^FD*PARTNUM*^FS^CI27
+    ^PQ1,0,1,Y
+^XZ
+`

@@ -1,0 +1,70 @@
+{
+  "sidebar": {
+    "print_label": "Wydrukuj etykietę",
+    "templates": "Szablony",
+    "config": "Konfiguracja",
+    "history": "Historia"
+  },
+  "print_view": {
+    "print_success": "Etykieta wysłana do druku.",
+    "Try_again": "Spróbuj ponownie",
+    "error": "Wystąpił bląd",
+    "error_fetching_parts": "Błąd pobierania części:",
+    "error_printing_labels": "Bląd drukowania etykiet",
+    "title": "Drukuj etykietę",
+    "subtitle": "Wybierz część, aby automatycznie wypełnić dane operacyjne.",
+    "part_selection": "Wybierz część",
+    "select_part": "-- Wybierz z listy --",
+    "Part_Number": "Numer Części (PN)",
+    "label_quantity": "Ilość Etykiet do Druku",
+    "printing": "Drukowanie...",
+    "print_label": "Drukuj Etykietę"
+  },
+  "config_view": {
+    "title": "Konfiguracja Drukarki",
+    "subtitle": "Skonfiguruj połączenie drukarki sieciowej lub przez port COM.",
+    "error": "Błąd Konfiguracji",
+    "select_from_list": "-- Wybierz z listy --",
+    "save_success": "Konfiguracja zapisana",
+    "test_success": "Połączenie nawiązane",
+    "save_error": "Błąd zapisu",
+    "test_error": "Błąd połączenia",
+    "critical_error": "Wystąpił błąd krytyczny",
+    "tabs_network": "Sieć (Ethernet/WiFi)",
+    "tabs_com": "Port Szeregowy (COM)",
+    "ip_address": "Adres IP",
+    "ip_placeholder": "192.168.x.x",
+    "port": "Port",
+    "port_placeholder": "9100",
+    "port_com": "Port COM",
+    "loading_ports": "Ładowanie portów...",
+    "no_ports": "Brak portów",
+    "test_print": "Test Połączenia",
+    "testing": "Testowanie...",
+    "save": "Zapisz Konfigurację",
+    "saving": "Zapisywanie..."
+  },
+  "header": {
+    "true": "Online",
+    "false": "Offline",
+    "login_btn": "Zaloguj się",
+    "logout": "Wyloguj się",
+    "logged_in_as": "Zalogowano jako"
+  },
+  "status_banner": {
+    "success": "Sukces",
+    "error": "Błąd"
+  },
+  "login": {
+    "title": "Logowanie",
+    "subtitle": "Zaloguj się do systemu.",
+    "login_label": "Login",
+    "password_label": "Hasło",
+    "login_placeholder": "jkowalski@borgwarner.com",
+    "password_placeholder": "Hasło",
+    "login_btn": "Zaloguj",
+    "login_sucessful": "Udało się zalogować",
+    "login_error": "Błąd podczas logowania się",
+    "error": "Błąd Logowania"
+  }
+}

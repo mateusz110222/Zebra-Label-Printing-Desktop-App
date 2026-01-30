@@ -1,0 +1,67 @@
+{
+  "sidebar": {
+    "print_label": "Print label",
+    "templates": "Templates",
+    "config": "Config",
+    "history": "History"
+  },
+  "print_view": {
+    "print_success": "Label sent for printing.",
+    "Try_again": "Try again",
+    "error": "Error Ocured",
+    "error_fetching_parts": "Error fetching parts:",
+    "error_printing_labels": "Error printing labels",
+    "title": "Print Label",
+    "subtitle": "Select a part to automatically fill in the operational data.",
+    "part_selection": "Select Part",
+    "select_part": "-- Select from list --",
+    "Part_Number": "Part Number",
+    "label_quantity": "Label Quantity",
+    "printing": "Printing...",
+    "print_label": "Print Label"
+  },
+  "config_view": {
+    "title": "Printer Configuration",
+    "subtitle": "Configure network or COM port connection for the printer.",
+    "error": "Configuration Error",
+    "select_from_list": "-- Select from list --",
+    "save_success": "Configuration saved",
+    "test_success": "Connection successful",
+    "save_error": "Save error",
+    "test_error": "Connection error",
+    "critical_error": "A critical error occurred",
+    "tabs_network": "Network (Ethernet/WiFi)",
+    "tabs_com": "Serial Port (COM)",
+    "ip_address": "IP Address",
+    "ip_placeholder": "192.168.x.x",
+    "port": "Port",
+    "port_placeholder": "9100",
+    "port_com": "COM Port",
+    "loading_ports": "Loading ports...",
+    "no_ports": "No ports",
+    "test_print": "Test Connection",
+    "testing": "Testing...",
+    "save": "Save Configuration",
+    "saving": "Saving..."
+  },
+  "header": {
+    "online": "Online",
+    "login_btn": "Log in"
+  },
+  "status_banner": {
+    "success": "Success",
+    "error": "Error"
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "Log in to the system.",
+    "login_label": "Username",
+    "password_label": "Password",
+    "login_placeholder": "Username",
+    "password_placeholder": "Password",
+    "login_btn": "Log in",
+    "login_sucessful": "Successfully logged in",
+    "login_error": "Login error",
+    "error": "Login Error"
+  }
+}
