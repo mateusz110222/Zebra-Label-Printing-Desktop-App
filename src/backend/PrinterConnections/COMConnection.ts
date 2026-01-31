@@ -1,45 +1,41 @@
-import { SerialPort } from 'serialport'
-import {
-  PrinterConnectionBase,
-  ConnectionResult,
-  PrinterConfig
-} from '../utils/PrinterConnectionBase'
+import { SerialPort } from "serialport";
+import { ConnectionResult, PrinterConfig, PrinterConnectionBase } from "../utils/PrinterConnectionBase";
 
 class COMConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {
-    super(config, label)
+    super(config, label);
   }
 
   validate(): boolean {
-    return !!(this.config.comPort && this.config.comPort.trim().length > 0)
+    return !!(this.config.comPort && this.config.comPort.trim().length > 0);
   }
 
   getConnectionTypeName(): string {
-    return 'COM Connection'
+    return "COM Connection";
   }
 
   async connect(): Promise<ConnectionResult> {
-    const comPortName = (this.config.comPort || '').trim().toUpperCase()
+    const comPortName = (this.config.comPort || "").trim().toUpperCase();
 
     if (!comPortName) {
       return {
         status: false,
-        message: 'Brak skonfigurowanego portu COM'
-      }
+        message: "Brak skonfigurowanego portu COM"
+      };
     }
 
     try {
-      const ports = await SerialPort.list()
+      const ports = await SerialPort.list();
       const portInfo = ports.find(
         (p) => p.path.toUpperCase() === comPortName || p.path.toUpperCase().includes(comPortName)
-      )
+      );
 
       if (!portInfo) {
-        const availablePorts = ports.map((p) => p.path).join(', ') || 'brak'
+        const availablePorts = ports.map((p) => p.path).join(", ") || "brak";
         return {
           status: false,
           message: `Port ${comPortName} nie znaleziony. Dostępne: [${availablePorts}]`
-        }
+        };
       }
 
       return new Promise((resolve) => {
@@ -47,22 +43,23 @@ class COMConnectionImpl extends PrinterConnectionBase {
           path: portInfo.path,
           baudRate: 9600,
           autoOpen: false
-        })
+        });
 
-        port.on('error', () => {
+        port.on("error", () => {
           if (port.isOpen) {
-            port.close(() => {})
+            port.close(() => {
+            });
           }
-        })
+        });
 
         port.open((err) => {
           if (err) {
-            const msg = err.message.includes('Access denied')
+            const msg = err.message.includes("Access denied")
               ? `Port ${portInfo.path} jest zajęty przez inny program.`
-              : `Błąd otwarcia portu: ${err.message}`
+              : `Błąd otwarcia portu: ${err.message}`;
 
-            resolve({ status: false, message: msg })
-            return
+            resolve({ status: false, message: msg });
+            return;
           }
 
           port.write(this.label, (err) => {
@@ -70,24 +67,24 @@ class COMConnectionImpl extends PrinterConnectionBase {
               port.close(() => {
                 resolve({
                   status: false,
-                  message: 'Błąd zapisu na COM: ' + err.message
-                })
-              })
+                  message: "Błąd zapisu na COM: " + err.message
+                });
+              });
             } else {
               port.drain(() => {
                 port.close(() => {
                   resolve({
                     status: true,
-                    message: 'label_sent_successfully'
-                  })
-                })
-              })
+                    message: "label_sent_successfully"
+                  });
+                });
+              });
             }
-          })
-        })
-      })
+          });
+        });
+      });
     } catch (error: any) {
-      throw new Error('Krytyczny błąd SerialPort: ' + (error?.message || String(error)))
+      throw new Error("Krytyczny błąd SerialPort: " + (error?.message || String(error)));
     }
   }
 }
@@ -96,6 +93,6 @@ export default function COMConnection(
   config: PrinterConfig,
   label: string
 ): Promise<ConnectionResult> {
-  const connection = new COMConnectionImpl(config, label)
-  return connection.execute()
+  const connection = new COMConnectionImpl(config, label);
+  return connection.execute();
 }

@@ -52,7 +52,7 @@ export const closeDatabase = async (): Promise<void> => {
     try {
       const poolToClose = dbPool
       dbPool = null
-      await poolToClose.end()
+      poolToClose.end()
     } catch (error) {}
   }
 }

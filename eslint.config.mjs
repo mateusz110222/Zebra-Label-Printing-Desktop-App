@@ -18,16 +18,19 @@ export default defineConfig(
     }
   },
   {
-    files: ['**/*.{ts,tsx}'],
+    extends: [
+      "prettier"
+    ],
+    files: ["**/*.{ts,tsx}"],
     plugins: {
-      'react-hooks': eslintPluginReactHooks,
-      'react-refresh': eslintPluginReactRefresh
+      "react-hooks": eslintPluginReactHooks,
+      "react-refresh": eslintPluginReactRefresh
     },
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
       ...eslintPluginReactRefresh.configs.vite.rules,
-      'prettier/prettier': ["error", { "endOfLine": "auto" }],
-    }
+      "prettier/prettier": ["error", { "endOfLine": "auto" }]
+    },
   },
   eslintConfigPrettier
 )

@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from "electron";
 
 export default function GetLabelsFormats() {
-  ipcMain.handle('GetLabelsFormats', async () => {
-    return { status: true }
-  })
+  ipcMain.handle("GetLabelsFormats", async () => {
+    return { status: true };
+  });
 }

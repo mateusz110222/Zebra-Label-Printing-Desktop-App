@@ -58,7 +58,6 @@ export abstract class PrinterConnectionBase {
       }
 
 
-
       return await this.connect()
     } catch (error: any) {
       const message =
