@@ -9,7 +9,13 @@ export default function GetLabelPreview(): void {
         return { status: false, message: "Invalid part data provided" };
       }
 
-      const filledZpl = await GenerateZPLString(part, 1, "preview");
+      const result = await GenerateZPLString(part, 1, "preview");
+
+      if (!result.status || !result.data) {
+        return { status: false, message: result.message || "Błąd generowania szablonu ZPL" };
+      }
+
+      const filledZpl = result.data;
 
       const { ready } = await import("zpl-renderer-js");
       const { api } = await ready;

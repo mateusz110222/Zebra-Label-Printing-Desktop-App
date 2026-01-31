@@ -11,7 +11,13 @@ export default function SetupLabelHandlers(): void {
     try {
       const printer = store.get("printer");
 
-      const finalZpl = await GenerateZPLString(part, quantity, "print");
+      const result = await GenerateZPLString(part, quantity, "print");
+
+      if (!result.status || !result.data) {
+        return { status: false, message: result.message || "Błąd generowania etykiety" };
+      }
+
+      const finalZpl = result.data;
 
       let response: ConnectionResult;
 
@@ -29,7 +35,7 @@ export default function SetupLabelHandlers(): void {
         default:
           return {
             status: false,
-            message: `Nieznany typ połączenia: ${printer.type}`,
+            message: `Nieznany typ połączenia: ${printer.type}`
           };
       }
       return { status: response.status, message: response.message };
