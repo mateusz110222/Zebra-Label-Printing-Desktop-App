@@ -25,7 +25,7 @@ A modern desktop application built with **Electron** for managing and printing t
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/your-username/label-print.git](https://github.com/your-username/label-print.git)
+    git clone https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App.git
     ```
 2.  Install dependencies:
     ```bash
