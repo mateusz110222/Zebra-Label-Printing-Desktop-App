@@ -13,7 +13,7 @@ export const store = new Store<{ printer: PrinterConfig }>({
       type: "IP",
       ip: "",
       port: 9100,
-      comPort: ""
-    }
-  }
+      comPort: "",
+    },
+  },
 });

@@ -12,4 +12,4 @@ export default `
     ^FS
     ^PQ1,0,1,Y
     ^XZ
-`
+`;

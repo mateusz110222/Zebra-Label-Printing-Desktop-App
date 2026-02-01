@@ -1,24 +1,41 @@
 {
   "sidebar": {
-    "print_label": "Wydrukuj etykietę",
-    "templates": "Szablony",
+    "app_title": "Label Print APP",
+    "app_name": "Label Print",
+    "dev_info": "Dev: Mateusz Zieliński",
     "config": "Konfiguracja",
-    "history": "Historia"
+    "history": "Historia",
+    "print_label": "Wydrukuj etykietę",
+    "templates": "Szablony"
+  },
+  "header": {
+    "printer_online": "Drukarka Online",
+    "printer_offline": "Drukarka Offline",
+    "checking_status": "Sprawdzanie...",
+    "connected": "Połączono",
+    "disconnected": "Rozłączono",
+    "status_error": "Błąd pobierania statusu drukarki",
+    "login_btn": "Zaloguj się",
+    "logout": "Wyloguj się",
+    "logged_in_as": "Zalogowano jako"
   },
   "print_view": {
-    "print_success": "Etykieta wysłana do druku.",
-    "Try_again": "Spróbuj ponownie",
-    "error": "Wystąpił bląd",
-    "error_fetching_parts": "Błąd pobierania części:",
-    "error_printing_labels": "Bląd drukowania etykiet",
     "title": "Drukuj etykietę",
     "subtitle": "Wybierz część, aby automatycznie wypełnić dane operacyjne.",
+    "error": "Wystąpił błąd",
     "part_selection": "Wybierz część",
     "select_part": "-- Wybierz z listy --",
     "Part_Number": "Numer Części (PN)",
     "label_quantity": "Ilość Etykiet do Druku",
     "printing": "Drukowanie...",
-    "print_label": "Drukuj Etykietę"
+    "print_label": "Drukuj Etykietę",
+    "preview_loading": "Generowanie podglądu...",
+    "preview_alt": "Podgląd ZPL",
+    "preview_hint": "Wybierz część, aby zobaczyć podgląd",
+    "error_fetching_parts": "Błąd pobierania części",
+    "error_printing_labels": "Błąd drukowania etykiet",
+    "print_success": "Etykiety wysłane do drukarki",
+    "Try_again": "Spróbuj ponownie"
   },
   "config_view": {
     "title": "Konfiguracja Drukarki",
@@ -44,17 +61,6 @@
     "save": "Zapisz Konfigurację",
     "saving": "Zapisywanie..."
   },
-  "header": {
-    "true": "Online",
-    "false": "Offline",
-    "login_btn": "Zaloguj się",
-    "logout": "Wyloguj się",
-    "logged_in_as": "Zalogowano jako"
-  },
-  "status_banner": {
-    "success": "Sukces",
-    "error": "Błąd"
-  },
   "login": {
     "title": "Logowanie",
     "subtitle": "Zaloguj się do systemu.",
@@ -63,8 +69,74 @@
     "login_placeholder": "jkowalski@borgwarner.com",
     "password_placeholder": "Hasło",
     "login_btn": "Zaloguj",
-    "login_sucessful": "Udało się zalogować",
+    "login_successful": "Udało się zalogować",
     "login_error": "Błąd podczas logowania się",
-    "error": "Błąd Logowania"
+    "error": "Błąd Logowania",
+    "logging_in": "Logowanie..."
+  },
+  "status_banner": {
+    "success": "Sukces",
+    "error": "Błąd"
+  },
+  "backend": {
+    "auth": {
+      "AUTH_SUCCESS": "Zalogowano pomyślnie",
+      "AUTH_INVALID_CREDENTIALS": "Nieprawidłowy login lub hasło.",
+      "AUTH_TIMEOUT": "Nie można połączyć się z serwerem logowania (Timeout).",
+      "AUTH_ERROR": "Błąd logowania.",
+      "AUTH_UNKNOWN": "Logowanie nieudane. Nieznany błąd."
+    },
+    "printer": {
+      "GET_SERIAL_PORTS_SUCCESS": "Pomyślnie pobrano porty szeregowe",
+      "GET_PRINTER_CONFIG_SUCCESS": "Pomyślnie pobrano konfigurację drukarki",
+      "GET_LABEL_PREVIEW_SUCCESS": "Pomyślnie wygenerowano podgląd etykiety",
+      "no_config": "Brak konfiguracji drukarki",
+      "connected_ip": "Połączono z drukarką (IP).",
+      "connection_error": "Błąd połączenia",
+      "timeout": "Upłynął limit czasu połączenia (Timeout).",
+      "no_com_port": "Brak wybranego portu COM",
+      "no_com_config": "Brak skonfigurowanego portu COM",
+      "no_ip_config": "Brak konfiguracji IP",
+      "com_open_error": "Nie można otworzyć portu",
+      "com_write_error": "Błąd zapisu na COM",
+      "test_label_sent_com": "Wysłano etykietę testową (COM).",
+      "no_confirmation_timeout": "Drukarka nie przysłała potwierdzenia w czasie 5s (Timeout)",
+      "send_error": "Błąd wysyłania danych",
+      "print_confirmed": "Potwierdzono wydruk",
+      "unknown_connection": "Nieznany typ połączenia",
+      "com_not_found": "Port nie został znaleziony",
+      "com_busy": "Port jest zajęty przez inny program.",
+      "serial_critical_error": "Krytyczny błąd portu szeregowego",
+      "label_sent_successfully": "Etykieta wysłana pomyślnie",
+      "invalid_config": "Błędna konfiguracja połączenia",
+      "error": "Błąd połączenia z drukarką"
+    },
+    "parts": {
+      "PARTS_FETCH_SUCCESS": "Pomyślnie pobrano listę części",
+      "GET_PARTS_FAIL": "Błąd podczas pobierania części"
+    },
+    "db": {
+      "not_initialized": "Połączenie z bazą danych nie zostało zainicjowane",
+      "part_not_found": "Nie znaleziono części w bazie danych",
+      "error": "Błąd bazy danych"
+    },
+    "config": {
+      "invalid_ip_port": "Błędny adres IP lub port.",
+      "no_com_selected": "Nie wybrano portu COM.",
+      "save_success": "Konfiguracja zapisana pomyślnie.",
+      "save_fail": "Błąd zapisu konfiguracji"
+    },
+    "print": {
+      "generate_error": "Błąd generowania etykiety",
+      "error": "Błąd drukowania",
+      "template_empty": "Szablon etykiety jest pusty",
+      "template_not_found": "Nie znaleziono szablonu etykiety",
+      "serial_range_exceeded": "Przekroczono zakres numerów seryjnych",
+      "unknown_mode": "Nieznany tryb generowania etykiety",
+      "invalid_decimal": "Wartość nie jest liczbą (typ decimal)",
+      "unsupported_type": "Nieobsługiwany typ numeracji",
+      "preview_success": "Podgląd etykiety wygenerowany pomyślnie",
+      "print_success": "Etykieta wygenerowana do druku"
+    }
   }
 }

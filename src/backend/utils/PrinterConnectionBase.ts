@@ -4,15 +4,16 @@
  */
 
 export interface ConnectionResult {
-  status: boolean
-  message: string
+  status: boolean;
+  message: string;
+  rawError?: string;
 }
 
 export interface PrinterConfig {
-  type: 'IP' | 'COM'
-  ip?: string
-  port?: number
-  comPort?: string
+  type: "IP" | "COM";
+  ip?: string;
+  port?: number;
+  comPort?: string;
 }
 
 /**
@@ -20,30 +21,30 @@ export interface PrinterConfig {
  * Handles common logic and error handling
  */
 export abstract class PrinterConnectionBase {
-  protected config: PrinterConfig
-  protected label: string
+  protected config: PrinterConfig;
+  protected label: string;
 
   constructor(config: PrinterConfig, label: string) {
-    this.config = config
-    this.label = label
+    this.config = config;
+    this.label = label;
   }
 
   /**
    * Connect to printer and send label
    * Must be implemented by subclasses
    */
-  abstract connect(): Promise<ConnectionResult>
+  abstract connect(): Promise<ConnectionResult>;
 
   /**
    * Validate configuration
    * @returns true if configuration is valid
    */
-  abstract validate(): boolean
+  abstract validate(): boolean;
 
   /**
    * Get connection type name for logging
    */
-  abstract getConnectionTypeName(): string
+  abstract getConnectionTypeName(): string;
 
   /**
    * Execute connection with error handling
@@ -53,20 +54,31 @@ export abstract class PrinterConnectionBase {
       if (!this.validate()) {
         return {
           status: false,
-          message: `Błędna konfiguracja ${this.getConnectionTypeName()}`
-        }
+          message: "backend.printer.invalid_config",
+          rawError: this.getConnectionTypeName(),
+        };
       }
 
-
-      return await this.connect()
-    } catch (error: any) {
+      return await this.connect();
+    } catch (error) {
       const message =
-        error instanceof Error ? error.message : `Unknown ${this.getConnectionTypeName()} error`
+        error instanceof Error
+          ? error.message
+          : `Unknown ${this.getConnectionTypeName()} error`;
+
+      if (typeof message === "string" && message.startsWith("backend.")) {
+        return {
+          status: false,
+          message: message,
+          rawError: this.getConnectionTypeName(),
+        };
+      }
 
       return {
         status: false,
-        message: `Błąd ${this.getConnectionTypeName()}: ${message}`
-      }
+        message: "backend.printer.error",
+        rawError: `${this.getConnectionTypeName()}: ${message}`,
+      };
     }
   }
 }

@@ -1,64 +1,70 @@
-import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useAuth } from '../context/AuthContext'
-import StatusBanner from '../components/StatusBanner'
-import ActionButton from '../components/ActionButton'
-import { useNavigate } from 'react-router-dom'
-import PasswordInput from '@renderer/components/PasswordInput'
-import EmailInput from '@renderer/components/EmailInput'
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "../context/AuthContext";
+import StatusBanner from "../components/StatusBanner";
+import ActionButton from "../components/ActionButton";
+import { useNavigate } from "react-router-dom";
+import PasswordInput from "@renderer/components/PasswordInput";
+import EmailInput from "@renderer/components/EmailInput";
 
 interface UiMessage {
-  type: 'success' | 'error'
-  text: string
-  details?: string
+  type: "success" | "error";
+  text: string;
+  details?: string;
 }
 
-export default function Login() {
-  const { t } = useTranslation()
-  const { setLogin } = useAuth()
+export default function Login(): React.JSX.Element {
+  const { t } = useTranslation();
+  const { setLogin } = useAuth();
 
-  const [uiMessage, setUiMessage] = useState<UiMessage | null>(null)
-  const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const [login, setLoginState] = useState<string>('')
-  const [password, setPasswordState] = useState<string>('')
+  const [login, setLoginState] = useState<string>("");
+  const [password, setPasswordState] = useState<string>("");
 
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const HandleLogin = async () => {
-    if (!login || !password) return
+  const HandleLogin = async (): Promise<void> => {
+    if (!login || !password) return;
 
-    setIsProcessing(true)
+    setIsProcessing(true);
     try {
-      const response = await window.electron.ipcRenderer.invoke('handle-login', {
-        login: login,
-        password: password
-      })
+      const response = await window.electron.ipcRenderer.invoke(
+        "handle-login",
+        {
+          login: login,
+          password: password,
+        },
+      );
 
       if (!response.status) {
-        throw new Error(response.message || 'Fail while trying to login')
+        setUiMessage({
+          type: "error",
+          text: t(response.message),
+        });
       }
 
-      const FullName = response.data.FullName
-      const CanEdit = response.data.department.includes('IT')
+      const FullName = response.data.FullName;
+      const CanEdit = response.data.department.includes("IT");
 
       setUiMessage({
-        type: 'success',
-        text: t('login.login_sucessful', 'Udało się zalogować'),
-        details: response.message || String(response)
-      })
+        type: "success",
+        text: t(response.message),
+      });
 
-      setLogin(FullName, CanEdit)
-      navigate('/')
-    } catch (error: any) {
+      setLogin(FullName, CanEdit);
+      navigate("/");
+    } catch (error) {
+      const errMsg =
+        error instanceof Error ? error.message : "backend.config.save_fail";
       setUiMessage({
-        type: 'error',
-        text: t('login.login_error', 'Błąd podczas logowania się'),
-        details: error.message || String(error)
-      })
+        type: "error",
+        text: t(errMsg),
+      });
     }
-    setIsProcessing(false)
-  }
+    setIsProcessing(false);
+  };
 
   return (
     <div className="p-8 font-sans text-slate-800">
@@ -66,9 +72,9 @@ export default function Login() {
         <div className="mb-8 flex justify-between items-end">
           <div>
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {t('login.title')}
+              {t("login.title")}
             </h2>
-            <p className="text-slate-500 mt-2">{t('login.subtitle')}</p>
+            <p className="text-slate-500 mt-2">{t("login.subtitle")}</p>
           </div>
         </div>
 
@@ -83,20 +89,28 @@ export default function Login() {
 
         <form
           onSubmit={(e) => {
-            e.preventDefault()
-            HandleLogin()
+            e.preventDefault();
+            HandleLogin();
           }}
         >
           <div className="p-8">
             <div className="grid grid-cols-1 gap-6">
-              <EmailInput value={login} onChange={setLoginState} onEnter={HandleLogin} />
-              <PasswordInput value={password} onChange={setPasswordState} onEnter={HandleLogin} />
+              <EmailInput
+                value={login}
+                onChange={setLoginState}
+                onEnter={HandleLogin}
+              />
+              <PasswordInput
+                value={password}
+                onChange={setPasswordState}
+                onEnter={HandleLogin}
+              />
 
               <ActionButton
                 isLoading={isProcessing}
                 isDisabled={!login || !password}
-                label={t('login.login_btn')}
-                loadingLabel={t('login.logon', 'Logowanie...')}
+                label={t("login.login_btn")}
+                loadingLabel={t("login.logging_in")}
                 onClick={() => HandleLogin()}
               />
             </div>
@@ -104,5 +118,5 @@ export default function Login() {
         </form>
       </div>
     </div>
-  )
+  );
 }

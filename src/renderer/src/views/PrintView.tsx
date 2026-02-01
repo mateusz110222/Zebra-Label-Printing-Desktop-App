@@ -1,4 +1,10 @@
-import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import React, {
+  ChangeEvent,
+  FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import CriticalErrorState from "../components/CriticalErrorState";
@@ -51,7 +57,9 @@ export default function PrintView(): React.JSX.Element {
         if (!isMounted) return;
 
         if (response.status === false) {
-          setCriticalError(`${t("print_view.error_fetching_parts")}: ${response.message}`);
+          setCriticalError(
+            `${t("print_view.error_fetching_parts")}: ${response.message}`,
+          );
           return;
         }
         setParts(response.data);
@@ -59,8 +67,8 @@ export default function PrintView(): React.JSX.Element {
         setOptions(
           response.data.map((part: Part) => ({
             value: part.Serial_Prefix,
-            label: `${part.Part_Description} (${part.Serial_Prefix})`
-          }))
+            label: `${part.Part_Description} (${part.Serial_Prefix})`,
+          })),
         );
       } catch (err) {
         if (!isMounted) return;
@@ -74,7 +82,9 @@ export default function PrintView(): React.JSX.Element {
     };
   }, [t]);
 
-  const handleSelectChange = async (option: PartOption | null): Promise<void> => {
+  const handleSelectChange = async (
+    option: PartOption | null,
+  ): Promise<void> => {
     setPreviewImage(null);
 
     if (!option) {
@@ -82,21 +92,24 @@ export default function PrintView(): React.JSX.Element {
       return;
     }
 
-    const part = (parts.find((p) => p.Serial_Prefix === option.value) || null) as Part;
+    const part = (parts.find((p) => p.Serial_Prefix === option.value) ||
+      null) as Part;
     setSelectedPart(part);
 
     if (part) {
       setIsPreviewLoading(true);
       try {
         if (previewCache.current[part.Serial_Prefix]) {
-          console.log("Wczytano z cache, oszczędzono bazę danych!");
           setPreviewImage(previewCache.current[part.Serial_Prefix]);
           return;
         }
 
-        const response = await window.electron.ipcRenderer.invoke("get-label-preview", {
-          part: part
-        });
+        const response = await window.electron.ipcRenderer.invoke(
+          "get-label-preview",
+          {
+            part: part,
+          },
+        );
 
         if (response.status && response.data) {
           previewCache.current[part.Serial_Prefix] = response.data;
@@ -105,7 +118,7 @@ export default function PrintView(): React.JSX.Element {
           setUiMessage({
             type: "error",
             text: t("print_view.error_fetching_parts"),
-            details: response.message || "Unknown preview error"
+            details: t(response.message),
           });
           return;
         }
@@ -114,7 +127,7 @@ export default function PrintView(): React.JSX.Element {
         setUiMessage({
           type: "error",
           text: t("print_view.error_fetching_parts"),
-          details: errMsg
+          details: errMsg,
         });
       } finally {
         setIsPreviewLoading(false);
@@ -146,29 +159,32 @@ export default function PrintView(): React.JSX.Element {
     try {
       const response = await window.electron.ipcRenderer.invoke("print-label", {
         part: selectedPart,
-        quantity: qty
+        quantity: qty,
       });
 
       if (!response || response.status === false) {
         setUiMessage({
           type: "error",
           text: t("print_view.error_printing_labels"),
-          details: response.message || "Unknown backend error"
+          details: t(response.message),
         });
         return;
       }
 
       setUiMessage({
         type: "success",
-        text: t("print_view.labels_printed_success", "Etykiety wysłane do drukarki"),
-        details: response.message !== "label_sent_successfully" ? response.message : undefined
+        text: t("print_view.print_success"),
+        details:
+          response.message !== "backend.printer.label_sent_successfully"
+            ? t(response.message)
+            : undefined,
       });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       setUiMessage({
         type: "error",
         text: t("print_view.error_printing_labels"),
-        details: errMsg
+        details: errMsg,
       });
     } finally {
       setIsPrinting(false);
@@ -224,9 +240,9 @@ export default function PrintView(): React.JSX.Element {
                     value={
                       selectedPart
                         ? {
-                          value: selectedPart.Serial_Prefix,
-                          label: `${selectedPart.Part_Description} (${selectedPart.Serial_Prefix})`
-                        }
+                            value: selectedPart.Serial_Prefix,
+                            label: `${selectedPart.Part_Description} (${selectedPart.Serial_Prefix})`,
+                          }
                         : null
                     }
                     className="react-select-container"
@@ -268,16 +284,20 @@ export default function PrintView(): React.JSX.Element {
               <div className="mt-6 p-4 border rounded-lg bg-gray-50 flex flex-col items-center min-h-50 justify-center">
                 {isPreviewLoading ? (
                   // Prosty loader
-                  <div className="text-blue-500 font-medium">Generowanie podglądu...</div>
+                  <div className="text-blue-500 font-medium">
+                    {t("print_view.preview_loading")}
+                  </div>
                 ) : previewImage ? (
                   // Wyświetlenie obrazka
                   <img
                     src={previewImage}
-                    alt="Podgląd ZPL"
+                    alt={t("print_view.preview_alt")}
                     className="max-w-full h-auto shadow-md border border-gray-300"
                   />
                 ) : (
-                  <span className="text-gray-400 text-sm">Wybierz część, aby zobaczyć podgląd</span>
+                  <span className="text-gray-400 text-sm">
+                    {t("print_view.preview_hint")}
+                  </span>
                 )}
               </div>
 

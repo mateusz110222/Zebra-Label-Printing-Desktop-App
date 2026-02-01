@@ -1,5 +1,9 @@
 import { SerialPort } from "serialport";
-import { ConnectionResult, PrinterConfig, PrinterConnectionBase } from "../utils/PrinterConnectionBase";
+import {
+  ConnectionResult,
+  PrinterConfig,
+  PrinterConnectionBase,
+} from "../utils/PrinterConnectionBase";
 
 class COMConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {
@@ -20,21 +24,24 @@ class COMConnectionImpl extends PrinterConnectionBase {
     if (!comPortName) {
       return {
         status: false,
-        message: "Brak skonfigurowanego portu COM"
+        message: "backend.printer.no_com_config",
       };
     }
 
     try {
       const ports = await SerialPort.list();
       const portInfo = ports.find(
-        (p) => p.path.toUpperCase() === comPortName || p.path.toUpperCase().includes(comPortName)
+        (p) =>
+          p.path.toUpperCase() === comPortName ||
+          p.path.toUpperCase().includes(comPortName),
       );
 
       if (!portInfo) {
         const availablePorts = ports.map((p) => p.path).join(", ") || "brak";
         return {
           status: false,
-          message: `Port ${comPortName} nie znaleziony. Dostępne: [${availablePorts}]`
+          message: "backend.printer.com_not_found",
+          rawError: `Dostępne: [${availablePorts}]`,
         };
       }
 
@@ -42,21 +49,21 @@ class COMConnectionImpl extends PrinterConnectionBase {
         const port = new SerialPort({
           path: portInfo.path,
           baudRate: 9600,
-          autoOpen: false
+          autoOpen: false,
         });
 
         port.on("error", () => {
           if (port.isOpen) {
-            port.close(() => {
-            });
+            port.close(() => {});
           }
         });
 
         port.open((err) => {
           if (err) {
-            const msg = err.message.includes("Access denied")
-              ? `Port ${portInfo.path} jest zajęty przez inny program.`
-              : `Błąd otwarcia portu: ${err.message}`;
+            const isBusy = err.message.includes("Access denied");
+            const msg = isBusy
+              ? "backend.printer.com_busy"
+              : "backend.printer.com_open_error";
 
             resolve({ status: false, message: msg });
             return;
@@ -67,7 +74,7 @@ class COMConnectionImpl extends PrinterConnectionBase {
               port.close(() => {
                 resolve({
                   status: false,
-                  message: "Błąd zapisu na COM: " + err.message
+                  message: "backend.printer.com_write_error",
                 });
               });
             } else {
@@ -75,7 +82,7 @@ class COMConnectionImpl extends PrinterConnectionBase {
                 port.close(() => {
                   resolve({
                     status: true,
-                    message: "label_sent_successfully"
+                    message: "backend.printer.label_sent_successfully",
                   });
                 });
               });
@@ -83,15 +90,23 @@ class COMConnectionImpl extends PrinterConnectionBase {
           });
         });
       });
-    } catch (error: any) {
-      throw new Error("Krytyczny błąd SerialPort: " + (error?.message || String(error)));
+    } catch (error) {
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : String(error) || "backend.config.save_fail";
+      return {
+        status: false,
+        message: "backend.printer.serial_critical_error",
+        rawError: errMsg,
+      };
     }
   }
 }
 
 export default function COMConnection(
   config: PrinterConfig,
-  label: string
+  label: string,
 ): Promise<ConnectionResult> {
   const connection = new COMConnectionImpl(config, label);
   return connection.execute();

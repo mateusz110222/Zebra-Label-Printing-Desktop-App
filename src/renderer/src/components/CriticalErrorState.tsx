@@ -1,16 +1,20 @@
-import React from 'react'
+import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface CriticalErrorProps {
-  message: string
-  onRetry: () => void
-  title?: string
+  message: string;
+  onRetry: () => void;
+  title?: string;
 }
 
 export default function CriticalErrorState({
   message,
   onRetry,
-  title = 'Wystąpił błąd krytyczny'
+  title,
 }: CriticalErrorProps): React.JSX.Element {
+  const { t } = useTranslation();
+  const displayTitle = title || t("config_view.critical_error");
+
   return (
     <div className="p-8 font-sans text-slate-800 min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-xl w-full bg-white border border-red-200 rounded-2xl p-8 text-center shadow-2xl">
@@ -29,15 +33,17 @@ export default function CriticalErrorState({
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">{title}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">
+          {displayTitle}
+        </h2>
         <p className="text-slate-500 mb-6">{message}</p>
         <button
           onClick={onRetry}
           className="w-full px-4 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition active:scale-95"
         >
-          Spróbuj ponownie
+          {t("print_view.Try_again")}
         </button>
       </div>
     </div>
-  )
+  );
 }

@@ -14,7 +14,10 @@ export default function SetupLabelHandlers(): void {
       const result = await GenerateZPLString(part, quantity, "print");
 
       if (!result.status || !result.data) {
-        return { status: false, message: result.message || "Błąd generowania etykiety" };
+        return {
+          status: false,
+          message: result.message || "backend.print.generate_error",
+        };
       }
 
       const finalZpl = result.data;
@@ -24,25 +27,29 @@ export default function SetupLabelHandlers(): void {
       switch (printer.type) {
         case "IP":
           if (!printer.ip || !printer.port)
-            return { status: false, message: "Brak konfiguracji IP" };
+            return { status: false, message: "backend.printer.no_ip_config" };
           response = await IpConnection(printer, finalZpl);
           break;
         case "COM":
           if (!printer.comPort)
-            return { status: false, message: "Brak konfiguracji COM" };
+            return { status: false, message: "backend.printer.no_com_config" };
           response = await COMConnection(printer, finalZpl);
           break;
         default:
           return {
             status: false,
-            message: `Nieznany typ połączenia: ${printer.type}`
+            message: "backend.printer.unknown_connection",
           };
       }
       return { status: response.status, message: response.message };
-    } catch (error: any) {
+    } catch (error) {
       const errorMsg =
-        error instanceof Error ? error.message : "Błąd drukowania";
-      return { status: false, message: errorMsg || "Błąd drukowania" };
+        error instanceof Error ? error.message : "backend.print.error";
+      return {
+        status: false,
+        message: "backend.print.error",
+        rawError: errorMsg,
+      };
     }
   });
 }

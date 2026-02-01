@@ -1,24 +1,41 @@
 {
   "sidebar": {
-    "print_label": "Print label",
-    "templates": "Templates",
-    "config": "Config",
-    "history": "History"
+    "app_title": "Label Print APP",
+    "app_name": "Label Print",
+    "dev_info": "Dev: Mateusz Zieliński",
+    "config": "Configuration",
+    "history": "History",
+    "print_label": "Print Label",
+    "templates": "Templates"
+  },
+  "header": {
+    "printer_online": "Printer Online",
+    "printer_offline": "Printer Offline",
+    "checking_status": "Checking...",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "status_error": "Error fetching printer status",
+    "login_btn": "Log in",
+    "logout": "Log out",
+    "logged_in_as": "Logged in as"
   },
   "print_view": {
-    "print_success": "Label sent for printing.",
-    "Try_again": "Try again",
-    "error": "Error Ocured",
-    "error_fetching_parts": "Error fetching parts:",
-    "error_printing_labels": "Error printing labels",
     "title": "Print Label",
     "subtitle": "Select a part to automatically fill in the operational data.",
-    "part_selection": "Select Part",
+    "error": "An error occurred",
+    "part_selection": "Part Selection",
     "select_part": "-- Select from list --",
-    "Part_Number": "Part Number",
-    "label_quantity": "Label Quantity",
+    "Part_Number": "Part Number (PN)",
+    "label_quantity": "Label Quantity to Print",
     "printing": "Printing...",
-    "print_label": "Print Label"
+    "print_label": "Print Label",
+    "preview_loading": "Generating preview...",
+    "preview_alt": "ZPL Preview",
+    "preview_hint": "Select a part to see a preview",
+    "error_fetching_parts": "Error fetching parts",
+    "error_printing_labels": "Error printing labels",
+    "print_success": "Labels sent to printer",
+    "Try_again": "Try again"
   },
   "config_view": {
     "title": "Printer Configuration",
@@ -26,7 +43,7 @@
     "error": "Configuration Error",
     "select_from_list": "-- Select from list --",
     "save_success": "Configuration saved",
-    "test_success": "Connection successful",
+    "test_success": "Connection established",
     "save_error": "Save error",
     "test_error": "Connection error",
     "critical_error": "A critical error occurred",
@@ -44,24 +61,82 @@
     "save": "Save Configuration",
     "saving": "Saving..."
   },
-  "header": {
-    "online": "Online",
-    "login_btn": "Log in"
+  "login": {
+    "title": "Login",
+    "subtitle": "Log in to the system.",
+    "login_label": "Login",
+    "password_label": "Password",
+    "login_placeholder": "jkowalski@borgwarner.com",
+    "password_placeholder": "Password",
+    "login_btn": "Log in",
+    "login_successful": "Login successful",
+    "login_error": "Error during login",
+    "error": "Login Error",
+    "logging_in": "Logging in..."
   },
   "status_banner": {
     "success": "Success",
     "error": "Error"
   },
-  "login": {
-    "title": "Login",
-    "subtitle": "Log in to the system.",
-    "login_label": "Username",
-    "password_label": "Password",
-    "login_placeholder": "Username",
-    "password_placeholder": "Password",
-    "login_btn": "Log in",
-    "login_sucessful": "Successfully logged in",
-    "login_error": "Login error",
-    "error": "Login Error"
+  "backend": {
+    "auth": {
+      "AUTH_SUCCESS": "Logged in successfully",
+      "AUTH_INVALID_CREDENTIALS": "Invalid login or password.",
+      "AUTH_TIMEOUT": "Could not connect to the login server (Timeout).",
+      "AUTH_ERROR": "Login error.",
+      "AUTH_UNKNOWN": "Login failed. Unknown error."
+    },
+    "printer": {
+      "GET_SERIAL_PORTS_SUCCESS": "Serial ports retrieved successfully",
+      "GET_PRINTER_CONFIG_SUCCESS": "Printer configuration retrieved successfully",
+      "GET_LABEL_PREVIEW_SUCCESS": "Label preview generated successfully",
+      "no_config": "No printer configuration",
+      "connected_ip": "Connected to printer (IP).",
+      "connection_error": "Connection error",
+      "timeout": "Connection timeout.",
+      "no_com_port": "No COM port selected",
+      "no_com_config": "No COM port configured",
+      "no_ip_config": "No IP configuration",
+      "com_open_error": "Could not open port",
+      "com_write_error": "Error writing to COM",
+      "test_label_sent_com": "Test label sent (COM).",
+      "no_confirmation_timeout": "Printer did not send confirmation within 5s (Timeout)",
+      "send_error": "Data sending error",
+      "print_confirmed": "Print confirmed",
+      "unknown_connection": "Unknown connection type",
+      "com_not_found": "Port not found",
+      "com_busy": "Port is busy by another program.",
+      "serial_critical_error": "Critical serial port error",
+      "label_sent_successfully": "Label sent successfully",
+      "invalid_config": "Invalid connection configuration",
+      "error": "Printer connection error"
+    },
+    "parts": {
+      "PARTS_FETCH_SUCCESS": "Parts list retrieved successfully",
+      "GET_PARTS_FAIL": "Error while fetching parts"
+    },
+    "db": {
+      "not_initialized": "Database connection not initialized",
+      "part_not_found": "Part not found in database",
+      "error": "Database error"
+    },
+    "config": {
+      "invalid_ip_port": "Invalid IP address or port.",
+      "no_com_selected": "No COM port selected.",
+      "save_success": "Configuration saved successfully.",
+      "save_fail": "Error saving configuration"
+    },
+    "print": {
+      "generate_error": "Error generating label",
+      "error": "Printing error",
+      "template_empty": "Label template is empty",
+      "template_not_found": "Label template not found",
+      "serial_range_exceeded": "Serial number range exceeded",
+      "unknown_mode": "Unknown label generation mode",
+      "invalid_decimal": "Value is not a number (decimal type)",
+      "unsupported_type": "Unsupported numbering type",
+      "preview_success": "Label preview generated successfully",
+      "print_success": "Label generated for printing"
+    }
   }
 }

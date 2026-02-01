@@ -1,13 +1,13 @@
-import React, { ReactNode } from 'react'
+import React, { ReactNode } from "react";
 
 interface ActionButtonProps {
-  isLoading: boolean
-  isDisabled: boolean
-  label: string
-  loadingLabel: string
-  onClick?: (e: never) => void
-  type?: 'button' | 'submit' | 'reset'
-  icon?: ReactNode
+  isLoading: boolean;
+  isDisabled: boolean;
+  label: string;
+  loadingLabel: string;
+  onClick?: (e: never) => void;
+  type?: "button" | "submit" | "reset";
+  icon?: ReactNode;
 }
 
 export default function ActionButton({
@@ -16,8 +16,8 @@ export default function ActionButton({
   label,
   loadingLabel,
   onClick,
-  type = 'button',
-  icon
+  type = "button",
+  icon,
 }: ActionButtonProps): React.JSX.Element {
   return (
     <button
@@ -28,8 +28,8 @@ export default function ActionButton({
         flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600
         ${
           isDisabled || isLoading
-            ? 'bg-slate-300 cursor-not-allowed'
-            : 'bg-indigo-600 hover:bg-indigo-500 hover:shadow-md active:scale-95'
+            ? "bg-slate-300 cursor-not-allowed"
+            : "bg-indigo-600 hover:bg-indigo-500 hover:shadow-md active:scale-95"
         }
       `}
     >
@@ -63,5 +63,5 @@ export default function ActionButton({
         </>
       )}
     </button>
-  )
+  );
 }
