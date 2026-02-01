@@ -1,4 +1,7 @@
-export const fillZplTemplate = (template: string, data: Record<string, string | number>) => {
+export const fillZplTemplate = (
+  template: string,
+  data: Record<string, string | number>,
+): string => {
   if (!template) return "";
   let zpl = template;
   Object.keys(data).forEach((key) => {
@@ -10,13 +13,13 @@ export const fillZplTemplate = (template: string, data: Record<string, string | 
 export const calculateSerial = (
   startValue: string,
   increment: number,
-  typeName: string
+  typeName: string,
 ): string => {
   const targetLength = startValue.length;
   if (typeName === "decimal") {
     const num = parseInt(startValue, 10);
 
-    if (isNaN(num)) throw new Error(`Wartość '${startValue}' nie jest liczbą, a typ to decimal!`);
+    if (isNaN(num)) throw new Error("backend.print.invalid_decimal");
 
     const calculated = num + increment;
     return calculated.toString().padStart(targetLength, "0");
@@ -27,5 +30,5 @@ export const calculateSerial = (
     return calculated.toString(36).toUpperCase().padStart(targetLength, "0");
   }
 
-  throw new Error(`Nieobsługiwany typ numeracji: ${typeName}`);
+  throw new Error("backend.print.unsupported_type");
 };

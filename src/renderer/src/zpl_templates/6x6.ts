@@ -5,4 +5,4 @@ export default `
     ^FT31,140^A0N,29,28^FH\\^CI28^FD*SERIALPREFIX**SERIALNUM1*^FS^CI27
     ^PQ*NUMCOPIES*,0,1,Y
     ^XZ
-`
+`;

@@ -15,4 +15,4 @@ export default `
     ^FXLBL3
     ^PQ*NUMCOPIES*,0,0,N
     ^XZ
-`
+`;

@@ -24,4 +24,4 @@ export const ZPL_TEST_LABEL = `
     ^FDMATZ^FS
 
     ^XZ
-`
+`;

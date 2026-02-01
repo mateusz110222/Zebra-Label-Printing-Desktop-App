@@ -1,32 +1,29 @@
-import mysql from 'mysql2/promise'
-import path from 'node:path'
-import dotenv from 'dotenv'
-import { app } from 'electron'
+import mysql from "mysql2/promise";
+import path from "node:path";
+import dotenv from "dotenv";
+import { app } from "electron";
 
-type DatabasePool = ReturnType<typeof mysql.createPool>
+type DatabasePool = ReturnType<typeof mysql.createPool>;
 
 const initializeEnv = (): void => {
-  try {
-    const isProd = app.isPackaged
-    const envPath = isProd
-      ? path.join(process.resourcesPath, '.env')
-      : path.join(process.cwd(), 'src', 'backend', '.env')
+  const isProd = app.isPackaged;
+  const envPath = isProd
+    ? path.join(process.resourcesPath, ".env")
+    : path.join(process.cwd(), "src", "backend", ".env");
 
-    dotenv.config({ path: envPath })
-  } catch (error) {
-    throw error
-  }
-}
+  dotenv.config({ path: envPath });
+};
 
-let dbPool: DatabasePool | null = null
+let dbPool: DatabasePool | null = null;
 
 export const getDatabase = (): DatabasePool => {
   if (dbPool) {
-    return dbPool
+    return dbPool;
   }
 
+  // eslint-disable-next-line no-useless-catch
   try {
-    initializeEnv()
+    initializeEnv();
     dbPool = mysql.createPool({
       host: process.env.DB_HOST,
       user: process.env.DB_USER,
@@ -38,21 +35,24 @@ export const getDatabase = (): DatabasePool => {
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
       connectTimeout: 10000, // 10s
-      idleTimeout: 60000 // 60s
-    })
+      idleTimeout: 60000, // 60s
+    });
 
-    return dbPool
+    return dbPool;
   } catch (error) {
-    throw error
+    throw error;
   }
-}
+};
 
 export const closeDatabase = async (): Promise<void> => {
   if (dbPool) {
+    // eslint-disable-next-line no-useless-catch
     try {
-      const poolToClose = dbPool
-      dbPool = null
-      poolToClose.end()
-    } catch (error) {}
+      const poolToClose = dbPool;
+      dbPool = null;
+      await poolToClose.end();
+    } catch (error) {
+      throw error;
+    }
   }
-}
+};

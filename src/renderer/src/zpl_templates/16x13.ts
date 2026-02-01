@@ -8,4 +8,4 @@ export default `
     ^FO20,25^BXN,11,200,0,0,1,^FD*SERIALPREFIX**JDATE**SERIALNUM1*^FS
     ^PQ*NUMCOPIES*,0,0,N
     ^XZ
-`
+`;

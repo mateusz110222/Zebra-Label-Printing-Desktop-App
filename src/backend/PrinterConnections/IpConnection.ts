@@ -1,13 +1,13 @@
-import net from 'net'
+import net from "net";
 import {
   PrinterConnectionBase,
   ConnectionResult,
-  PrinterConfig
-} from '../utils/PrinterConnectionBase'
+  PrinterConfig,
+} from "../utils/PrinterConnectionBase";
 
 class IpConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {
-    super(config, label)
+    super(config, label);
   }
 
   validate(): boolean {
@@ -16,77 +16,61 @@ class IpConnectionImpl extends PrinterConnectionBase {
       this.config.port &&
       this.config.port > 0 &&
       this.config.port < 65536
-    )
+    );
   }
 
   getConnectionTypeName(): string {
-    return 'IP Connection'
+    return "IP Connection";
   }
 
   async connect(): Promise<ConnectionResult> {
     return new Promise((resolve) => {
-      const socket = new net.Socket()
-      socket.setTimeout(3000)
-
-      const responseTimeout = setTimeout(() => {
-        socket.destroy()
-        resolve({
-          status: false,
-          message: 'Drukarka nie przysłała potwierdzenia w czasie 5s (Timeout)'
-        })
-      }, 5000)
+      const socket = new net.Socket();
+      socket.setTimeout(3000);
 
       socket.connect(this.config.port!, this.config.ip!, () => {
-        socket.write(this.label, 'utf8', (err) => {
+        socket.write(this.label, "utf8", (err) => {
           if (err) {
-            clearTimeout(responseTimeout)
-            socket.destroy()
+            socket.destroy();
             resolve({
               status: false,
-              message: 'Błąd wysyłania danych: ' + err.message
-            })
+              message: "backend.printer.send_error",
+              rawError: err.message,
+            });
+          } else {
+            socket.end();
+            resolve({
+              status: true,
+              message: "backend.printer.print_success",
+            });
           }
-        })
-      })
+        });
+      });
 
-      socket.on('data', (data) => {
-        const response = data.toString()
-        console.log('Odpowiedź drukarki:', response)
-
-        if (response.includes('LABEL_VERIFICATION') || response.length > 0) {
-          clearTimeout(responseTimeout)
-          socket.destroy()
-
-          resolve({
-            status: true,
-            message: 'Potwierdzono wydruk: ' + response
-          })
-        }
-      })
-
-      socket.on('error', (err) => {
-        socket.destroy()
+      socket.on("error", (err) => {
+        socket.destroy();
         resolve({
           status: false,
-          message: `Błąd połączenia: ${err.message}`
-        })
-      })
+          message: "backend.printer.connection_error",
+          rawError: err.message,
+        });
+      });
 
-      socket.on('timeout', () => {
-        socket.destroy()
+      socket.on("timeout", () => {
+        socket.destroy();
         resolve({
           status: false,
-          message: 'Upłynął limit czasu połączenia (Timeout).'
-        })
-      })
-    })
+          message: "backend.printer.timeout",
+        });
+      });
+    });
   }
 }
 
 export default function IpConnection(
   config: PrinterConfig,
-  label: string
+  label: string,
 ): Promise<ConnectionResult> {
-  const connection = new IpConnectionImpl(config, label)
-  return connection.execute()
+  const connection = new IpConnectionImpl(config, label);
+  return connection.execute();
 }

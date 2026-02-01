@@ -13,43 +13,58 @@ interface GenerateZPLResult {
   status: boolean;
   message: string;
   data?: string;
+  rawError?: string;
 }
 
-export default async function(
+export default async function (
   part: Part,
   quantity: number = 1,
-  mode: "print" | "preview"
+  mode: "print" | "preview",
 ): Promise<GenerateZPLResult> {
   const formatName = part.Label_Format;
   let rawTemplate = "";
 
   try {
-    const module = await import(`../../renderer/src/zpl_templates/${formatName}.ts`);
+    const module = await import(
+      `../../renderer/src/zpl_templates/${formatName}.ts`
+    );
     rawTemplate = module.default || Object.values(module)[0];
 
     if (!rawTemplate) {
-      return { status: false, message: `Szablon ${formatName} jest pusty.` };
+      return { status: false, message: "backend.print.template_empty" };
     }
-  } catch (err: any) {
-    return { status: false, message: `Nie znaleziono szablonu: ${formatName} (${err.message})` };
+  } catch (error) {
+    const errMsg =
+      error instanceof Error
+        ? error.message
+        : String(error) || "backend.config.save_fail";
+    return {
+      status: false,
+      message: "backend.print.template_not_found",
+      rawError: `${formatName} (${errMsg})`,
+    };
   }
 
   const pool = getDatabase();
   if (!pool) {
-    return { status: false, message: "Database connection not initialized" };
+    return { status: false, message: "backend.db.not_initialized" };
   }
 
   try {
-    const [rows] = (await pool.query(
+    const [rows] = await pool.query(
       `SELECT f.maxId, f.next, st.name as type_name
        FROM family f
               LEFT JOIN type st ON f.type_fk = st.pk
        WHERE f.name = ?`,
-      [part.Part_Number]
-    )) as any;
+      [part.Part_Number],
+    );
 
-    if (!rows || (rows as any[]).length === 0) {
-      return { status: false, message: `Nie znaleziono części ${part.Part_Number} w bazie danych (tabela family)` };
+    if (!rows || (rows as []).length === 0) {
+      return {
+        status: false,
+        message: "backend.db.part_not_found",
+        rawError: part.Part_Number,
+      };
     }
 
     const { maxId, next, type_name } = rows[0];
@@ -61,12 +76,12 @@ export default async function(
         SERIALNUM1: next,
         JDATE: GetJulianDate(),
         NUMCOPIES: 1,
-        DESCRIPTION: part.Part_Description
+        DESCRIPTION: part.Part_Description,
       };
       return {
         status: true,
-        message: "ZPL string generated for preview",
-        data: fillZplTemplate(rawTemplate, printData)
+        message: "backend.print.preview_success",
+        data: fillZplTemplate(rawTemplate, printData),
       };
     }
 
@@ -74,7 +89,8 @@ export default async function(
       if (next + quantity - 1 > maxId) {
         return {
           status: false,
-          message: `Przekroczono zakres numerów seryjnych! Pozostało tylko: ${maxId - next + 1}`
+          message: "backend.print.serial_range_exceeded",
+          rawError: `Remaining: ${maxId - next + 1}`,
         };
       }
 
@@ -90,7 +106,7 @@ export default async function(
           JDATE: GetJulianDate(),
           NUMCOPIES: 1,
           DESCRIPTION: part.Part_Description,
-          ID_LABEL: Math.random().toString(36).substring(2, 7).toUpperCase()
+          ID_LABEL: Math.random().toString(36).substring(2, 7).toUpperCase(),
         };
         fullBatchZpl += fillZplTemplate(rawTemplate, printData);
       }
@@ -98,19 +114,34 @@ export default async function(
       const nextValueForDb = calculateSerial(next, quantity, type_name);
       await pool.query("UPDATE family SET next = ? WHERE name = ?", [
         nextValueForDb,
-        part.Part_Number
+        part.Part_Number,
       ]);
 
       return {
         status: true,
-        message: "ZPL string generated for print",
-        data: fullBatchZpl
+        message: "backend.print.print_success",
+        data: fullBatchZpl,
       };
     }
 
-    return { status: false, message: "Nieznany tryb działania (oczekiwano print lub preview)" };
-  } catch (error: any) {
+    return {
+      status: false,
+      message: "backend.print.unknown_mode",
+    };
+  } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    return { status: false, message: `Database error: ${errorMsg}` };
+
+    if (errorMsg.startsWith("backend.")) {
+      return {
+        status: false,
+        message: errorMsg,
+      };
+    }
+
+    return {
+      status: false,
+      message: "backend.db.error",
+      rawError: errorMsg,
+    };
   }
 }

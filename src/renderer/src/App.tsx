@@ -1,14 +1,15 @@
-import { HashRouter as Router, Routes, Route } from 'react-router-dom'
-import Layout from './components/Layout'
-import { AuthProvider } from './context/AuthContext'
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import { AuthProvider } from "./context/AuthContext";
 
-import ConfigView from './views/ConfigView'
-import PrintView from './views/PrintView'
-import LabelsFormats from './views/LabelsFormats'
-import History from './views/History'
-import Login from './views/Login'
+import ConfigView from "./views/ConfigView";
+import PrintView from "./views/PrintView";
+import LabelsFormats from "./views/LabelsFormats";
+import History from "./views/History";
+import Login from "./views/Login";
+import React from "react";
 
-function App() {
+function App(): React.JSX.Element {
   return (
     <AuthProvider>
       <Router>
@@ -23,6 +24,6 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
-  )
+  );
 }
-export default App
+export default App;
