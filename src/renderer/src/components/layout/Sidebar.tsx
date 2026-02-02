@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "@renderer/context/AuthContext";
 import { FcLock } from "react-icons/fc";
 import React from "react";
 

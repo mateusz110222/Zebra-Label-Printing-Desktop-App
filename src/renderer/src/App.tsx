@@ -1,5 +1,5 @@
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
+import { Layout } from "./components/layout";
 import { AuthProvider } from "./context/AuthContext";
 
 import ConfigView from "./views/ConfigView";

@@ -28,7 +28,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.1.18",
-    "electron-store": "^6.0.1",
+    "electron-store": "^11.0.2",
     "i18next": "^25.8.0",
     "i18next-http-backend": "^3.0.2",
     "ldapts": "^8.1.4",
