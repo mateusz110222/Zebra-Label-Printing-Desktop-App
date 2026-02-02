@@ -14,6 +14,7 @@ export interface PrinterConfig {
   ip?: string;
   port?: number;
   comPort?: string;
+  baudRate?: number;
 }
 
 /**
@@ -24,7 +25,7 @@ export abstract class PrinterConnectionBase {
   protected config: PrinterConfig;
   protected label: string;
 
-  constructor(config: PrinterConfig, label: string) {
+  protected constructor(config: PrinterConfig, label: string) {
     this.config = config;
     this.label = label;
   }

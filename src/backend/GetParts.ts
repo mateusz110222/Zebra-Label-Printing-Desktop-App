@@ -4,6 +4,7 @@ export interface PartsResponse {
   status: boolean;
   message: string;
   data: never[] | string;
+  rawError?: string;
 }
 
 export default function GetParts(): void {
@@ -35,6 +36,7 @@ export default function GetParts(): void {
         return {
           status: false,
           message: "backend.parts.GET_PARTS_FAIL",
+          rawError: resp.message || "Unknown server error",
           data: [],
         };
       }
@@ -46,7 +48,8 @@ export default function GetParts(): void {
 
       return {
         status: false,
-        message: errorMsg,
+        message: "backend.parts.GET_PARTS_FAIL",
+        rawError: errorMsg,
         data: [],
       };
     }

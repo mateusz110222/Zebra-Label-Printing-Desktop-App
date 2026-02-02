@@ -4,7 +4,7 @@ import CriticalErrorState from "../components/CriticalErrorState";
 import StatusBanner from "../components/StatusBanner";
 import ActionButton from "../components/ActionButton";
 import { useAuth } from "@renderer/context/AuthContext";
-import { FcPrint, FcElectronics, FcFlashOn } from "react-icons/fc";
+import { FcElectronics, FcFlashOn, FcPrint } from "react-icons/fc";
 import { FaSatelliteDish } from "react-icons/fa";
 import { LuPlug2 } from "react-icons/lu";
 
@@ -15,6 +15,9 @@ interface UiMessage {
   text: string;
   details?: string;
 }
+
+// Standardowe prędkości transmisji
+const baudRateS = [9600, 19200, 38400, 57600, 115200];
 
 export default function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -28,8 +31,11 @@ export default function ConfigView(): React.JSX.Element {
   const [ipAddress, setIpAddress] = useState("");
   const [port, setPort] = useState("9100");
   const [selectedCom, setSelectedCom] = useState("");
+  const [baudRate, setbaudRate] = useState(9600);
   const [serialPorts, setSerialPorts] = useState<string[]>([]);
   const [displayedCom, setDisplayedCom] = useState("");
+  // Dodatkowa zmienna do wyświetlania zapisanego baudRate w trybie podglądu
+  const [displayedbaudRate, setDisplayedbaudRate] = useState(9600);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditing, setIsEditing] = useState(true);
@@ -52,8 +58,14 @@ export default function ConfigView(): React.JSX.Element {
           setConnectionType(cfg.type);
           if (cfg.ip) setIpAddress(cfg.ip);
           if (cfg.port) setPort(cfg.port.toString());
+
           if (cfg.comPort) {
             setDisplayedCom(cfg.comPort);
+            setSelectedCom("");
+          }
+          if (cfg.baudRate) {
+            setbaudRate(cfg.baudRate);
+            setDisplayedbaudRate(cfg.baudRate);
           }
 
           const isIpValid = cfg.type === "IP" && cfg.ip;
@@ -82,6 +94,7 @@ export default function ConfigView(): React.JSX.Element {
       ip: connectionType === "IP" ? ipAddress : null,
       port: connectionType === "IP" ? parseInt(port) : null,
       comPort: connectionType === "COM" ? selectedCom : null,
+      baudRate: connectionType === "COM" ? baudRate : null,
     };
 
     const channel =
@@ -112,7 +125,11 @@ export default function ConfigView(): React.JSX.Element {
             setIpAddress(cfg.ip || "");
             setPort((cfg.port || 9100).toString());
             setDisplayedCom(cfg.comPort || "");
-            setSelectedCom("");
+            setDisplayedbaudRate(cfg.baudRate || 9600);
+
+            // Aktualizuj stan edycji, aby po ponownym wejściu w edycję były aktualne dane
+            setSelectedCom(cfg.comPort || "");
+            setbaudRate(cfg.baudRate || 9600);
           }
           setIsEditing(false);
         }
@@ -244,8 +261,12 @@ export default function ConfigView(): React.JSX.Element {
                         <p className="text-3xl font-bold text-slate-900 font-mono tracking-tight">
                           {displayedCom}
                         </p>
-                        <p className="text-slate-500 font-medium mt-1">
-                          Typ: Serial Port (COM)
+                        <p className="text-slate-500 font-medium mt-1 flex items-center gap-2">
+                          <span>Typ: Serial Port (COM)</span>
+                          <span className="text-slate-300">|</span>
+                          <span className="text-slate-700">
+                            {displayedbaudRate} bps
+                          </span>
                         </p>
                       </div>
                     )}
@@ -345,37 +366,56 @@ export default function ConfigView(): React.JSX.Element {
                 )}
 
                 {connectionType === "COM" && (
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-1">
-                      {t("config_view.port_com", "Wybierz Port COM")}
-                    </label>
-                    <select
-                      className="block w-full rounded-lg border-0 py-3 pl-3 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                      value={selectedCom || ""}
-                      onClick={async () => {
-                        const serialPortsResp =
-                          await window.electron.ipcRenderer.invoke(
-                            "get-serialPorts",
-                          );
-                        if (serialPortsResp.status)
-                          setSerialPorts(serialPortsResp.data);
-                      }}
-                      onChange={(e) => setSelectedCom(e.target.value)}
-                    >
-                      <option value="" disabled>
-                        {t("config_view.select_from_list", "-- Wybierz --")}
-                      </option>
-                      {serialPorts.length === 0 && (
-                        <option disabled>
-                          {t("config_view.no_ports", "Brak portów")}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="col-span-1">
+                      <label className="block text-sm font-semibold text-slate-900 mb-1">
+                        {t("config_view.port_com", "Wybierz Port COM")}
+                      </label>
+                      <select
+                        className="block w-full rounded-lg border-0 py-3 pl-3 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                        value={selectedCom || ""}
+                        onClick={async () => {
+                          const serialPortsResp =
+                            await window.electron.ipcRenderer.invoke(
+                              "get-serialPorts",
+                            );
+                          if (serialPortsResp.status)
+                            setSerialPorts(serialPortsResp.data);
+                        }}
+                        onChange={(e) => setSelectedCom(e.target.value)}
+                      >
+                        <option value="" disabled>
+                          {t("config_view.select_from_list", "-- Wybierz --")}
                         </option>
-                      )}
-                      {serialPorts.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
+                        {serialPorts.length === 0 && (
+                          <option disabled>
+                            {t("config_view.no_ports", "Brak portów")}
+                          </option>
+                        )}
+                        {serialPorts.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-1">
+                      <label className="block text-sm font-semibold text-slate-900 mb-1">
+                        {t("config_view.baudRate", "Prędkość (baudRate)")}
+                      </label>
+                      <select
+                        className="block w-full rounded-lg border-0 py-3 pl-3 pr-10 text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 font-mono"
+                        value={baudRate}
+                        onChange={(e) => setbaudRate(Number(e.target.value))}
+                      >
+                        {baudRateS.map((rate) => (
+                          <option key={rate} value={rate}>
+                            {rate}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,18 +1,6 @@
 import mysql from "mysql2/promise";
-import path from "node:path";
-import dotenv from "dotenv";
-import { app } from "electron";
 
 type DatabasePool = ReturnType<typeof mysql.createPool>;
-
-const initializeEnv = (): void => {
-  const isProd = app.isPackaged;
-  const envPath = isProd
-    ? path.join(process.resourcesPath, ".env")
-    : path.join(process.cwd(), "src", "backend", ".env");
-
-  dotenv.config({ path: envPath });
-};
 
 let dbPool: DatabasePool | null = null;
 
@@ -21,37 +9,58 @@ export const getDatabase = (): DatabasePool => {
     return dbPool;
   }
 
-  // eslint-disable-next-line no-useless-catch
+  const dbConfig = {
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
+
+  const missingVars: string[] = [];
+
+  if (!dbConfig.host) missingVars.push("DB_HOST");
+  if (!dbConfig.user) missingVars.push("DB_USER");
+  if (!dbConfig.password) missingVars.push("DB_PASSWORD");
+  if (!dbConfig.database) missingVars.push("DB_NAME");
+
+  if (missingVars.length > 0) {
+    const errorMsg = `BŁĄD KRYTYCZNY: Brakuje zmiennych środowiskowych: ${missingVars.join(", ")}.
+    Ponieważ używasz 'define' w Vite, upewnij się, że plik .env istniał na komputerze deweloperskim PODCZAS BUDOWANIA (npm run build) i zawierał te wartości.`;
+
+    throw new Error(errorMsg);
+  }
+
   try {
-    initializeEnv();
     dbPool = mysql.createPool({
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
+      host: dbConfig.host,
+      user: dbConfig.user,
+      password: dbConfig.password,
+      database: dbConfig.database,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0,
-      connectTimeout: 10000, // 10s
-      idleTimeout: 60000, // 60s
+      connectTimeout: 10000,
+      idleTimeout: 60000,
     });
 
     return dbPool;
   } catch (error) {
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Database initialization failed: ${message}`);
   }
 };
 
 export const closeDatabase = async (): Promise<void> => {
   if (dbPool) {
-    // eslint-disable-next-line no-useless-catch
     try {
       const poolToClose = dbPool;
       dbPool = null;
       await poolToClose.end();
+      console.log("Połączenie z bazą zamknięte.");
     } catch (error) {
+      console.error("Błąd podczas zamykania bazy:", error);
       throw error;
     }
   }

@@ -109,7 +109,8 @@
       "serial_critical_error": "Krytyczny błąd portu szeregowego",
       "label_sent_successfully": "Etykieta wysłana pomyślnie",
       "invalid_config": "Błędna konfiguracja połączenia",
-      "error": "Błąd połączenia z drukarką"
+      "error": "Błąd połączenia z drukarką",
+      "print_success": "Etykieta wygenerowana do druku"
     },
     "parts": {
       "PARTS_FETCH_SUCCESS": "Pomyślnie pobrano listę części",
@@ -128,6 +129,7 @@
     },
     "print": {
       "generate_error": "Błąd generowania etykiety",
+      "invalid_data": "Nieprawidłowe dane części",
       "error": "Błąd drukowania",
       "template_empty": "Szablon etykiety jest pusty",
       "template_not_found": "Nie znaleziono szablonu etykiety",

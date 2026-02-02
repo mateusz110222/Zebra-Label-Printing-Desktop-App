@@ -45,12 +45,26 @@ export default async function (
     };
   }
 
-  const pool = getDatabase();
-  if (!pool) {
-    return { status: false, message: "backend.db.not_initialized" };
-  }
-
   try {
+    let pool;
+    try {
+      pool = getDatabase();
+    } catch (error) {
+      return {
+        status: false,
+        message: "backend.db.not_initialized",
+        rawError: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    if (!pool) {
+      return {
+        status: false,
+        message: "backend.db.not_initialized",
+        rawError: "Database pool could not be created",
+      };
+    }
+
     const [rows] = await pool.query(
       `SELECT f.maxId, f.next, st.name as type_name
        FROM family f

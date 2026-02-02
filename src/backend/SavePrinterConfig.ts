@@ -12,7 +12,6 @@ export default function SavePrinterConfig(): void {
         if (config.type === "COM" && !config.comPort) {
           return { status: false, message: "backend.config.no_com_selected" };
         }
-
         store.set("printer", config);
 
         return { status: true, message: "backend.config.save_success" };

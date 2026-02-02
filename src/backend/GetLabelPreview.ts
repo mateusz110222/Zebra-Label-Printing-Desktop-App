@@ -6,6 +6,7 @@ interface LabelPreviewResponse {
   status: boolean;
   message: string;
   data: string | null;
+  rawError?: string;
 }
 
 export default function GetLabelPreview(): void {
@@ -16,8 +17,9 @@ export default function GetLabelPreview(): void {
         if (!part || !part.Label_Format) {
           return {
             status: false,
-            message: "Invalid part data provided",
+            message: "backend.print.invalid_data",
             data: null,
+            rawError: "Part or Label_Format missing",
           };
         }
 
@@ -26,7 +28,8 @@ export default function GetLabelPreview(): void {
         if (!result.status || !result.data) {
           return {
             status: false,
-            message: result.message || "Error generating label preview.",
+            message: result.message,
+            rawError: result.rawError,
             data: null,
           };
         }
@@ -55,7 +58,8 @@ export default function GetLabelPreview(): void {
 
         return {
           status: false,
-          message: errorMsg,
+          message: "backend.print.generate_error",
+          rawError: errorMsg,
           data: null,
         };
       }
