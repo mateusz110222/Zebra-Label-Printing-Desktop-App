@@ -1,48 +1,71 @@
-appId: com.electron.app
-productName: label-print
+appId: com.matz.labelprint
+productName: MATZ Label Print App
+copyright: "Copyright © 2026 MATZ Company"
+compression: maximum
+
 directories:
   buildResources: build
+
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+
 asarUnpack:
   - resources/**
+
 extraResources:
-  - from: 'src\renderer\src\zpl_templates'
+  - from: 'src/renderer/src/zpl_templates'
     to: 'zpl_templates'
     filter:
       - '**/*'
+
 win:
-  executableName: label-print
+  executableName: MATZ Label Print App
+  icon: icon.ico
+  target: nsis
+
 nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  deleteAppDataOnUninstall: true
+
 mac:
+  icon: icon.icns
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - NSCameraUsageDescription: Aplikacja wymaga dostępu do kamery.
+    - NSMicrophoneUsageDescription: Aplikacja wymaga dostępu do mikrofonu.
+    - NSDocumentsFolderUsageDescription: Aplikacja wymaga dostępu do Dokumentów.
+    - NSDownloadsFolderUsageDescription: Aplikacja wymaga dostępu do Pobranych.
   notarize: false
+
 dmg:
   artifactName: ${name}-${version}.${ext}
+  icon: build/icon.icns
+
 linux:
+  icon: build/icon.png
   target:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: matzielinski@borgwarner.com
   category: Utility
+
 appImage:
   artifactName: ${name}-${version}.${ext}
+
 npmRebuild: false
+
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: https://twoja-domena.pl/updates

@@ -16,7 +16,8 @@ export default function SetupLabelHandlers(): void {
       if (!result.status || !result.data) {
         return {
           status: false,
-          message: result.message || "backend.print.generate_error",
+          message: result.message,
+          rawError: result.rawError,
         };
       }
 
@@ -41,7 +42,11 @@ export default function SetupLabelHandlers(): void {
             message: "backend.printer.unknown_connection",
           };
       }
-      return { status: response.status, message: response.message };
+      return {
+        status: response.status,
+        message: response.message,
+        rawError: response.rawError,
+      };
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "backend.print.error";

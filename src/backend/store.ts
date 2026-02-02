@@ -5,6 +5,7 @@ export interface PrinterConfig {
   ip?: string;
   port?: number;
   comPort?: string;
+  baudRate?: number;
 }
 
 export const store = new Store<{ printer: PrinterConfig }>({
@@ -14,6 +15,7 @@ export const store = new Store<{ printer: PrinterConfig }>({
       ip: "",
       port: 9100,
       comPort: "",
+      baudRate: 9600,
     },
   },
 });

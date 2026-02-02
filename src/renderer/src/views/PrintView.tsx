@@ -1,10 +1,4 @@
-import React, {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import CriticalErrorState from "../components/CriticalErrorState";
@@ -14,7 +8,6 @@ import PrintViewInput from "@renderer/components/PrintViewInput";
 import Select from "react-select";
 
 interface Part {
-  Operation: string;
   Part_Number: string;
   Part_Description: string;
   Serial_Prefix: string;
@@ -101,6 +94,7 @@ export default function PrintView(): React.JSX.Element {
       try {
         if (previewCache.current[part.Serial_Prefix]) {
           setPreviewImage(previewCache.current[part.Serial_Prefix]);
+          setIsPreviewLoading(false);
           return;
         }
 
@@ -117,17 +111,24 @@ export default function PrintView(): React.JSX.Element {
         } else {
           setUiMessage({
             type: "error",
-            text: t("print_view.error_fetching_parts"),
-            details: t(response.message),
+            text: response.message
+              ? t(response.message)
+              : t("backend.print.generate_error"),
+            details: response.rawError,
           });
           return;
         }
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        let rawError: string | undefined;
+        if (typeof err === "object" && err !== null && "rawError" in err) {
+          rawError = (err as { rawError: string }).rawError;
+        }
+
         setUiMessage({
           type: "error",
-          text: t("print_view.error_fetching_parts"),
-          details: errMsg,
+          text: t(errorMessage),
+          details: rawError,
         });
       } finally {
         setIsPreviewLoading(false);
@@ -147,7 +148,7 @@ export default function PrintView(): React.JSX.Element {
     }
   };
 
-  const handlePrint = async (e: FormEvent): Promise<void> => {
+  const handlePrint = async (e: ChangeEvent): Promise<void> => {
     e.preventDefault();
     setUiMessage(null);
 
@@ -165,26 +166,32 @@ export default function PrintView(): React.JSX.Element {
       if (!response || response.status === false) {
         setUiMessage({
           type: "error",
-          text: t("print_view.error_printing_labels"),
-          details: t(response.message),
+          text: response?.message
+            ? t(response.message)
+            : t("backend.print.error"),
+          details: response?.rawError,
         });
         return;
       }
 
       setUiMessage({
         type: "success",
-        text: t("print_view.print_success"),
-        details:
-          response.message !== "backend.printer.label_sent_successfully"
-            ? t(response.message)
-            : undefined,
+        text: response.message
+          ? t(response.message)
+          : t("print_view.print_success"),
+        details: response.rawError,
       });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      let rawError: string | undefined;
+      if (typeof err === "object" && err !== null && "rawError" in err) {
+        rawError = (err as { rawError: string }).rawError;
+      }
+
       setUiMessage({
         type: "error",
-        text: t("print_view.error_printing_labels"),
-        details: errMsg,
+        text: t(errorMessage),
+        details: rawError,
       });
     } finally {
       setIsPrinting(false);

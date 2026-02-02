@@ -44,11 +44,11 @@ class COMConnectionImpl extends PrinterConnectionBase {
           rawError: `Dostępne: [${availablePorts}]`,
         };
       }
-
+      console.log(portInfo, this.config.baudRate);
       return new Promise((resolve) => {
         const port = new SerialPort({
           path: portInfo.path,
-          baudRate: 9600,
+          baudRate: this.config.baudRate,
           autoOpen: false,
         });
 
