@@ -1,4 +1,11 @@
 {
+  "common": {
+    "loading": "Loading...",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save",
+    "test": "Test"
+  },
   "sidebar": {
     "app_title": "Label Print APP",
     "app_name": "Label Print",
@@ -25,13 +32,19 @@
     "error": "An error occurred",
     "part_selection": "Part Selection",
     "select_part": "-- Select from list --",
+    "part_number": "Part Number (PN)",
     "Part_Number": "Part Number (PN)",
-    "label_quantity": "Label Quantity to Print",
+    "prefix": "Prefix",
+    "label_quantity": "Label Quantity",
     "printing": "Printing...",
     "print_label": "Print Label",
+    "preview_title": "Label Preview",
+    "preview_available": "Preview available",
     "preview_loading": "Generating preview...",
     "preview_alt": "ZPL Preview",
-    "preview_hint": "Select a part to see a preview",
+    "preview_hint": "Select a part to see preview",
+    "ready_to_print": "Ready to print",
+    "select_part_first": "Select a part to continue",
     "error_fetching_parts": "Error fetching parts",
     "error_printing_labels": "Error printing labels",
     "print_success": "Labels sent to printer",
@@ -42,6 +55,14 @@
     "subtitle": "Configure network or COM port connection for the printer.",
     "error": "Configuration Error",
     "select_from_list": "-- Select from list --",
+    "loading_system": "Loading configuration...",
+    "no_config_title": "No configuration",
+    "no_config_message": "Printer has not been configured yet. Log in with an IT department account to configure the device.",
+    "login_to_configure": "Log in to configure",
+    "active_connection": "Active connection",
+    "configured": "Configured",
+    "test_connection": "Test Connection",
+    "change_config": "Change Configuration",
     "save_success": "Configuration saved",
     "test_success": "Connection established",
     "save_error": "Save error",
@@ -54,16 +75,19 @@
     "port": "Port",
     "port_placeholder": "9100",
     "port_com": "COM Port",
+    "baud_rate": "Baud Rate",
     "loading_ports": "Loading ports...",
     "no_ports": "No ports",
     "test_print": "Test Connection",
     "testing": "Testing...",
     "save": "Save Configuration",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "cancel": "Cancel"
   },
   "login": {
     "title": "Login",
     "subtitle": "Log in to the system.",
+    "email_label": "Email",
     "login_label": "Login",
     "password_label": "Password",
     "login_placeholder": "jkowalski@borgwarner.com",
@@ -72,7 +96,8 @@
     "login_successful": "Login successful",
     "login_error": "Error during login",
     "error": "Login Error",
-    "logging_in": "Logging in..."
+    "logging_in": "Logging in...",
+    "footer_info": "Log in with your corporate Active Directory account"
   },
   "status_banner": {
     "success": "Success",
@@ -109,7 +134,8 @@
       "serial_critical_error": "Critical serial port error",
       "label_sent_successfully": "Label sent successfully",
       "invalid_config": "Invalid connection configuration",
-      "error": "Printer connection error"
+      "error": "Printer connection error",
+      "print_success": "Label generated for printing"
     },
     "parts": {
       "PARTS_FETCH_SUCCESS": "Parts list retrieved successfully",

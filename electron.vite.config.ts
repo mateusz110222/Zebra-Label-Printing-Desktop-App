@@ -1,19 +1,17 @@
 import { resolve } from "path";
-import { defineConfig, loadEnv } from "electron-vite";
+import { defineConfig, loadEnv } from "electron-vite"; // USUNIĘTO: externalizeDepsPlugin
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import pkg from "./package.json";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
-  const externalDeps = Object.keys(pkg.dependencies || {});
-
   return {
     main: {
+      plugins: [],
       build: {
-        rollupOptions: {
-          external: externalDeps,
+        externalizeDeps: {
+          exclude: ["electron-store"],
         },
       },
       define: {
@@ -24,11 +22,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     preload: {
-      build: {
-        rollupOptions: {
-          external: externalDeps,
-        },
-      },
+      plugins: [],
+      build: {},
     },
     renderer: {
       resolve: {

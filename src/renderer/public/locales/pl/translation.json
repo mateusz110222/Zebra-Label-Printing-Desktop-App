@@ -1,4 +1,11 @@
 {
+  "common": {
+    "loading": "Ładowanie...",
+    "submit": "Wyślij",
+    "cancel": "Anuluj",
+    "save": "Zapisz",
+    "test": "Testuj"
+  },
   "sidebar": {
     "app_title": "Label Print APP",
     "app_name": "Label Print",
@@ -25,13 +32,19 @@
     "error": "Wystąpił błąd",
     "part_selection": "Wybierz część",
     "select_part": "-- Wybierz z listy --",
+    "part_number": "Numer Części (PN)",
     "Part_Number": "Numer Części (PN)",
-    "label_quantity": "Ilość Etykiet do Druku",
+    "prefix": "Prefix",
+    "label_quantity": "Ilość Etykiet",
     "printing": "Drukowanie...",
     "print_label": "Drukuj Etykietę",
+    "preview_title": "Podgląd etykiety",
+    "preview_available": "Podgląd dostępny",
     "preview_loading": "Generowanie podglądu...",
     "preview_alt": "Podgląd ZPL",
     "preview_hint": "Wybierz część, aby zobaczyć podgląd",
+    "ready_to_print": "Gotowe do druku",
+    "select_part_first": "Wybierz część, aby kontynuować",
     "error_fetching_parts": "Błąd pobierania części",
     "error_printing_labels": "Błąd drukowania etykiet",
     "print_success": "Etykiety wysłane do drukarki",
@@ -42,6 +55,14 @@
     "subtitle": "Skonfiguruj połączenie drukarki sieciowej lub przez port COM.",
     "error": "Błąd Konfiguracji",
     "select_from_list": "-- Wybierz z listy --",
+    "loading_system": "Wczytywanie konfiguracji...",
+    "no_config_title": "Brak konfiguracji",
+    "no_config_message": "Drukarka nie została jeszcze skonfigurowana. Zaloguj się kontem z działu IT, aby skonfigurować urządzenie.",
+    "login_to_configure": "Zaloguj się, aby skonfigurować",
+    "active_connection": "Aktywne połączenie",
+    "configured": "Skonfigurowano",
+    "test_connection": "Test Połączenia",
+    "change_config": "Zmień Konfigurację",
     "save_success": "Konfiguracja zapisana",
     "test_success": "Połączenie nawiązane",
     "save_error": "Błąd zapisu",
@@ -54,16 +75,19 @@
     "port": "Port",
     "port_placeholder": "9100",
     "port_com": "Port COM",
+    "baud_rate": "Szybkość (Baud)",
     "loading_ports": "Ładowanie portów...",
     "no_ports": "Brak portów",
     "test_print": "Test Połączenia",
     "testing": "Testowanie...",
     "save": "Zapisz Konfigurację",
-    "saving": "Zapisywanie..."
+    "saving": "Zapisywanie...",
+    "cancel": "Anuluj"
   },
   "login": {
     "title": "Logowanie",
     "subtitle": "Zaloguj się do systemu.",
+    "email_label": "Email",
     "login_label": "Login",
     "password_label": "Hasło",
     "login_placeholder": "jkowalski@borgwarner.com",
@@ -72,7 +96,8 @@
     "login_successful": "Udało się zalogować",
     "login_error": "Błąd podczas logowania się",
     "error": "Błąd Logowania",
-    "logging_in": "Logowanie..."
+    "logging_in": "Logowanie...",
+    "footer_info": "Zaloguj się kontem firmowym Active Directory"
   },
   "status_banner": {
     "success": "Sukces",

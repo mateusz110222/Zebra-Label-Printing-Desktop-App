@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import CriticalErrorState from "@renderer/components/CriticalErrorState";
+import { CriticalErrorState, StatusBanner } from "@renderer/components/common";
 import { useTranslation } from "react-i18next";
-import StatusBanner from "@renderer/components/StatusBanner";
 
 interface UiMessage {
   type: "success" | "error";
