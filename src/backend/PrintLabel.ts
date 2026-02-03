@@ -7,7 +7,6 @@ import { generatePrintZPL, generateReprintZPL } from "./hooks/ZPLService";
 import { ConnectionResult } from "./utils/PrinterConnectionBase";
 
 export default function SetupLabelHandlers(): void {
-  // Standard print (updates DB)
   ipcMain.handle("print-label", async (_event, { part, quantity }) => {
     try {
       const printer = store.get("printer");
@@ -62,19 +61,13 @@ export default function SetupLabelHandlers(): void {
     }
   });
 
-  // Reprint (does NOT update DB)
   ipcMain.handle(
     "reprint-label",
-    async (_event, { part, quantity, date, serialNumber }) => {
+    async (_event, { part, quantity, serialNumber }) => {
       try {
         const printer = store.get("printer");
 
-        const result = await generateReprintZPL(
-          part,
-          quantity,
-          date,
-          serialNumber,
-        );
+        const result = await generateReprintZPL(part, serialNumber, quantity);
 
         if (!result.status || !result.data) {
           return {
