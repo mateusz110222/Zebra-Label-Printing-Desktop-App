@@ -1,6 +1,6 @@
-import { app, shell, BrowserWindow } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import { join } from "path";
-import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import GetParts from "../backend/GetParts";
 import PrintLabel from "../backend/PrintLabel";
@@ -12,6 +12,7 @@ import HandleLogin from "../backend/HandleLogin";
 import IsOnline from "../backend/IsOnline";
 import GetLabelPreview from "../backend/GetLabelPreview";
 import { closeDatabase } from "../backend/utils/DatabaseConfig";
+import GetLabelsFormats from "../backend/GetLabelsFormats";
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -68,6 +69,7 @@ app.whenReady().then(() => {
   IsOnline();
   HandleLogin();
   GetLabelPreview();
+  GetLabelsFormats();
   createWindow();
 
   app.on("activate", function () {

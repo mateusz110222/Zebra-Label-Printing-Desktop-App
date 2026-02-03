@@ -6,8 +6,7 @@ import COMConnection from "./PrinterConnections/COMConnection";
 export default function TestPrinterConnection(): void {
   ipcMain.handle("test-printer-connection", async () => {
     const config: PrinterConfig = store.get("printer");
-    const module =
-      await import("../renderer/src/zpl_templates/Test_Print_label");
+    const module = await import("../../zpl_templates/Test_Print_label");
     const template = Object.values(module)[0];
 
     switch (config.type) {

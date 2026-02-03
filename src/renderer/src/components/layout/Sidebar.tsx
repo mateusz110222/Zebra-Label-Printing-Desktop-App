@@ -10,9 +10,10 @@ export default function Sidebar(): React.JSX.Element {
 
   const menuItems = [
     { name: t("sidebar.print_label"), path: "/", protected: false },
-    { name: t("sidebar.templates"), path: "/templates", protected: true },
+    { name: t("sidebar.templates"), path: "/templates", protected: false },
     { name: t("sidebar.config"), path: "/config", protected: false },
     { name: t("sidebar.history"), path: "/history", protected: true },
+    { name: t("sidebar.reprint"), path: "/reprint", protected: true },
   ];
 
   return (

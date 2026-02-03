@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface Part {
@@ -30,6 +30,8 @@ interface UsePrintLabelData {
   parts: Part[];
   selectedPart: Part | null;
   labelQuantity: number | "";
+  date: string;
+  serialNumber: string;
   options: PartOption[];
   previewImage: string | null;
 }
@@ -39,6 +41,8 @@ interface UsePrintLabelActions {
   handleQuantityChange: (e: ChangeEvent<HTMLInputElement>) => void;
   handlePrint: (e: ChangeEvent) => Promise<void>;
   clearUiMessage: () => void;
+  handleSerialNumberChange: (SerialNumber: string) => void;
+  handleDateChange: (date: string) => void;
 }
 
 interface UsePrintLabelReturn {
@@ -48,7 +52,7 @@ interface UsePrintLabelReturn {
   isValid: boolean;
 }
 
-export const usePrintLabel = (): UsePrintLabelReturn => {
+export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const { t } = useTranslation();
 
   // Data states
@@ -57,6 +61,8 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
   const [labelQuantity, setLabelQuantity] = useState<number | "">(1);
   const [options, setOptions] = useState<PartOption[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [date, setDate] = useState<string>("");
+  const [serialNumber, setSerialNumber] = useState<string>("");
   const previewCache = useRef<Record<string, string>>({});
 
   // Status states
@@ -108,6 +114,57 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
     };
   }, [t]);
 
+  async function generateLabelPreview(
+    part: Part,
+    date: string | "",
+    serialNumber: string | "",
+  ): Promise<void> {
+    try {
+      if (previewCache.current[part.Serial_Prefix] && mode !== "reprint") {
+        setPreviewImage(previewCache.current[part.Serial_Prefix]);
+        setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+        return;
+      }
+      const response = await window.electron.ipcRenderer.invoke(
+        "get-label-preview",
+        { part, date, serialNumber },
+      );
+
+      if (response.status && response.data) {
+        previewCache.current[part.Serial_Prefix] = response.data;
+        setPreviewImage(response.data);
+      } else {
+        setStatus((prev) => ({
+          ...prev,
+          uiMessage: {
+            type: "error",
+            text: response.message
+              ? t(response.message)
+              : t("backend.print.generate_error"),
+            details: response.rawError,
+          },
+        }));
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const rawError =
+        typeof err === "object" && err !== null && "rawError" in err
+          ? (err as { rawError: string }).rawError
+          : undefined;
+
+      setStatus((prev) => ({
+        ...prev,
+        uiMessage: {
+          type: "error",
+          text: t(errorMessage),
+          details: rawError,
+        },
+      }));
+    } finally {
+      setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+    }
+  }
+
   // Handle part selection and preview loading
   const handleSelectChange = async (
     option: PartOption | null,
@@ -125,52 +182,27 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
     if (part) {
       setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
 
-      try {
-        // Check cache first
-        if (previewCache.current[part.Serial_Prefix]) {
-          setPreviewImage(previewCache.current[part.Serial_Prefix]);
-          setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
-          return;
-        }
-
-        const response = await window.electron.ipcRenderer.invoke(
-          "get-label-preview",
-          { part },
-        );
-
-        if (response.status && response.data) {
-          previewCache.current[part.Serial_Prefix] = response.data;
-          setPreviewImage(response.data);
-        } else {
-          setStatus((prev) => ({
-            ...prev,
-            uiMessage: {
-              type: "error",
-              text: response.message
-                ? t(response.message)
-                : t("backend.print.generate_error"),
-              details: response.rawError,
-            },
-          }));
-        }
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        const rawError =
-          typeof err === "object" && err !== null && "rawError" in err
-            ? (err as { rawError: string }).rawError
-            : undefined;
-
-        setStatus((prev) => ({
-          ...prev,
-          uiMessage: {
-            type: "error",
-            text: t(errorMessage),
-            details: rawError,
-          },
-        }));
-      } finally {
-        setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+      if (mode === "reprint") {
+        await generateLabelPreview(part, date, serialNumber);
+      } else {
+        await generateLabelPreview(part, "", "");
       }
+    }
+  };
+
+  const handleDateChange = async (date: string): Promise<void> => {
+    setDate(date);
+    if (selectedPart) {
+      await generateLabelPreview(selectedPart, date, serialNumber);
+    }
+  };
+
+  const handleSerialNumberChange = async (
+    serialNumber: string,
+  ): Promise<void> => {
+    setSerialNumber(serialNumber);
+    if (selectedPart) {
+      await generateLabelPreview(selectedPart, date, serialNumber);
     }
   };
 
@@ -198,10 +230,18 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
     setStatus((prev) => ({ ...prev, isPrinting: true }));
 
     try {
-      const response = await window.electron.ipcRenderer.invoke("print-label", {
-        part: selectedPart,
-        quantity: qty,
-      });
+      const response =
+        mode === "reprint"
+          ? await window.electron.ipcRenderer.invoke("reprint-label", {
+              part: selectedPart,
+              quantity: qty,
+              date: date,
+              serialNumber: serialNumber,
+            })
+          : await window.electron.ipcRenderer.invoke("print-label", {
+              part: selectedPart,
+              quantity: qty,
+            });
 
       if (!response || response.status === false) {
         setStatus((prev) => ({
@@ -256,7 +296,8 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
   const isValid =
     selectedPart !== null &&
     typeof labelQuantity === "number" &&
-    labelQuantity >= 1;
+    labelQuantity >= 1 &&
+    (mode !== "reprint" || (date.trim() !== "" && serialNumber.trim() !== ""));
 
   return {
     data: {
@@ -265,10 +306,14 @@ export const usePrintLabel = (): UsePrintLabelReturn => {
       labelQuantity,
       options,
       previewImage,
+      date,
+      serialNumber,
     },
     status,
     actions: {
       handleSelectChange,
+      handleSerialNumberChange,
+      handleDateChange,
       handleQuantityChange,
       handlePrint,
       clearUiMessage,

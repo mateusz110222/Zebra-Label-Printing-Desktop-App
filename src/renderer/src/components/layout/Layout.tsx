@@ -11,7 +11,7 @@ export default function Layout(): React.JSX.Element {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 h-full overflow-y-auto">
           <Outlet />
         </main>
       </div>

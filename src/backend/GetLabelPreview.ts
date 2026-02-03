@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import GenerateZPLString from "./hooks/GenerateZPLString";
+import { generatePreviewZPL, generateReprintZPL } from "./hooks/ZPLService";
 import sharp from "sharp";
 
 interface LabelPreviewResponse {
@@ -12,7 +12,10 @@ interface LabelPreviewResponse {
 export default function GetLabelPreview(): void {
   ipcMain.handle(
     "get-label-preview",
-    async (_event, { part }): Promise<LabelPreviewResponse> => {
+    async (
+      _event,
+      { part, date, serialNumber },
+    ): Promise<LabelPreviewResponse> => {
       try {
         if (!part || !part.Label_Format) {
           return {
@@ -22,8 +25,13 @@ export default function GetLabelPreview(): void {
             rawError: "Part or Label_Format missing",
           };
         }
+        const useReprint =
+          (typeof date === "string" && date.trim() !== "") ||
+          (typeof serialNumber === "string" && serialNumber.trim() !== "");
 
-        const result = await GenerateZPLString(part, 1, "preview");
+        const result = useReprint
+          ? await generateReprintZPL(part, 1, date, serialNumber)
+          : await generatePreviewZPL(part);
 
         if (!result.status || !result.data) {
           return {
