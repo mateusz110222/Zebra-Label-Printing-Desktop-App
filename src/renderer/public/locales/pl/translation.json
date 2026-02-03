@@ -13,7 +13,8 @@
     "config": "Konfiguracja",
     "history": "Historia",
     "print_label": "Wydrukuj etykietę",
-    "templates": "Szablony"
+    "templates": "Szablony",
+    "reprint": "Wydrukuj ponownie"
   },
   "header": {
     "printer_online": "Drukarka Online",
@@ -165,5 +166,9 @@
       "preview_success": "Podgląd etykiety wygenerowany pomyślnie",
       "print_success": "Etykieta wygenerowana do druku"
     }
+  },
+  "reprint": {
+    "serialnumber": "Numer Seryjny",
+    "date": "data"
   }
 }

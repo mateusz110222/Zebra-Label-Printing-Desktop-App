@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/layout";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -8,6 +8,7 @@ import LabelsFormats from "./views/LabelsFormats";
 import History from "./views/History";
 import Login from "./views/Login";
 import React from "react";
+import Reprint from "./views/Reprint";
 
 function App(): React.JSX.Element {
   return (
@@ -20,6 +21,7 @@ function App(): React.JSX.Element {
             <Route path="templates" element={<LabelsFormats />} />
             <Route path="config" element={<ConfigView />} />
             <Route path="history" element={<History />} />
+            <Route path="reprint" element={<Reprint />} />
           </Route>
         </Routes>
       </Router>

@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CriticalErrorState, StatusBanner } from "../components/common";
 import {
-  NoConfigCard,
-  ConnectionDisplayCard,
   ConfigFormCard,
+  ConnectionDisplayCard,
+  NoConfigCard,
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 
@@ -195,8 +195,8 @@ export default function ConfigView(): React.JSX.Element {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 font-sans text-slate-800">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-full p-4 font-sans text-slate-800 flex flex-col pb-24">
+      <div className="max-w-4xl mx-auto w-full my-auto">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">

@@ -58,9 +58,7 @@ export const closeDatabase = async (): Promise<void> => {
       const poolToClose = dbPool;
       dbPool = null;
       await poolToClose.end();
-      console.log("Połączenie z bazą zamknięte.");
     } catch (error) {
-      console.error("Błąd podczas zamykania bazy:", error);
       throw error;
     }
   }
