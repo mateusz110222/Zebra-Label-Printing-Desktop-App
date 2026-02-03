@@ -1,24 +1,51 @@
-import { ipcMain } from "electron";
-import { readdirSync } from "node:fs";
+import { ipcMain, app } from "electron";
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 
 export default function GetLabelsFormats(): void {
   ipcMain.handle("get-labels-formats", async () => {
-    const path_to_templates = "zpl_templates";
+    try {
+      let templatesPath: string;
 
-    const filenames = readdirSync(path_to_templates);
+      if (app.isPackaged) {
+        templatesPath = path.join(process.resourcesPath, "zpl_templates");
+      } else {
+        templatesPath = path.join(app.getAppPath(), "zpl_templates");
+      }
 
-    const files = await Promise.all(
-      filenames.map(async (filename) => {
-        const zpl_template = await import("../../zpl_templates/" + filename);
-        const data = zpl_template.default;
-        return { name: filename, data: data };
-      }),
-    );
+      const filenames = await readdir(templatesPath);
 
-    return {
-      status: true,
-      message: "backend.labels.TEMPLATES_FOUND",
-      data: files,
-    };
+      const validFiles = filenames.filter(
+        (file) =>
+          !file.startsWith(".") &&
+          (file.endsWith(".zpl") || file.endsWith(".txt")),
+      );
+
+      const files = await Promise.all(
+        validFiles.map(async (filename) => {
+          const fullPath = path.join(templatesPath, filename);
+          const content = await readFile(fullPath, "utf-8");
+
+          return {
+            name: filename,
+            data: content,
+          };
+        }),
+      );
+
+      return {
+        status: true,
+        message: "backend.labels.TEMPLATES_FOUND",
+        data: files,
+      };
+    } catch (error) {
+      console.error("Błąd ładowania szablonów z: ", error);
+      return {
+        status: false,
+        message: "backend.labels.ERROR_LOADING_TEMPLATES",
+        error: error instanceof Error ? error.message : String(error),
+        data: [],
+      };
+    }
   });
 }

@@ -22,7 +22,6 @@ extraResources:
     to: 'zpl_templates'
     filter:
       - '**/*'
-
 win:
   executableName: MATZ Label Print App
   icon: icon.ico
