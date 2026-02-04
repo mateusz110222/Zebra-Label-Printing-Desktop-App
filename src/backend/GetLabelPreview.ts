@@ -26,12 +26,15 @@ export default function GetLabelPreview(): void {
           };
         }
         const useReprint =
-          (typeof date === "string" && date.trim() !== "") ||
-          (typeof serialNumber === "string" && serialNumber.trim() !== "");
+          (typeof serialNumber === "string" && serialNumber.trim() !== "") ||
+          (typeof date === "string" && date.trim() !== "");
 
-        const result = useReprint
-          ? await generateReprintZPL(part, 1, date, serialNumber)
-          : await generatePreviewZPL(part);
+        let result;
+        if (useReprint) {
+          result = await generateReprintZPL(part, date, serialNumber, 1);
+        } else {
+          result = await generatePreviewZPL(part);
+        }
 
         if (!result.status || !result.data) {
           return {
