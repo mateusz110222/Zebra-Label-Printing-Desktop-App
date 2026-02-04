@@ -1,4 +1,4 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
 // Custom APIs for renderer
@@ -20,3 +20,11 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.api = api;
 }
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  onUpdateAvailable: (callback: () => void) =>
+    ipcRenderer.on("update_available", callback),
+  onUpdateDownloaded: (callback: () => void) =>
+    ipcRenderer.on("update_downloaded", callback),
+  restartApp: () => ipcRenderer.send("restart_app"),
+});

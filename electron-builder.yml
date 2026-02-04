@@ -1,5 +1,5 @@
-appId: com.matz.labelprint
-productName: MATZ Label Print App
+appId: com.label.print.app
+productName: Label Print App
 copyright: "Copyright © 2026 MATZ Company"
 compression: maximum
 
@@ -67,4 +67,4 @@ npmRebuild: false
 
 publish:
   provider: generic
-  url: https://twoja-domena.pl/updates
+  url: https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/releases
