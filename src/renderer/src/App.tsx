@@ -1,4 +1,6 @@
+import React from "react";
 import { HashRouter as Router, Route, Routes } from "react-router-dom";
+
 import { Layout } from "./components/layout";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -7,7 +9,6 @@ import PrintView from "./views/PrintView";
 import LabelsFormats from "./views/LabelsFormats";
 import History from "./views/History";
 import Login from "./views/Login";
-import React from "react";
 import Reprint from "./views/Reprint";
 
 function App(): React.JSX.Element {
@@ -28,4 +29,5 @@ function App(): React.JSX.Element {
     </AuthProvider>
   );
 }
+
 export default App;

@@ -16,7 +16,7 @@ export default function CriticalErrorState({
   const displayTitle = title || t("config_view.critical_error");
 
   return (
-    <div className="p-8 font-sans text-slate-800 min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="p-8 font-sans text-slate-800 min-h-full flex items-center justify-center bg-gray-50">
       <div className="max-w-xl w-full bg-white border border-red-200 rounded-2xl p-8 text-center shadow-2xl">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mb-4">
           <svg

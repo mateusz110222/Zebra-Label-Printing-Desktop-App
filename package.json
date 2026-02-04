@@ -1,13 +1,26 @@
 {
-  "name": "matz-label-print-app",
+  "name": "label-print-app",
   "author": {
     "name": "Mateusz Zieliński",
     "email": "matzielinski@borgwarner.com"
   },
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Aplication for printing labels",
   "main": "./out/main/index.js",
   "homepage": "https://electron-vite.org",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "mateusz110222",
+      "repo": "Zebra-Label-Printing-Desktop-App"
+    }
+  ],
+  "win": {
+    "target": "nsis",
+    "publish": [
+      "github"
+    ]
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -28,7 +41,9 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.1.18",
+    "electron-log": "^5.4.3",
     "electron-store": "^11.0.2",
+    "electron-updater": "^6.7.3",
     "i18next": "^25.8.0",
     "i18next-http-backend": "^3.0.2",
     "ldapts": "^8.1.4",
