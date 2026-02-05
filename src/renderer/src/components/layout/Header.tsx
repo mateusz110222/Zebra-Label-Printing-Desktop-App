@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from "react";
-import SettingsMenu from "@renderer/components/common/SettingsMenu"; // <--- IMPORT
+import SettingsMenu from "@renderer/views/SettingsMenu"; // <--- IMPORT
 
 export default function Header(): React.JSX.Element {
   const { t } = useTranslation();
@@ -31,6 +31,7 @@ export default function Header(): React.JSX.Element {
           setIsLoading(false);
         }
       } catch (error) {
+        console.error(error);
         if (isMounted) {
           SetisOnline(false);
           Setmessage(t("header.status_error"));
@@ -104,7 +105,6 @@ export default function Header(): React.JSX.Element {
             </NavLink>
           )}
 
-          {/* Tutaj wstawiamy nasz nowy komponent */}
           <SettingsMenu />
         </div>
       </div>

@@ -8,7 +8,9 @@ export interface PrinterConfig {
   baudRate?: number;
 }
 
-export const store = new Store<{ printer: PrinterConfig }>({
+export const store = new Store<{
+  printer: PrinterConfig;
+}>({
   defaults: {
     printer: {
       type: "IP",

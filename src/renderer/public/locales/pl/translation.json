@@ -170,5 +170,20 @@
   "reprint": {
     "serialnumber": "Numer Seryjny",
     "date": "data"
+  },
+  "update": {
+    "restart_and_update": "Zrestartuj i zaktualizuj",
+    "checking": "Sprawdzanie...",
+    "check_update": "Sprawdź aktualizacje",
+    "latest_version": "Masz najnowszą wersję",
+    "error_occurred": "Wystąpił błąd",
+    "connection_error": "Błąd połączenia",
+    "downloading": "Pobieranie..."
+  },
+  "settings": {
+    "installed": "Zainstalowana:",
+    "latest": "Najnowsza wersja:",
+    "auto_update": "Automatyczna aktualizacja",
+    "settings": "Ustawienia"
   }
 }
