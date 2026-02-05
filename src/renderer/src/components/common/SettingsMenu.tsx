@@ -25,6 +25,34 @@ export default function SettingsMenu(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    const setupListeners = (): void => {
+      if (!window.electron) return;
+
+      window.electron.ipcRenderer.removeAllListeners("update_available");
+      window.electron.ipcRenderer.removeAllListeners("update_downloaded");
+
+      window.electron.ipcRenderer.on("update_available", () => {
+        console.log("Otrzymano sygnał: update_available");
+        setUpdateStatus("available");
+      });
+
+      window.electron.ipcRenderer.on("update_downloaded", () => {
+        console.log("Otrzymano sygnał: update_downloaded");
+        // Tu można zmienić status na 'ready' jeśli chcesz przycisk "Zrestartuj"
+      });
+    };
+
+    setupListeners();
+
+    return () => {
+      if (window.electron) {
+        window.electron.ipcRenderer.removeAllListeners("update_available");
+        window.electron.ipcRenderer.removeAllListeners("update_downloaded");
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchVersions = async (): Promise<void> => {
       if (!window.electron) return;
 
@@ -38,24 +66,25 @@ export default function SettingsMenu(): React.JSX.Element {
       try {
         const ghVer =
           await window.electron.ipcRenderer.invoke("get-github-version");
-
         if (ghVer && ghVer !== "Error") {
           setGithubVersion(ghVer);
         } else {
           setGithubVersion("-");
         }
       } catch (e) {
-        console.error("Błąd pobierania wersji (IPC)", e);
+        console.error("IPC GitHub Version Error", e);
         setGithubVersion("-");
       }
     };
 
     if (isMenuOpen) {
       setErrorMessage("");
-      setUpdateStatus("");
+      if (updateStatus !== "available") {
+        setUpdateStatus("");
+      }
       fetchVersions();
     }
-  }, [isMenuOpen]);
+  }, [isMenuOpen, updateStatus]);
 
   const handleCheckForUpdates = async (): Promise<void> => {
     setUpdateStatus("checking");
@@ -67,7 +96,12 @@ export default function SettingsMenu(): React.JSX.Element {
       }
       const result =
         await window.electron.ipcRenderer.invoke("check-for-updates");
-      setUpdateStatus(result?.updateAvailable ? "available" : "latest");
+
+      if (result?.updateAvailable) {
+        setUpdateStatus("available");
+      } else {
+        setUpdateStatus("latest");
+      }
     } catch (error: unknown) {
       console.error(error);
       setUpdateStatus("error");
