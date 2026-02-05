@@ -4,7 +4,7 @@
     "name": "Mateusz Zieliński",
     "email": "matzielinski@borgwarner.com"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Aplication for printing labels",
   "main": "./out/main/index.js",
   "homepage": "https://electron-vite.org",
@@ -41,6 +41,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@types/semver": "^7.7.1",
     "electron-log": "^5.4.3",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.7.3",
