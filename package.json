@@ -4,7 +4,7 @@
     "name": "Mateusz Zieliński",
     "email": "matzielinski@borgwarner.com"
   },
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Aplication for printing labels",
   "main": "./out/main/index.js",
   "homepage": "https://electron-vite.org",
