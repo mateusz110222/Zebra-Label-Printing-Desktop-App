@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
+
 import GetParts from "../backend/GetParts";
 import PrintLabel from "../backend/PrintLabel";
 import GetSerialPorts from "../backend/GetSerialPorts";
@@ -15,6 +16,9 @@ import { closeDatabase } from "../backend/utils/DatabaseConfig";
 import GetLabelsFormats from "../backend/GetLabelsFormats";
 import GetGithubVersions from "../backend/GetGithubVersions";
 import UpdatesHandler from "../backend/UpdatesHandler";
+import Store from "electron-store";
+
+const Stores = new Store();
 
 let mainWindow: BrowserWindow;
 
@@ -48,6 +52,7 @@ function createWindow(): void {
   }
 }
 
+// Rejestracja funkcji backendowych
 GetParts();
 PrintLabel();
 TestPrinterConnection();
@@ -69,6 +74,12 @@ app.whenReady().then(() => {
 
   createWindow();
   UpdatesHandler(mainWindow);
+
+  const isAutoUpdateEnabled = Stores.get("autoUpdate", true);
+
+  if (isAutoUpdateEnabled) {
+    UpdatesHandler(mainWindow);
+  }
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -2,9 +2,7 @@ import { app, ipcMain } from "electron";
 import { autoUpdater, UpdateCheckResult } from "electron-updater";
 import log from "electron-log";
 import { clean, gt } from "semver";
-
-autoUpdater.logger = log;
-log.transports.file.level = "debug";
+import { store } from "./store";
 
 export default function UpdatesHandler(
   mainWindow: Electron.BrowserWindow,
@@ -12,6 +10,13 @@ export default function UpdatesHandler(
   if (!app.isPackaged) {
     autoUpdater.forceDevUpdateConfig = true;
   }
+  ipcMain.handle("get-settings", (_event, key) => {
+    return store.get(key);
+  });
+
+  ipcMain.on("set-settings", (_event, key, value) => {
+    store.set(key, value);
+  });
 
   if (app.isPackaged) autoUpdater.autoInstallOnAppQuit = true;
 

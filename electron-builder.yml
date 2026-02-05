@@ -66,5 +66,6 @@ appImage:
 npmRebuild: false
 
 publish:
-  provider: generic
-  url: https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/releases
+  provider: github
+  owner: mateusz110222
+  repo: Zebra-Label-Printing-Desktop-App
