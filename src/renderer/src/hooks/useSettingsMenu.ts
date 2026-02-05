@@ -23,13 +23,28 @@ export default function useSettingsMenu(
   menuRef: React.RefObject<HTMLDivElement | null>,
 ): useSettingsMenuResponse {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [autoUpdate, setAutoUpdate] = useState(true);
   const [updateStatus, setUpdateStatus] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [progressPercent, setProgressPercent] = useState(0);
 
   const [localVersion, setLocalVersion] = useState<string>("-");
   const [githubVersion, setGithubVersion] = useState<string>("-");
+  const [autoUpdate, setAutoUpdateEnabled] = useState(true);
+
+  useEffect(() => {
+    const loadSettings = async (): Promise<void> => {
+      const savedState = await window.electron.ipcRenderer.invoke(
+        "get-settings",
+        "autoUpdate",
+      );
+
+      if (savedState !== undefined) {
+        setAutoUpdateEnabled(savedState);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     const setupListeners = (): void => {
@@ -137,11 +152,10 @@ export default function useSettingsMenu(
   };
 
   const toggleAutoUpdate = async (): Promise<void> => {
-    const newValue = !autoUpdate;
-    setAutoUpdate(newValue);
-    if (window.electron) {
-      await window.electron.ipcRenderer.invoke("set-auto-update", newValue);
-    }
+    const newState = !autoUpdate;
+    setAutoUpdateEnabled(newState);
+
+    window.electron.ipcRenderer.send("set-settings", "autoUpdate", newState);
   };
 
   const handleRestart = (): void => {

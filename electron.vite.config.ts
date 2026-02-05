@@ -1,5 +1,5 @@
 import { resolve } from "path";
-import { defineConfig, loadEnv } from "electron-vite"; // USUNIĘTO: externalizeDepsPlugin
+import { defineConfig, loadEnv } from "electron-vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
