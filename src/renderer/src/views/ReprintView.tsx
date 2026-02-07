@@ -12,12 +12,13 @@ import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
 import { useTheme } from "@renderer/context/ThemeContext";
+import ReprintUnitDetails from "@renderer/components/print/ReprintUnitDetails";
 
-export function PrintView(): React.JSX.Element {
+export function ReprintView(): React.JSX.Element {
   const { t } = useTranslation();
   const { theme } = useTheme();
 
-  const { data, status, actions, isValid } = usePrintLabel("print");
+  const { data, status, actions, isValid } = usePrintLabel("reprint");
 
   if (status.criticalError) {
     return (
@@ -83,7 +84,15 @@ export function PrintView(): React.JSX.Element {
                   />
                 )}
 
-                {/* Label Preview */}
+                {data.selectedPart && (
+                  <ReprintUnitDetails
+                    date={data.date}
+                    onchangeDate={actions.handleDateChange}
+                    serialNumber={data.serialNumber}
+                    onchangeSerialNumber={actions.handleSerialNumberChange}
+                  />
+                )}
+
                 <LabelPreview
                   isLoading={status.isPreviewLoading}
                   previewImage={data.previewImage}

@@ -29,17 +29,16 @@ export default function ConnectionDisplayCard({
   const { t } = useTranslation();
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
       <div className="p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             {/* Connection icon */}
             <div
-              className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner ${
-                connectionType === "IP"
-                  ? "bg-indigo-50 text-indigo-600"
-                  : "bg-orange-50 text-orange-600"
-              }`}
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner ${connectionType === "IP"
+                  ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
+                  : "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
+                }`}
             >
               {connectionType === "IP" ? (
                 <FiWifi className="text-5xl" />
@@ -50,25 +49,25 @@ export default function ConnectionDisplayCard({
 
             {/* Connection details */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">
+              <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
                 {t("config_view.active_connection")}
               </h3>
               {connectionType === "IP" ? (
                 <div>
-                  <p className="text-3xl font-bold text-slate-800 font-mono tracking-tight">
+                  <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono tracking-tight">
                     {ipAddress}
                   </p>
-                  <p className="text-slate-500 font-medium mt-1 flex items-center gap-2">
+                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-2">
                     <span className="text-sm">{t("config_view.port")}:</span>
                     <span className="font-mono">{port}</span>
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-3xl font-bold text-slate-800 font-mono tracking-tight">
+                  <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono tracking-tight">
                     {comPort}
                   </p>
-                  <p className="text-slate-500 font-medium mt-1 flex items-center gap-2">
+                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-2">
                     <span className="text-sm">
                       {t("config_view.baud_rate")}:
                     </span>
@@ -81,18 +80,18 @@ export default function ConnectionDisplayCard({
 
           {/* Status badge */}
           <div className="hidden md:block">
-            <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+            <span className="inline-flex items-center rounded-full bg-green-50 dark:bg-green-900/30 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30">
               ● {t("config_view.configured")}
             </span>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-end gap-4">
+        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-4">
           <button
             onClick={onTest}
             disabled={isProcessing}
-            className="group flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-slate-600 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 transition-all duration-200"
+            className="group flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-slate-200 dark:border-slate-600 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all duration-200"
           >
             {isProcessing ? (
               <svg

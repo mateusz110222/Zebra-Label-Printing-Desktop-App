@@ -2,21 +2,13 @@ import { app, ipcMain } from "electron";
 import { autoUpdater, UpdateCheckResult } from "electron-updater";
 import log from "electron-log";
 import { clean, gt } from "semver";
-import { store } from "./store";
 
 export default function UpdatesHandler(
-  mainWindow: Electron.BrowserWindow,
+  mainWindow: Electron.BrowserWindow
 ): void {
   if (!app.isPackaged) {
     autoUpdater.forceDevUpdateConfig = true;
   }
-  ipcMain.handle("get-settings", (_event, key) => {
-    return store.get(key);
-  });
-
-  ipcMain.on("set-settings", (_event, key, value) => {
-    store.set(key, value);
-  });
 
   if (app.isPackaged) autoUpdater.autoInstallOnAppQuit = true;
 
@@ -34,7 +26,9 @@ export default function UpdatesHandler(
         }
       })
       .catch((err) => {
-        log.error("Error checking for updates on startup:", err);
+        if (!app.isPackaged) {
+          log.error("Error checking for updates on startup:", err);
+        }
       });
   });
 
@@ -64,7 +58,9 @@ export default function UpdatesHandler(
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      log.error("Check for updates failed:", errorMsg);
+      if (!app.isPackaged) {
+        log.error("Check for updates failed:", errorMsg);
+      }
       return {
         status: false,
         message: errorMsg,

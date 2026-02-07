@@ -1,25 +1,9 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-
-export interface Part {
-  Part_Number: string;
-  Part_Description: string;
-  Serial_Prefix: string;
-  Label_Format: string;
-}
-
-export interface UiMessage {
-  type: "success" | "error";
-  text: string;
-  details?: string;
-}
-
-export interface PartOption {
-  value: string;
-  label: string;
-}
+import { Part, UiMessage, PartOption } from "../types";
 
 interface UsePrintLabelStatus {
+  isLoading: boolean;
   isPrinting: boolean;
   isPreviewLoading: boolean;
   criticalError: string | null;
@@ -67,6 +51,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
   // Status states
   const [status, setStatus] = useState<UsePrintLabelStatus>({
+    isLoading: true,
     isPrinting: false,
     isPreviewLoading: false,
     criticalError: null,
@@ -98,11 +83,13 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
             label: `${part.Part_Description} (${part.Serial_Prefix})`,
           })),
         );
+        setStatus((prev) => ({ ...prev, isLoading: false }));
       } catch (err) {
         if (!isMounted) return;
         const errMsg = err instanceof Error ? err.message : String(err);
         setStatus((prev) => ({
           ...prev,
+          isLoading: false,
           criticalError: `${t("print_view.error_fetching_parts")}: ${errMsg}`,
         }));
       }
@@ -113,6 +100,15 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       isMounted = false;
     };
   }, [t]);
+
+  const extractError = (err: unknown): { message: string; details?: string } => {
+    const message = err instanceof Error ? err.message : String(err);
+    const details =
+      typeof err === "object" && err !== null && "rawError" in err
+        ? (err as { rawError: string }).rawError
+        : undefined;
+    return { message, details };
+  };
 
   async function generateLabelPreview(
     part: Part,
@@ -146,18 +142,13 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         }));
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const rawError =
-        typeof err === "object" && err !== null && "rawError" in err
-          ? (err as { rawError: string }).rawError
-          : undefined;
-
+      const { message, details } = extractError(err);
       setStatus((prev) => ({
         ...prev,
         uiMessage: {
           type: "error",
-          text: t(errorMessage),
-          details: rawError,
+          text: t(message),
+          details,
         },
       }));
     } finally {
@@ -165,7 +156,6 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   }
 
-  // Handle part selection and preview loading
   const handleSelectChange = async (
     option: PartOption | null,
   ): Promise<void> => {
@@ -193,7 +183,12 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const handleDateChange = async (date: string): Promise<void> => {
     setDate(date);
     if (selectedPart) {
-      await generateLabelPreview(selectedPart, date, serialNumber);
+      if (mode === "reprint") {
+        setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
+        await generateLabelPreview(selectedPart, date, serialNumber);
+      } else {
+        await generateLabelPreview(selectedPart, date, serialNumber);
+      }
     }
   };
 
@@ -202,15 +197,19 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   ): Promise<void> => {
     setSerialNumber(serialNumber);
     if (selectedPart) {
-      await generateLabelPreview(selectedPart, date, serialNumber);
+      if (mode === "reprint") {
+        setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
+        await generateLabelPreview(selectedPart, date, serialNumber);
+      } else {
+        await generateLabelPreview(selectedPart, date, serialNumber);
+      }
     }
   };
 
-  // Handle quantity input
   const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const val = e.target.value;
     if (val === "") {
-      setLabelQuantity("");
+      setLabelQuantity(1);
       return;
     }
     const num = parseInt(val);
@@ -219,7 +218,6 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   };
 
-  // Handle print submission
   const handlePrint = async (e: ChangeEvent): Promise<void> => {
     e.preventDefault();
     setStatus((prev) => ({ ...prev, uiMessage: null }));
@@ -233,15 +231,15 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       const response =
         mode === "reprint"
           ? await window.electron.ipcRenderer.invoke("reprint-label", {
-              part: selectedPart,
-              quantity: qty,
-              date: date,
-              serialNumber: serialNumber,
-            })
+            part: selectedPart,
+            quantity: qty,
+            date: date,
+            serialNumber: serialNumber,
+          })
           : await window.electron.ipcRenderer.invoke("print-label", {
-              part: selectedPart,
-              quantity: qty,
-            });
+            part: selectedPart,
+            quantity: qty,
+          });
 
       if (!response || response.status === false) {
         setStatus((prev) => ({
@@ -268,18 +266,13 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         },
       }));
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const rawError =
-        typeof err === "object" && err !== null && "rawError" in err
-          ? (err as { rawError: string }).rawError
-          : undefined;
-
+      const { message, details } = extractError(err);
       setStatus((prev) => ({
         ...prev,
         uiMessage: {
           type: "error",
-          text: t(errorMessage),
-          details: rawError,
+          text: t(message),
+          details,
         },
       }));
     } finally {
@@ -287,12 +280,10 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   };
 
-  // Clear UI message
   const clearUiMessage = (): void => {
     setStatus((prev) => ({ ...prev, uiMessage: null }));
   };
 
-  // Validation
   const isValid =
     selectedPart !== null &&
     typeof labelQuantity === "number" &&

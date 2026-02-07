@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { UiMessage } from "@renderer/hooks";
-import { LabelFormatsResponse } from "@renderer/views/LabelsFormats";
+import { UiMessage, LabelFormatsResponse } from "../types";
 
 interface useLabelsFormatsResponse {
   data: {
+    isLoading: boolean;
     criticalError: string | undefined;
     uiMessage: UiMessage | null;
     labelsFormats: LabelFormatsResponse[];
@@ -16,7 +16,8 @@ interface useLabelsFormatsResponse {
   };
 }
 
-export default function useLabelsFormats(): useLabelsFormatsResponse {
+export function useLabelsFormats(): useLabelsFormatsResponse {
+  const [isLoading, setIsLoading] = useState(true);
   const [criticalError, setCriticalError] = useState<string | undefined>("");
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
@@ -25,10 +26,14 @@ export default function useLabelsFormats(): useLabelsFormatsResponse {
   );
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchFormats = async (): Promise<void> => {
       try {
         const response =
           await window.electron.ipcRenderer.invoke("get-labels-formats");
+
+        if (!isMounted) return;
 
         if (!response.status) {
           setCriticalError(response.message || String(response));
@@ -36,11 +41,18 @@ export default function useLabelsFormats(): useLabelsFormatsResponse {
           setLabelsFormats(response.data);
         }
       } catch (error) {
+        if (!isMounted) return;
         const errMsg = error instanceof Error ? error.message : String(error);
         setCriticalError(errMsg);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
     fetchFormats();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleCardClick = (formatName: string): void => {
@@ -49,6 +61,7 @@ export default function useLabelsFormats(): useLabelsFormatsResponse {
 
   return {
     data: {
+      isLoading,
       criticalError,
       uiMessage,
       labelsFormats,

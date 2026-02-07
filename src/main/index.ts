@@ -12,13 +12,12 @@ import GetPrinterConfig from "../backend/GetPrinterConfig";
 import HandleLogin from "../backend/HandleLogin";
 import IsOnline from "../backend/IsOnline";
 import GetLabelPreview from "../backend/GetLabelPreview";
-import { closeDatabase } from "../backend/utils/DatabaseConfig";
+import { closeDatabase } from "../backend/DatabaseConfig";
 import GetLabelsFormats from "../backend/GetLabelsFormats";
 import GetGithubVersions from "../backend/GetGithubVersions";
 import UpdatesHandler from "../backend/UpdatesHandler";
-import Store from "electron-store";
+import SettingsHandler from "../backend/SettingsHandler";
 
-const Stores = new Store();
 
 let mainWindow: BrowserWindow;
 
@@ -52,7 +51,6 @@ function createWindow(): void {
   }
 }
 
-// Rejestracja funkcji backendowych
 GetParts();
 PrintLabel();
 TestPrinterConnection();
@@ -64,6 +62,7 @@ GetGithubVersions();
 HandleLogin();
 GetLabelPreview();
 GetLabelsFormats();
+SettingsHandler();
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.electron");
@@ -74,12 +73,6 @@ app.whenReady().then(() => {
 
   createWindow();
   UpdatesHandler(mainWindow);
-
-  const isAutoUpdateEnabled = Stores.get("autoUpdate", true);
-
-  if (isAutoUpdateEnabled) {
-    UpdatesHandler(mainWindow);
-  }
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

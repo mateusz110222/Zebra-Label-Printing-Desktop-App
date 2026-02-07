@@ -21,11 +21,10 @@ export default function SubmitButton({
     <button
       type="submit"
       disabled={isDisabled || isLoading}
-      className={`w-full sm:w-auto inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${
-        !isDisabled && !isLoading
-          ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95"
-          : "bg-slate-300 cursor-not-allowed"
-      }`}
+      className={`w-full sm:w-auto inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold shadow-sm transition-all ${!isDisabled && !isLoading
+          ? "bg-indigo-600 hover:bg-indigo-500 text-white active:scale-95"
+          : "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+        }`}
     >
       {isLoading ? (
         <>

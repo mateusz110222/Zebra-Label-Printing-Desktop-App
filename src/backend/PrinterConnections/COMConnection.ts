@@ -3,7 +3,7 @@ import {
   ConnectionResult,
   PrinterConfig,
   PrinterConnectionBase,
-} from "../utils/PrinterConnectionBase";
+} from "../PrinterConnectionBase";
 
 class COMConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {
@@ -54,7 +54,7 @@ class COMConnectionImpl extends PrinterConnectionBase {
 
         port.on("error", () => {
           if (port.isOpen) {
-            port.close(() => {});
+            port.close(() => { });
           }
         });
 

@@ -36,7 +36,7 @@ export default function UpdateButtonsAndMessage({
         <button
           onClick={UpdateOnClick}
           disabled={data.updateStatus === "checking"}
-          className="w-full h-9 bg-slate-800 text-white hover:bg-slate-700 disabled:bg-slate-400 text-xs py-2 px-3 rounded transition-colors flex justify-center items-center gap-2"
+          className="w-full h-9 bg-slate-800 dark:bg-slate-700 text-white hover:bg-slate-700 dark:hover:bg-slate-600 disabled:bg-slate-400 dark:disabled:bg-slate-500 text-xs py-2 px-3 rounded transition-colors flex justify-center items-center gap-2 shadow-sm border border-transparent dark:border-slate-600"
         >
           {data.updateStatus === "checking" && (
             <BiLoaderAlt className="animate-spin h-4 w-4 text-white" />
