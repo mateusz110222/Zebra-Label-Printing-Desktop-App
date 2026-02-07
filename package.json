@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App.git"
   },
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "Aplication for printing labels",
   "main": "./out/main/index.js",
   "publish": [
