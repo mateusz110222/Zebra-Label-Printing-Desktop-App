@@ -19,16 +19,16 @@ export default function StatusBanner({
 
   return (
     <div
-      className={`mb-6 rounded-xl border p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 flex items-start gap-4 ${
-        isSuccess
-          ? "bg-green-50 border-green-200 text-green-900"
-          : "bg-red-50 border-red-200 text-red-900"
-      }`}
+      className={`mb-6 rounded-xl border p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300 flex items-start gap-4 ${isSuccess
+          ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100"
+          : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100"
+        }`}
     >
       <div
-        className={`mt-0.5 p-1.5 rounded-full shrink-0 ${
-          isSuccess ? "bg-green-200 text-green-700" : "bg-red-200 text-red-700"
-        }`}
+        className={`mt-0.5 p-1.5 rounded-full shrink-0 ${isSuccess
+            ? "bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-300"
+            : "bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-300"
+          }`}
       >
         {isSuccess ? (
           <svg
@@ -66,7 +66,7 @@ export default function StatusBanner({
         </h3>
         <p className="font-medium mt-1">{message}</p>
         {details && (
-          <p className="mt-2 text-xs font-mono bg-white/50 p-2 rounded border border-black/5 break-all">
+          <p className="mt-2 text-xs font-mono bg-white/50 dark:bg-slate-800/50 p-2 rounded border border-black/5 dark:border-white/10 break-all">
             {details}
           </p>
         )}

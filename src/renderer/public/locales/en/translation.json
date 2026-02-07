@@ -13,7 +13,8 @@
     "config": "Configuration",
     "history": "History",
     "print_label": "Print Label",
-    "templates": "Templates"
+    "templates": "Templates",
+    "reprint": "Reprint"
   },
   "header": {
     "printer_online": "Printer Online",
@@ -165,5 +166,35 @@
       "preview_success": "Label preview generated successfully",
       "print_success": "Label generated for printing"
     }
+  },
+  "reprint": {
+    "serialnumber": "Serial Number",
+    "date": "Date"
+  },
+  "update": {
+    "restart_and_update": "Restart and Update",
+    "checking": "Checking...",
+    "check_update": "Check for Updates",
+    "latest_version": "You have the latest version",
+    "error_occurred": "An error occurred",
+    "connection_error": "Connection error",
+    "downloading": "Downloading..."
+  },
+  "settings": {
+    "installed": "Installed:",
+    "latest": "Latest version:",
+    "auto_update": "Automatic update",
+    "settings": "Settings",
+    "theme": "Theme",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "Auto"
+  },
+  "label_formats": {
+    "title": "Label Templates",
+    "subtitle": "Manage and browse available ZPL print formats.",
+    "no_templates": "No templates",
+    "no_templates_message": "No files found in the templates folder.",
+    "found": "Found"
   }
 }

@@ -32,18 +32,24 @@ export default function useSettingsMenu(
   const [autoUpdate, setAutoUpdateEnabled] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadSettings = async (): Promise<void> => {
       const savedState = await window.electron.ipcRenderer.invoke(
         "get-settings",
         "autoUpdate",
       );
 
-      if (savedState !== undefined) {
+      if (isMounted && savedState !== undefined) {
         setAutoUpdateEnabled(savedState);
       }
     };
 
     loadSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -95,30 +101,38 @@ export default function useSettingsMenu(
   }, [menuRef, isMenuOpen]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchVersions = async (): Promise<void> => {
       try {
         const ver = await window.electron.ipcRenderer.invoke("get-app-version");
-        setLocalVersion(ver);
+        if (isMounted) setLocalVersion(ver);
       } catch (e) {
         console.warn("Failed to get app version", e);
-        setLocalVersion("0.0.0");
+        if (isMounted) setLocalVersion("0.0.0");
       }
 
       try {
         const ghVer =
           await window.electron.ipcRenderer.invoke("get-github-version");
-        if (ghVer && ghVer !== "Error") {
-          setGithubVersion(ghVer);
-        } else {
-          setGithubVersion("-");
+        if (isMounted) {
+          if (ghVer && ghVer !== "Error") {
+            setGithubVersion(ghVer);
+          } else {
+            setGithubVersion("-");
+          }
         }
       } catch (e) {
-        setGithubVersion("-");
+        if (isMounted) setGithubVersion("-");
         console.log("GitHub version check skipped or failed:", e);
       }
     };
 
     fetchVersions();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleCheckForUpdates = async (): Promise<void> => {

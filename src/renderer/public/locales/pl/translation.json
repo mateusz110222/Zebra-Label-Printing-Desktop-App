@@ -14,7 +14,8 @@
     "history": "Historia",
     "print_label": "Wydrukuj etykietę",
     "templates": "Szablony",
-    "reprint": "Wydrukuj ponownie"
+    "reprint": "Wydrukuj ponownie",
+    "locked": "Zablokowane"
   },
   "header": {
     "printer_online": "Drukarka Online",
@@ -98,7 +99,9 @@
     "login_error": "Błąd podczas logowania się",
     "error": "Błąd Logowania",
     "logging_in": "Logowanie...",
-    "footer_info": "Zaloguj się kontem firmowym Active Directory"
+    "footer_info": "Zaloguj się kontem firmowym Active Directory",
+    "show_password": "Pokaż hasło",
+    "hide_password": "Ukryj hasło"
   },
   "status_banner": {
     "success": "Sukces",
@@ -184,6 +187,17 @@
     "installed": "Zainstalowana:",
     "latest": "Najnowsza wersja:",
     "auto_update": "Automatyczna aktualizacja",
-    "settings": "Ustawienia"
+    "settings": "Ustawienia",
+    "theme": "Motyw",
+    "theme_light": "Jasny",
+    "theme_dark": "Ciemny",
+    "theme_system": "Auto"
+  },
+  "label_formats": {
+    "title": "Szablony Etykiet",
+    "subtitle": "Zarządzaj i przeglądaj dostępne formaty wydruku ZPL.",
+    "no_templates": "Brak szablonów",
+    "no_templates_message": "Nie znaleziono żadnych plików w folderze szablonów.",
+    "found": "Znaleziono"
   }
 }

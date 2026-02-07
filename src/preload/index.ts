@@ -1,11 +1,7 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
-const api = {
-  getSetting: (key: string) => ipcRenderer.invoke("get-settings", key),
-  setSetting: (key: string, value: never) =>
-    ipcRenderer.send("set-settings", key, value),
-};
+const api = {};
 
 if (process.contextIsolated) {
   try {
@@ -20,11 +16,3 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.api = api;
 }
-
-contextBridge.exposeInMainWorld("electronAPI", {
-  onUpdateAvailable: (callback: () => void) =>
-    ipcRenderer.on("update_available", callback),
-  onUpdateDownloaded: (callback: () => void) =>
-    ipcRenderer.on("update_downloaded", callback),
-  restartApp: () => ipcRenderer.send("restart_app"),
-});

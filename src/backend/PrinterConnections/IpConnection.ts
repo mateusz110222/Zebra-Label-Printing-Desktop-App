@@ -3,7 +3,7 @@ import {
   PrinterConnectionBase,
   ConnectionResult,
   PrinterConfig,
-} from "../utils/PrinterConnectionBase";
+} from "../PrinterConnectionBase";
 
 class IpConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {

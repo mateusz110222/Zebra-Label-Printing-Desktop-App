@@ -52,6 +52,48 @@ export const getDatabase = (): DatabasePool => {
   }
 };
 
+/**
+ * Execute a database operation with retry logic and exponential backoff.
+ * @param operation - The async operation to execute
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @param baseDelay - Base delay in milliseconds (default: 1000)
+ * @returns The result of the operation
+ */
+export async function executeWithRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Don't retry on non-transient errors
+      const errorMessage = lastError.message.toLowerCase();
+      if (
+        errorMessage.includes("access denied") ||
+        errorMessage.includes("unknown database") ||
+        errorMessage.includes("backend.")
+      ) {
+        throw lastError;
+      }
+
+      if (attempt === maxRetries) {
+        throw lastError;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError || new Error("Max retries exceeded");
+}
+
 export const closeDatabase = async (): Promise<void> => {
   if (dbPool) {
     try {

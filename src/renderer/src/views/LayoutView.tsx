@@ -1,15 +1,14 @@
 import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import { SidebarView, HeaderView } from "./index";
 import React from "react";
 
-export default function Layout(): React.JSX.Element {
+export function LayoutView(): React.JSX.Element {
   return (
-    <div className="flex h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
-      <Sidebar />
+    <div className="flex h-screen bg-gray-100 dark:bg-slate-900 text-gray-800 dark:text-slate-100 font-sans overflow-hidden">
+      <SidebarView />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <Header />
+        <HeaderView />
 
         <main className="flex-1 h-full overflow-y-auto">
           <Outlet />

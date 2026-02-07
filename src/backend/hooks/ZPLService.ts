@@ -1,6 +1,6 @@
 import GetJulianDate from "./GetJulianDate";
 import { calculateSerial, fillZplTemplate } from "./LabelProcessor";
-import { getDatabase } from "../utils/DatabaseConfig";
+import { getDatabase } from "../DatabaseConfig";
 import { Pool, RowDataPacket } from "mysql2/promise";
 import { app } from "electron";
 import path from "node:path";
@@ -138,7 +138,7 @@ export async function generateReprintZPL(
     const pool = getDbPool();
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT st.name as type_name
+      `SELECT st.name as type_name, f.next
        FROM family f
               LEFT JOIN type st ON f.type_fk = st.pk
        WHERE f.name = ?`,
@@ -153,11 +153,14 @@ export async function generateReprintZPL(
       };
     }
 
-    const { type_name } = rows[0];
+    const { type_name, next } = rows[0];
     let fullBatchZpl = "";
 
+    // If serialNumber is "0" (placeholder), use next serial from DB instead
+    const baseSerial = serialNumber === "0" ? String(next) : serialNumber;
+
     for (let i = 0; i < quantity; i++) {
-      const currentSerial = calculateSerial(serialNumber, i, type_name);
+      const currentSerial = calculateSerial(baseSerial, i, type_name);
       const printData = {
         PARTNUM: part.Part_Number,
         SERIALPREFIX: part.Serial_Prefix,

@@ -30,8 +30,10 @@ export default function GetLabelPreview(): void {
           (typeof date === "string" && date.trim() !== "");
 
         let result;
-        if (useReprint) {
-          result = await generateReprintZPL(part, date, serialNumber, 1);
+        if (useReprint || (serialNumber === "0")) {
+          const safeDate = date || new Date().toISOString().split("T")[0];
+          const safeSN = serialNumber || "0";
+          result = await generateReprintZPL(part, safeDate, safeSN, 1);
         } else {
           result = await generatePreviewZPL(part);
         }
