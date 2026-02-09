@@ -1,15 +1,13 @@
 import React from "react";
 import { BsFileEarmarkCode } from "react-icons/bs";
-import { MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
+import { MdKeyboardArrowUp } from "react-icons/md";
 import { LabelFormatsResponse } from "../../types";
 
 export const LabelCard = ({
   format,
-  isExpanded,
   onClick,
 }: {
   format: LabelFormatsResponse;
-  isExpanded: boolean;
   onClick: () => void;
 }): React.JSX.Element => {
   const displayName = format.name.replace(/\.[^/.]+$/, "");
@@ -34,7 +32,9 @@ export const LabelCard = ({
             <BsFileEarmarkCode size={24} />
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">{displayName}</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-lg">
+              {displayName}
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
               ZPL Template
             </p>
@@ -43,30 +43,9 @@ export const LabelCard = ({
 
         <div className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
           {/* Strzałki */}
-          {isExpanded ? (
-            <MdKeyboardArrowUp size={24} />
-          ) : (
-            <MdKeyboardArrowDown size={24} />
-          )}
+          <MdKeyboardArrowUp size={24} />
         </div>
       </div>
-
-      {/* Rozwijany Code Block */}
-      {isExpanded && (
-        <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-900 p-4 animate-in slide-in-from-top-2 duration-200">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-slate-400 uppercase tracking-wider font-bold">
-              Source Code
-            </span>
-            <span className="text-xs text-slate-500 font-mono">
-              {format.data.length} chars
-            </span>
-          </div>
-          <pre className="text-xs font-mono text-green-400 overflow-x-auto whitespace-pre-wrap break-all max-h-60 scrollbar-thin scrollbar-thumb-slate-700">
-            <code>{format.data}</code>
-          </pre>
-        </div>
-      )}
     </div>
   );
 };

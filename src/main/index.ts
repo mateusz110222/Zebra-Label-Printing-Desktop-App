@@ -18,7 +18,6 @@ import GetGithubVersions from "../backend/GetGithubVersions";
 import UpdatesHandler from "../backend/UpdatesHandler";
 import SettingsHandler from "../backend/SettingsHandler";
 
-
 let mainWindow: BrowserWindow;
 
 function createWindow(): void {
@@ -73,6 +72,23 @@ app.whenReady().then(() => {
 
   createWindow();
   UpdatesHandler(mainWindow);
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.includes("#/preview")) {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          frame: false,
+          autoHideMenuBar: true,
+          fullscreenable: false,
+          webPreferences: {
+            preload: join(__dirname, "../preload/index.js"),
+          },
+        },
+      };
+    }
+    return { action: "deny" };
+  });
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

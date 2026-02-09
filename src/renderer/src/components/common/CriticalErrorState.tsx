@@ -16,11 +16,11 @@ export default function CriticalErrorState({
   const displayTitle = title || t("config_view.critical_error");
 
   return (
-    <div className="p-8 font-sans text-slate-800 min-h-full flex items-center justify-center bg-gray-50">
-      <div className="max-w-xl w-full bg-white border border-red-200 rounded-2xl p-8 text-center shadow-2xl">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mb-4">
+    <div className="p-8 font-sans text-slate-800 dark:text-slate-200 min-h-full flex items-center justify-center bg-gray-50 dark:bg-slate-950 transition-colors duration-200">
+      <div className="max-w-xl w-full bg-white dark:bg-slate-900 border border-red-100 dark:border-red-900/30 rounded-2xl p-8 text-center shadow-xl dark:shadow-red-900/5 transition-all">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20 mb-4 ring-8 ring-red-50 dark:ring-red-900/10">
           <svg
-            className="h-8 w-8 text-red-600"
+            className="h-8 w-8 text-red-600 dark:text-red-400"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="2"
@@ -33,13 +33,13 @@ export default function CriticalErrorState({
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
           {displayTitle}
         </h2>
-        <p className="text-slate-500 mb-6">{message}</p>
+        <p className="text-slate-500 dark:text-slate-400 mb-6">{message}</p>
         <button
           onClick={onRetry}
-          className="w-full px-4 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition active:scale-95"
+          className="w-full px-4 py-3 bg-red-600 dark:bg-red-600/90 text-white font-semibold rounded-lg hover:bg-red-700 dark:hover:bg-red-600 transition shadow-lg shadow-red-600/20 active:scale-[0.98]"
         >
           {t("print_view.Try_again")}
         </button>

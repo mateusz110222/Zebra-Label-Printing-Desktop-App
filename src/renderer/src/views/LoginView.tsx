@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { FiEye, FiEyeOff, FiLoader } from "react-icons/fi";
 import { UiMessage } from "../types";
 
+import { extractError } from "../utils/errorUtils";
+
 export function LoginView(): React.JSX.Element {
   const { t } = useTranslation();
   const { setLogin } = useAuth();
@@ -59,15 +61,6 @@ export function LoginView(): React.JSX.Element {
     setIsProcessing(false);
   };
 
-  const extractError = (err: unknown): { message: string; details?: string } => {
-    const message = err instanceof Error ? err.message : String(err);
-    const details =
-      typeof err === "object" && err !== null && "rawError" in err
-        ? (err as { rawError: string }).rawError
-        : undefined;
-    return { message, details };
-  };
-
   const isValid = login.length > 0 && password.length > 0;
 
   return (
@@ -78,7 +71,9 @@ export function LoginView(): React.JSX.Element {
           <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
             {t("login.title")}
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-2">{t("login.subtitle")}</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">
+            {t("login.subtitle")}
+          </p>
         </div>
 
         {/* Message */}
@@ -136,7 +131,11 @@ export function LoginView(): React.JSX.Element {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? t("login.hide_password") : t("login.show_password")}
+                    aria-label={
+                      showPassword
+                        ? t("login.hide_password")
+                        : t("login.show_password")
+                    }
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                   >
                     {showPassword ? (
@@ -153,10 +152,11 @@ export function LoginView(): React.JSX.Element {
                 <button
                   type="submit"
                   disabled={!isValid || isProcessing}
-                  className={`w-full inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${isValid && !isProcessing
-                    ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95 dark:bg-indigo-500 dark:hover:bg-indigo-400"
-                    : "bg-slate-300 dark:bg-slate-600 cursor-not-allowed"
-                    }`}
+                  className={`w-full inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${
+                    isValid && !isProcessing
+                      ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+                      : "bg-slate-300 dark:bg-slate-600 cursor-not-allowed"
+                  }`}
                 >
                   {isProcessing ? (
                     <>

@@ -62,7 +62,7 @@ export const getDatabase = (): DatabasePool => {
 export async function executeWithRetry<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  baseDelay: number = 1000,
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -96,6 +96,7 @@ export async function executeWithRetry<T>(
 
 export const closeDatabase = async (): Promise<void> => {
   if (dbPool) {
+    // eslint-disable-next-line no-useless-catch
     try {
       const poolToClose = dbPool;
       dbPool = null;

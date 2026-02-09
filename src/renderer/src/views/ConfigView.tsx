@@ -1,6 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { CriticalErrorState, StatusBanner, ConfigViewSkeleton, LoadingWrapper } from "../components/common";
+import {
+  CriticalErrorState,
+  StatusBanner,
+  ConfigViewSkeleton,
+  LoadingWrapper,
+} from "../components/common";
 import {
   ConfigFormCard,
   ConnectionDisplayCard,
@@ -25,7 +30,10 @@ export function ConfigView(): React.JSX.Element {
   }
 
   return (
-    <LoadingWrapper isLoading={status.isInitializing} skeleton={<ConfigViewSkeleton />}>
+    <LoadingWrapper
+      isLoading={status.isInitializing}
+      skeleton={<ConfigViewSkeleton />}
+    >
       <div className="min-h-full p-4 font-sans text-slate-800 dark:text-slate-100 flex flex-col pb-24">
         <div className="max-w-4xl mx-auto w-full my-auto">
           {/* Header */}

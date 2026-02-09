@@ -22,14 +22,17 @@ export function HeaderView(): React.JSX.Element {
           await window.electron.ipcRenderer.invoke("Get-PrinterStatus");
         if (isMounted) {
           SetisOnline(response.status);
-          Setmessage(response.message || (response.status ? "header.connected" : "header.disconnected"));
+          Setmessage(
+            response.message ||
+              (response.status ? "header.connected" : "header.disconnected"),
+          );
           setIsLoading(false);
         }
       } catch (error) {
         console.error(error);
         if (isMounted) {
           SetisOnline(false);
-          Setmessage("header.status_error");
+          Setmessage(t("header.status_error"));
           setIsLoading(false);
         }
       }
@@ -42,7 +45,7 @@ export function HeaderView(): React.JSX.Element {
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, []);
+  }, [t]);
 
   return (
     <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 px-6 py-3 shadow-sm dark:shadow-slate-900/50 z-50 relative">
@@ -83,7 +86,9 @@ export function HeaderView(): React.JSX.Element {
           {isLoggedIn && (
             <div className="text-sm text-slate-600 dark:text-slate-400 hidden sm:block border-r border-slate-300 dark:border-slate-600 pr-4">
               {t("header.logged_in_as")}:{" "}
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{login}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                {login}
+              </span>
             </div>
           )}
 

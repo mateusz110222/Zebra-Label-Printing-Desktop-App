@@ -20,10 +20,11 @@ export default function ConnectionTabs({
     <div className="flex items-center border-b border-slate-100 dark:border-slate-700">
       <button
         onClick={() => onTabChange("IP")}
-        className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === "IP"
+        className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+          activeTab === "IP"
             ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-b-2 border-indigo-600 dark:border-indigo-400"
             : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
-          }`}
+        }`}
       >
         <FiWifi
           className={`text-xl ${activeTab === "IP" ? "text-indigo-500 dark:text-indigo-400" : ""}`}
@@ -33,10 +34,11 @@ export default function ConnectionTabs({
 
       <button
         onClick={() => onTabChange("COM")}
-        className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${activeTab === "COM"
+        className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+          activeTab === "COM"
             ? "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-b-2 border-orange-600 dark:border-orange-400"
             : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
-          }`}
+        }`}
       >
         <LuPlug2
           className={`text-xl ${activeTab === "COM" ? "text-orange-500 dark:text-orange-400" : ""}`}

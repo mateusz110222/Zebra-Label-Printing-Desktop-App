@@ -4,7 +4,7 @@ import log from "electron-log";
 import { clean, gt } from "semver";
 
 export default function UpdatesHandler(
-  mainWindow: Electron.BrowserWindow
+  mainWindow: Electron.BrowserWindow,
 ): void {
   if (!app.isPackaged) {
     autoUpdater.forceDevUpdateConfig = true;

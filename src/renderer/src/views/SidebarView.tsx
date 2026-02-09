@@ -12,7 +12,8 @@ export function SidebarView(): React.JSX.Element {
     let isMounted = true;
     const fetchVersion = async (): Promise<void> => {
       try {
-        const version = await window.electron.ipcRenderer.invoke("get-app-version");
+        const version =
+          await window.electron.ipcRenderer.invoke("get-app-version");
         if (isMounted && version) {
           setAppVersion(version);
         }
@@ -54,11 +55,12 @@ export function SidebarView(): React.JSX.Element {
               aria-disabled={isDisabled}
               className={({ isActive }) =>
                 `flex items-center w-full text-left px-3 py-3 rounded-lg transition-all duration-200 text-sm font-medium
-                ${isDisabled
-                  ? "opacity-40 cursor-not-allowed pointer-events-none text-slate-500"
-                  : isActive
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20 translate-x-1"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800 dark:hover:bg-slate-900 hover:translate-x-1"
+                ${
+                  isDisabled
+                    ? "opacity-40 cursor-not-allowed pointer-events-none text-slate-500"
+                    : isActive
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/20 translate-x-1"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800 dark:hover:bg-slate-900 hover:translate-x-1"
                 }`
               }
             >
@@ -78,9 +80,7 @@ export function SidebarView(): React.JSX.Element {
         <br />
         {t("sidebar.dev_info")}
         {appVersion && (
-          <div className="mt-2 opacity-50 font-mono text-xs">
-            v{appVersion}
-          </div>
+          <div className="mt-2 opacity-50 font-mono text-xs">v{appVersion}</div>
         )}
       </div>
     </aside>

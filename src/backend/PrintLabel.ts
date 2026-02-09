@@ -16,7 +16,7 @@ interface PrinterConfig {
 
 async function sendToPrinter(
   zpl: string,
-  printer: PrinterConfig
+  printer: PrinterConfig,
 ): Promise<ConnectionResult> {
   switch (printer.type) {
     case "IP":
@@ -95,6 +95,6 @@ export default function SetupLabelHandlers(): void {
           rawError: errorMsg,
         };
       }
-    }
+    },
   );
 }

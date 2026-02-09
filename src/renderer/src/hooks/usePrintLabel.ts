@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Part, UiMessage, PartOption } from "../types";
+import { extractError } from "../utils/errorUtils";
 
 interface UsePrintLabelStatus {
   isLoading: boolean;
@@ -39,7 +40,6 @@ interface UsePrintLabelReturn {
 export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const { t } = useTranslation();
 
-  // Data states
   const [parts, setParts] = useState<Part[]>([]);
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
   const [labelQuantity, setLabelQuantity] = useState<number | "">(1);
@@ -49,7 +49,6 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const [serialNumber, setSerialNumber] = useState<string>("");
   const previewCache = useRef<Record<string, string>>({});
 
-  // Status states
   const [status, setStatus] = useState<UsePrintLabelStatus>({
     isLoading: true,
     isPrinting: false,
@@ -58,7 +57,6 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     uiMessage: null,
   });
 
-  // Fetch parts on mount
   useEffect(() => {
     let isMounted = true;
 
@@ -71,7 +69,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         if (response.status === false) {
           setStatus((prev) => ({
             ...prev,
-            criticalError: `${t("print_view.error_fetching_parts")}: ${response.message}`,
+            criticalError: `${t("print_view.error_fetching_parts")}: ${t(response.message)}`,
           }));
           return;
         }
@@ -86,11 +84,11 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         setStatus((prev) => ({ ...prev, isLoading: false }));
       } catch (err) {
         if (!isMounted) return;
-        const errMsg = err instanceof Error ? err.message : String(err);
+        const { message } = extractError(err);
         setStatus((prev) => ({
           ...prev,
           isLoading: false,
-          criticalError: `${t("print_view.error_fetching_parts")}: ${errMsg}`,
+          criticalError: `${t("print_view.error_fetching_parts")}: ${t(message)}`,
         }));
       }
     };
@@ -100,15 +98,6 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       isMounted = false;
     };
   }, [t]);
-
-  const extractError = (err: unknown): { message: string; details?: string } => {
-    const message = err instanceof Error ? err.message : String(err);
-    const details =
-      typeof err === "object" && err !== null && "rawError" in err
-        ? (err as { rawError: string }).rawError
-        : undefined;
-    return { message, details };
-  };
 
   async function generateLabelPreview(
     part: Part,
@@ -134,10 +123,10 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           ...prev,
           uiMessage: {
             type: "error",
-            text: response.message
+            text: t(response.message)
               ? t(response.message)
               : t("backend.print.generate_error"),
-            details: response.rawError,
+            details: t(response.rawError),
           },
         }));
       }
@@ -148,7 +137,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         uiMessage: {
           type: "error",
           text: t(message),
-          details,
+          details: t(details ?? ""),
         },
       }));
     } finally {
@@ -231,15 +220,15 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       const response =
         mode === "reprint"
           ? await window.electron.ipcRenderer.invoke("reprint-label", {
-            part: selectedPart,
-            quantity: qty,
-            date: date,
-            serialNumber: serialNumber,
-          })
+              part: selectedPart,
+              quantity: qty,
+              date: date,
+              serialNumber: serialNumber,
+            })
           : await window.electron.ipcRenderer.invoke("print-label", {
-            part: selectedPart,
-            quantity: qty,
-          });
+              part: selectedPart,
+              quantity: qty,
+            });
 
       if (!response || response.status === false) {
         setStatus((prev) => ({
@@ -249,7 +238,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
             text: response?.message
               ? t(response.message)
               : t("backend.print.error"),
-            details: response?.rawError,
+            details: t(response?.rawError),
           },
         }));
         return;
@@ -262,7 +251,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           text: response.message
             ? t(response.message)
             : t("print_view.print_success"),
-          details: response.rawError,
+          details: t(response.rawError),
         },
       }));
     } catch (err: unknown) {
@@ -272,7 +261,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         uiMessage: {
           type: "error",
           text: t(message),
-          details,
+          details: t(details ?? ""),
         },
       }));
     } finally {

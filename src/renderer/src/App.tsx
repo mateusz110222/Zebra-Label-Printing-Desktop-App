@@ -4,7 +4,16 @@ import { HashRouter as Router, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
-import { LayoutView, PrintView, LoginView, LabelsFormatsView, ConfigView, HistoryView, ReprintView } from "./views";
+import {
+  LayoutView,
+  PrintView,
+  LoginView,
+  LabelsFormatsView,
+  ConfigView,
+  HistoryView,
+  ReprintView,
+  LabelEditView,
+} from "./views";
 
 function App(): React.JSX.Element {
   return (
@@ -12,6 +21,7 @@ function App(): React.JSX.Element {
       <AuthProvider>
         <Router>
           <Routes>
+            <Route path="/preview" element={<LabelEditView />} />
             <Route path="/" element={<LayoutView />}>
               <Route path="/" element={<PrintView />} />
               <Route path="/login" element={<LoginView />} />
