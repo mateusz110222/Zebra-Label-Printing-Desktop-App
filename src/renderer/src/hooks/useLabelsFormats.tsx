@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { UiMessage, LabelFormatsResponse } from "../types";
+import { LabelFormatsResponse, UiMessage } from "../types";
+import { useTranslation } from "react-i18next";
+import { extractError } from "../utils/errorUtils";
 
 interface useLabelsFormatsResponse {
   data: {
@@ -7,7 +9,6 @@ interface useLabelsFormatsResponse {
     criticalError: string | undefined;
     uiMessage: UiMessage | null;
     labelsFormats: LabelFormatsResponse[];
-    expandedCard: string | null;
   };
   actions: {
     setCriticalError: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -17,10 +18,10 @@ interface useLabelsFormatsResponse {
 }
 
 export function useLabelsFormats(): useLabelsFormatsResponse {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [criticalError, setCriticalError] = useState<string | undefined>("");
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [labelsFormats, setLabelsFormats] = useState<LabelFormatsResponse[]>(
     [],
   );
@@ -42,8 +43,8 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
         }
       } catch (error) {
         if (!isMounted) return;
-        const errMsg = error instanceof Error ? error.message : String(error);
-        setCriticalError(errMsg);
+        const { message } = extractError(error);
+        setCriticalError(t(message));
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -53,10 +54,20 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   const handleCardClick = (formatName: string): void => {
-    setExpandedCard((current) => (current === formatName ? null : formatName));
+    const formatdata = labelsFormats.find(
+      (format) => format.name === formatName,
+    );
+    const params = new URLSearchParams();
+    if (formatdata?.name) params.append("name", formatdata.name);
+
+    if (formatdata?.data) {
+      params.append("data", JSON.stringify(formatdata.data));
+    }
+
+    window.open(`#/preview?${params.toString()}`, "modal");
   };
 
   return {
@@ -65,7 +76,6 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
       criticalError,
       uiMessage,
       labelsFormats,
-      expandedCard,
     },
     actions: {
       setCriticalError,

@@ -35,10 +35,11 @@ export default function ConnectionDisplayCard({
           <div className="flex items-center gap-6">
             {/* Connection icon */}
             <div
-              className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner ${connectionType === "IP"
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner ${
+                connectionType === "IP"
                   ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
                   : "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
-                }`}
+              }`}
             >
               {connectionType === "IP" ? (
                 <FiWifi className="text-5xl" />

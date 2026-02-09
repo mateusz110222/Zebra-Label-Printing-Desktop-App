@@ -54,7 +54,7 @@ class COMConnectionImpl extends PrinterConnectionBase {
 
         port.on("error", () => {
           if (port.isOpen) {
-            port.close(() => { });
+            port.close(() => {});
           }
         });
 

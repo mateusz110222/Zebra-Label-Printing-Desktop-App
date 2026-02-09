@@ -14,7 +14,8 @@
     "history": "History",
     "print_label": "Print Label",
     "templates": "Templates",
-    "reprint": "Reprint"
+    "reprint": "Reprint",
+    "locked": "Locked"
   },
   "header": {
     "printer_online": "Printer Online",

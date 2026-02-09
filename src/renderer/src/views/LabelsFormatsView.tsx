@@ -1,5 +1,9 @@
 import React from "react";
-import { CriticalErrorState, StatusBanner, LoadingWrapper } from "@renderer/components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+} from "@renderer/components/common";
 import { useTranslation } from "react-i18next";
 import { MdOutlinePrint } from "react-icons/md";
 import { BsFileEarmarkX } from "react-icons/bs";
@@ -67,7 +71,6 @@ export function LabelsFormatsView(): React.JSX.Element {
                 <LabelCard
                   key={format.name}
                   format={format}
-                  isExpanded={data.expandedCard === format.name}
                   onClick={() => actions.handleCardClick(format.name)}
                 />
               ))}
@@ -76,7 +79,10 @@ export function LabelsFormatsView(): React.JSX.Element {
             /* Empty State */
             <div className="text-center py-20 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600">
               {/* Ikona pustego stanu */}
-              <BsFileEarmarkX className="mx-auto text-slate-300 dark:text-slate-600 mb-4" size={48} />
+              <BsFileEarmarkX
+                className="mx-auto text-slate-300 dark:text-slate-600 mb-4"
+                size={48}
+              />
               <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
                 {t("label_formats.no_templates")}
               </h3>

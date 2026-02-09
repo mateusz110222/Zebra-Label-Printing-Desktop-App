@@ -17,6 +17,14 @@ export default function GetLabelPreview(): void {
       { part, date, serialNumber },
     ): Promise<LabelPreviewResponse> => {
       try {
+        console.log(
+          "part:",
+          part,
+          "date:",
+          date,
+          "serialNumber:",
+          serialNumber,
+        );
         if (!part || !part.Label_Format) {
           return {
             status: false,
@@ -30,7 +38,7 @@ export default function GetLabelPreview(): void {
           (typeof date === "string" && date.trim() !== "");
 
         let result;
-        if (useReprint || (serialNumber === "0")) {
+        if (useReprint || serialNumber === "0") {
           const safeDate = date || new Date().toISOString().split("T")[0];
           const safeSN = serialNumber || "0";
           result = await generateReprintZPL(part, safeDate, safeSN, 1);

@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { extractError } from "../utils/errorUtils";
+import i18n from "@renderer/i18n";
 
 interface useSettingsMenuResponse {
   data: {
@@ -16,12 +19,14 @@ interface useSettingsMenuResponse {
     toggleAutoUpdate: () => Promise<void>;
     setIsMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     handleRestart: () => void;
+    handleLanguageChange: (language: string) => void;
   };
 }
 
 export default function useSettingsMenu(
   menuRef: React.RefObject<HTMLDivElement | null>,
 ): useSettingsMenuResponse {
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [updateStatus, setUpdateStatus] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -30,6 +35,9 @@ export default function useSettingsMenu(
   const [localVersion, setLocalVersion] = useState<string>("-");
   const [githubVersion, setGithubVersion] = useState<string>("-");
   const [autoUpdate, setAutoUpdateEnabled] = useState(true);
+  const [language, setLanguage] = useState(() => {
+    return localStorage.getItem("language") || "en";
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -65,7 +73,6 @@ export default function useSettingsMenu(
       });
 
       window.electron.ipcRenderer.on("download_progress", (_event, data) => {
-        console.log("Download progress:", data.percent);
         setProgressPercent(data.percent);
       });
 
@@ -135,6 +142,16 @@ export default function useSettingsMenu(
     };
   }, []);
 
+  useEffect(() => {
+    i18n.changeLanguage(language);
+  }, [language]);
+
+  const handleLanguageChange = async (newLanguage: string): Promise<void> => {
+    setLanguage(newLanguage);
+    localStorage.setItem("language", newLanguage);
+    i18n.changeLanguage(newLanguage);
+  };
+
   const handleCheckForUpdates = async (): Promise<void> => {
     setUpdateStatus("checking");
     setErrorMessage("");
@@ -145,7 +162,9 @@ export default function useSettingsMenu(
 
       if (!result.status) {
         setUpdateStatus("error");
-        setErrorMessage(result.message || "Unknown error");
+        setErrorMessage(
+          result.message ? t(result.message) : t("settings.unknown_error"),
+        );
         return;
       }
 
@@ -160,8 +179,8 @@ export default function useSettingsMenu(
       }
     } catch (e) {
       setUpdateStatus("error");
-      const errMsg = e instanceof Error ? e.message : String(e);
-      setErrorMessage(errMsg);
+      const { message } = extractError(e);
+      setErrorMessage(t(message));
     }
   };
 
@@ -194,6 +213,7 @@ export default function useSettingsMenu(
       handleCheckForUpdates,
       setErrorMessage,
       handleRestart,
+      handleLanguageChange,
     },
   };
 }

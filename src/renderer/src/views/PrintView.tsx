@@ -4,14 +4,14 @@ import Select from "react-select";
 
 import {
   CriticalErrorState,
+  LoadingWrapper,
   StatusBanner,
   SubmitButton,
-  LoadingWrapper,
 } from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
-import { useTheme } from "@renderer/context/ThemeContext";
+import { useTheme } from "@renderer/hooks/useThemeContext";
 
 export function PrintView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -64,9 +64,9 @@ export function PrintView(): React.JSX.Element {
                     value={
                       data.selectedPart
                         ? {
-                          value: data.selectedPart.Serial_Prefix,
-                          label: `${data.selectedPart.Part_Description} (${data.selectedPart.Serial_Prefix})`,
-                        }
+                            value: data.selectedPart.Serial_Prefix,
+                            label: `${data.selectedPart.Part_Description} (${data.selectedPart.Serial_Prefix})`,
+                          }
                         : null
                     }
                     classNamePrefix="react-select"

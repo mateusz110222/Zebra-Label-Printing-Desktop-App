@@ -191,10 +191,11 @@ export default function ConfigFormCard({
           <button
             onClick={onSave}
             disabled={!isValid || isProcessing}
-            className={`inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${isValid && !isProcessing
+            className={`inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${
+              isValid && !isProcessing
                 ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95"
                 : "bg-slate-300 dark:bg-slate-600 cursor-not-allowed"
-              }`}
+            }`}
           >
             {isProcessing ? (
               <>

@@ -8,3 +8,4 @@ export { SettingsMenuView } from "./SettingsMenuView";
 export { SidebarView } from "./SidebarView";
 export { HeaderView } from "./HeaderView";
 export { LayoutView } from "./LayoutView";
+export { LabelEditView } from "./LabelEditView";
