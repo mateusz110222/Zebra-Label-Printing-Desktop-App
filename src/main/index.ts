@@ -17,6 +17,7 @@ import GetLabelsFormats from "../backend/GetLabelsFormats";
 import GetGithubVersions from "../backend/GetGithubVersions";
 import UpdatesHandler from "../backend/UpdatesHandler";
 import SettingsHandler from "../backend/SettingsHandler";
+import ChildWindowHandlers from "../backend/ChildWindow";
 
 let mainWindow: BrowserWindow;
 
@@ -62,6 +63,7 @@ HandleLogin();
 GetLabelPreview();
 GetLabelsFormats();
 SettingsHandler();
+ChildWindowHandlers();
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.electron");
@@ -78,11 +80,11 @@ app.whenReady().then(() => {
       return {
         action: "allow",
         overrideBrowserWindowOptions: {
-          frame: false,
-          autoHideMenuBar: true,
+          frame: true,
+          autoHideMenuBar: false,
           fullscreenable: false,
           webPreferences: {
-            preload: join(__dirname, "../preload/index.js"),
+            preload: join(__dirname, "../preload/label-format.js"),
           },
         },
       };

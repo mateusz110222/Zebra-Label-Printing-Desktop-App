@@ -5,14 +5,14 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
 import {
-  LayoutView,
-  PrintView,
-  LoginView,
-  LabelsFormatsView,
   ConfigView,
   HistoryView,
-  ReprintView,
   LabelEditView,
+  LabelsFormatsView,
+  LayoutView,
+  LoginView,
+  PrintView,
+  ReprintView,
 } from "./views";
 
 function App(): React.JSX.Element {
@@ -21,7 +21,6 @@ function App(): React.JSX.Element {
       <AuthProvider>
         <Router>
           <Routes>
-            <Route path="/preview" element={<LabelEditView />} />
             <Route path="/" element={<LayoutView />}>
               <Route path="/" element={<PrintView />} />
               <Route path="/login" element={<LoginView />} />
@@ -30,6 +29,7 @@ function App(): React.JSX.Element {
               <Route path="history" element={<HistoryView />} />
               <Route path="reprint" element={<ReprintView />} />
             </Route>
+            <Route path="/preview" element={<LabelEditView />} />
             <Route path="*" element={<div>Nie znaleziono strony</div>} />
           </Routes>
         </Router>
