@@ -22,8 +22,14 @@ export default defineConfig(({ mode }) => {
       },
     },
     preload: {
-      plugins: [],
-      build: {},
+      build: {
+        rollupOptions: {
+          input: {
+            index: resolve("src/preload/index.ts"),
+            "label-format": resolve("src/preload/label-format.ts"),
+          },
+        },
+      },
     },
     renderer: {
       resolve: {

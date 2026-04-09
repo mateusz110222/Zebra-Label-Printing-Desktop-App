@@ -50,7 +50,8 @@
     "error_fetching_parts": "Błąd pobierania części",
     "error_printing_labels": "Błąd drukowania etykiet",
     "print_success": "Etykiety wysłane do drukarki",
-    "Try_again": "Spróbuj ponownie"
+    "Try_again": "Spróbuj ponownie",
+    "printing_blocked_midnight": "Drukowanie zablokowane ze względu na zmianę daty (23:55 - 00:05). Spróbuj ponownie za chwilę."
   },
   "config_view": {
     "title": "Konfiguracja Drukarki",

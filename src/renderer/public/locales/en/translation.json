@@ -50,7 +50,8 @@
     "error_fetching_parts": "Error fetching parts",
     "error_printing_labels": "Error printing labels",
     "print_success": "Labels sent to printer",
-    "Try_again": "Try again"
+    "Try_again": "Try again",
+    "printing_blocked_midnight": "Printing is blocked due to a date change (23:55–00:05). Please try again shortly."
   },
   "config_view": {
     "title": "Printer Configuration",

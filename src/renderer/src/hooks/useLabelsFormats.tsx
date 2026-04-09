@@ -57,15 +57,8 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
   }, [t]);
 
   const handleCardClick = (formatName: string): void => {
-    const formatdata = labelsFormats.find(
-      (format) => format.name === formatName,
-    );
     const params = new URLSearchParams();
-    if (formatdata?.name) params.append("name", formatdata.name);
-
-    if (formatdata?.data) {
-      params.append("data", JSON.stringify(formatdata.data));
-    }
+    if (formatName) params.append("name", formatName);
 
     window.open(`#/preview?${params.toString()}`, "modal");
   };

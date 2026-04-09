@@ -1,6 +1,6 @@
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Part, UiMessage, PartOption } from "../types";
+import { Part, PartOption, UiMessage } from "../types";
 import { extractError } from "../utils/errorUtils";
 
 interface UsePrintLabelStatus {
@@ -95,7 +95,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
     fetchParts();
     return () => {
-      isMounted = false;
+      isMounted = true;
     };
   }, [t]);
 
@@ -213,6 +213,24 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
     const qty = typeof labelQuantity === "number" ? labelQuantity : 1;
     if (!selectedPart || qty < 1) return;
+
+    const date = new Date();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    const isMidnightBlock =
+      (hours === 23 && minutes >= 55) || (hours === 0 && minutes <= 5);
+
+    if (isMidnightBlock) {
+      setStatus((prev) => ({
+        ...prev,
+        uiMessage: {
+          type: "error",
+          text: t("print_view.printing_blocked_midnight"),
+        },
+      }));
+      return;
+    }
 
     setStatus((prev) => ({ ...prev, isPrinting: true }));
 

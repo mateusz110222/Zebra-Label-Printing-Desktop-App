@@ -1,4 +1,2 @@
 Dodać funckjonalść resetowania seriala dla DAILY
-Dokończyć generowanie podglądu etykiety dla label Edit
-Dodać możliwość drukowania etykiety z widoku Edit
 Dodać możliwość dodawania nowych formatów etykiet

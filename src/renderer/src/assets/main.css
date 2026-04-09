@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Enable Tailwind dark mode with class strategy */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @keyframes shimmer {

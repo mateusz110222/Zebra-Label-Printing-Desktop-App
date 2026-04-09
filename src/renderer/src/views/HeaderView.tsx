@@ -3,6 +3,7 @@ import { useAuth } from "@renderer/context/AuthContext";
 import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from "react";
 import { SettingsMenuView } from "@renderer/views/SettingsMenuView";
+import { BsPrinter } from "react-icons/bs";
 
 export function HeaderView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -53,6 +54,7 @@ export function HeaderView(): React.JSX.Element {
         {/* LEWA STRONA: Status Drukarki */}
         <div className="flex items-center">
           <div className="group relative flex items-center cursor-help">
+            <BsPrinter size={20} className="mr-2" />
             <div className={`relative flex h-3 w-3 mr-2`}>
               {isOnline && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
