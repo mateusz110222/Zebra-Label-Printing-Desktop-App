@@ -74,4 +74,8 @@ npm run build:win
 
 ---
 
-*The project was created to automate logistics processes and increase label printing efficiency.*
+### TL;DR
+
+LabelPrint Desktop Application is a Windows desktop application for managing and printing Zebra thermal labels.
+It integrates with external systems to fetch data, dynamically generates ZPL labels (serial numbers, dates, dynamic fields), provides a live label preview, and supports printing via network (IP) or serial (COM) connections.
+The application includes LDAP authentication, role‑based access, Polish and English UI support, and was built to improve efficiency and reliability in logistics and production label printing.
