@@ -7,7 +7,7 @@ interface SkeletonLoaderProps {
   height?: string;
   /** Shape variant: 'rectangle', 'circle', or 'text' */
   variant?: "rectangle" | "circle" | "text";
-  /** Number of text lines to render (only for 'text' variant) */
+  /** Number of text lines to render (only for the 'text' variant) */
   lines?: number;
   /** Additional CSS classes */
   className?: string;
@@ -22,7 +22,7 @@ function SkeletonLine({
 }): React.JSX.Element {
   return (
     <div
-      className={`h-4 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 rounded animate-shimmer ${width} ${className}`}
+      className={`h-4 bg-linear-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 rounded animate-shimmer ${width} ${className}`}
     />
   );
 }
@@ -47,7 +47,7 @@ export default function SkeletonLoader({
   if (variant === "circle") {
     return (
       <div
-        className={`rounded-full bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 animate-shimmer ${width} ${height} ${className}`}
+        className={`rounded-full bg-linear-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 animate-shimmer ${width} ${height} ${className}`}
       />
     );
   }
@@ -55,7 +55,7 @@ export default function SkeletonLoader({
   // Default: rectangle
   return (
     <div
-      className={`bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 rounded animate-shimmer ${width} ${height} ${className}`}
+      className={`bg-linear-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 rounded animate-shimmer ${width} ${height} ${className}`}
     />
   );
 }

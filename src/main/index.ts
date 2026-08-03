@@ -1,7 +1,6 @@
 import { app, BrowserWindow, shell } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
-import icon from "../../resources/icon.png?asset";
 
 import GetParts from "../backend/GetParts";
 import PrintLabel from "../backend/PrintLabel";
@@ -27,15 +26,17 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === "linux" ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
-      sandbox: false,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      devTools: !app.isPackaged,
     },
   });
 
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.maximize();
+  mainWindow.once("ready-to-show", () => {
     mainWindow.show();
   });
 
@@ -79,17 +80,27 @@ app.whenReady().then(() => {
     if (url.includes("#/preview")) {
       return {
         action: "allow",
+        show: false,
         overrideBrowserWindowOptions: {
           frame: true,
-          autoHideMenuBar: false,
+          autoHideMenuBar: true,
+          sandbox: true,
+          contextIsolation: true,
+          nodeIntegration: false,
+          webSecurity: true,
           fullscreenable: false,
           webPreferences: {
             preload: join(__dirname, "../preload/label-format.js"),
+            devTools: !app.isPackaged,
           },
         },
       };
     }
     return { action: "deny" };
+  });
+
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
   });
 
   app.on("activate", function () {

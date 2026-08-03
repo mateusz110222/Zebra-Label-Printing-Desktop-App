@@ -62,14 +62,14 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
     const fetchParts = async (): Promise<void> => {
       try {
-        const response = await window.electron.ipcRenderer.invoke("get-parts");
+        const response = await window.api.GetParts();
 
         if (!isMounted) return;
 
         if (response.status === false) {
           setStatus((prev) => ({
             ...prev,
-            criticalError: `${t("print_view.error_fetching_parts")}: ${t(response.message)}`,
+            criticalError: `${t("print_view.error_fetching_parts")}: ${t(response.message || "")}`,
           }));
           return;
         }
@@ -110,10 +110,11 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
         return;
       }
-      const response = await window.electron.ipcRenderer.invoke(
-        "get-label-preview",
-        { part, date, serialNumber },
-      );
+      const response = await window.api.GetPrintPreview({
+        part,
+        date,
+        serialNumber,
+      });
 
       if (response.status && response.data) {
         previewCache.current[part.Serial_Prefix] = response.data;
@@ -123,10 +124,10 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           ...prev,
           uiMessage: {
             type: "error",
-            text: t(response.message)
-              ? t(response.message)
+            text: t(response.message || "")
+              ? t(response.message || "")
               : t("backend.print.generate_error"),
-            details: t(response.rawError),
+            details: t(response.rawError || ""),
           },
         }));
       }
@@ -237,13 +238,12 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     try {
       const response =
         mode === "reprint"
-          ? await window.electron.ipcRenderer.invoke("reprint-label", {
+          ? await window.api.ReprintLabel({
               part: selectedPart,
               quantity: qty,
-              date: date,
               serialNumber: serialNumber,
             })
-          : await window.electron.ipcRenderer.invoke("print-label", {
+          : await window.api.PrintLabel({
               part: selectedPart,
               quantity: qty,
             });
@@ -256,7 +256,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
             text: response?.message
               ? t(response.message)
               : t("backend.print.error"),
-            details: t(response?.rawError),
+            details: t(response?.rawError || ""),
           },
         }));
         return;
@@ -269,7 +269,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           text: response.message
             ? t(response.message)
             : t("print_view.print_success"),
-          details: t(response.rawError),
+          details: t(response.rawError || ""),
         },
       }));
     } catch (err: unknown) {

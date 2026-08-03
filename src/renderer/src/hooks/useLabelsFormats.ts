@@ -31,8 +31,7 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
 
     const fetchFormats = async (): Promise<void> => {
       try {
-        const response =
-          await window.electron.ipcRenderer.invoke("get-labels-formats");
+        const response = await window.api.GetLabelsFormats();
 
         if (!isMounted) return;
 

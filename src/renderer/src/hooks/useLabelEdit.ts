@@ -10,7 +10,9 @@ interface useLabelEditResponse {
     criticalError: string | null;
     message: string | null;
     isOnline: boolean;
-    isLoading: boolean;
+    isOnlineLoading: boolean;
+    isZPLLoading: boolean;
+    isPreviewLoading: boolean;
     uiMessage: { type: "success" | "error"; text: string } | null;
   };
   actions: {
@@ -46,8 +48,9 @@ export function useLabelEdit(): useLabelEditResponse {
   const [previewImage, setPreviewImage] = useState<string>("");
   const [isOnline, SetisOnline] = useState<boolean>(false);
   const [message, Setmessage] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isZplLoading, setIsZplLoading] = useState<boolean>(!!nameParam);
+  const [isOnlineLoading, setisOnlineLoading] = useState<boolean>(true);
+  const [isZPLLoading, setIsZPLLoading] = useState<boolean>(true);
+  const [isPreviewLoading, setisPreviewLoading] = useState<boolean>(true);
   const [uiMessage, setUiMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -75,7 +78,7 @@ export function useLabelEdit(): useLabelEditResponse {
           Setmessage(t("header.status_error"));
         }
       } finally {
-        if (isMounted) setIsLoading(false);
+        setisOnlineLoading(false);
       }
     };
 
@@ -93,7 +96,6 @@ export function useLabelEdit(): useLabelEditResponse {
 
     const fetchZPL = async (): Promise<void> => {
       if (!cleanName || !window.api) {
-        setIsZplLoading(false);
         return;
       }
 
@@ -113,7 +115,7 @@ export function useLabelEdit(): useLabelEditResponse {
           setCriticalError(t("backend.print.unexpected_error"));
         }
       } finally {
-        if (isMounted) setIsZplLoading(false);
+        if (isMounted) setIsZPLLoading(false);
       }
     };
 
@@ -129,6 +131,7 @@ export function useLabelEdit(): useLabelEditResponse {
 
     const updatePreview = async (zplOrName: string): Promise<void> => {
       if (!zplOrName || !window.api) return;
+      setisPreviewLoading(true);
 
       try {
         const response = await window.api.GetLabelPreview(zplOrName);
@@ -143,6 +146,8 @@ export function useLabelEdit(): useLabelEditResponse {
         }
       } catch (error) {
         if (isMounted) console.error("Preview failed:", error);
+      } finally {
+        setisPreviewLoading(false);
       }
     };
 
@@ -194,7 +199,9 @@ export function useLabelEdit(): useLabelEditResponse {
       criticalError,
       message,
       isOnline,
-      isLoading: isLoading || isZplLoading,
+      isOnlineLoading,
+      isZPLLoading,
+      isPreviewLoading,
       uiMessage,
     },
     actions: {

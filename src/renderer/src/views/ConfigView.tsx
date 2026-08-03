@@ -91,6 +91,14 @@ export function ConfigView(): React.JSX.Element {
               isValid={isValid}
               onSave={() => actions.handleAction("SAVE")}
               onCancel={() => actions.setIsEditing(false)}
+              dbHost={data.dbHost}
+              onDbHostChange={actions.setDbHost}
+              dbUser={data.dbUser}
+              onDbUserChange={actions.setDbUser}
+              dbPass={data.dbPass}
+              onDbPassChange={actions.setDbPass}
+              dbName={data.dbName}
+              onDbNameChange={actions.setDbName}
             />
           )}
         </div>

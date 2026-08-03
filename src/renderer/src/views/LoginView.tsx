@@ -26,19 +26,18 @@ export function LoginView(): React.JSX.Element {
 
     setIsProcessing(true);
     try {
-      const response = await window.electron.ipcRenderer.invoke(
-        "handle-login",
-        {
-          login: login,
-          password: password,
-        },
-      );
+      const response = await window.api.Login({
+        login: login,
+        password: password,
+      });
 
-      if (!response.status) {
+      if (!response.status || !response.data) {
         setUiMessage({
           type: "error",
-          text: t(response.message),
+          text: t(response.message || ""),
         });
+        setIsProcessing(false);
+        return;
       }
 
       const FullName = response.data.FullName;
@@ -46,7 +45,7 @@ export function LoginView(): React.JSX.Element {
 
       setUiMessage({
         type: "success",
-        text: t(response.message),
+        text: t(response.message || ""),
       });
 
       setLogin(FullName, CanEdit);

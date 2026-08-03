@@ -12,8 +12,7 @@ export function SidebarView(): React.JSX.Element {
     let isMounted = true;
     const fetchVersion = async (): Promise<void> => {
       try {
-        const version =
-          await window.electron.ipcRenderer.invoke("get-app-version");
+        const version = await window.api.GetAppVersion();
         if (isMounted && version) {
           setAppVersion(version);
         }
