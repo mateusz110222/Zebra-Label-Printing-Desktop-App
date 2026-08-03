@@ -20,7 +20,7 @@ export function LabelEditView(): React.JSX.Element {
   }
 
   return (
-    <LoadingWrapper isLoading={data.isLoading}>
+    <LoadingWrapper isLoading={data.isZPLLoading}>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden">
         {/* Status Messages */}
         {data.uiMessage && (
@@ -60,7 +60,7 @@ export function LabelEditView(): React.JSX.Element {
                 <span
                   className={`text-sm font-medium ${data.isOnline ? "text-slate-700 dark:text-slate-200" : "text-red-600 dark:text-red-400"}`}
                 >
-                  {data.isLoading
+                  {data.isOnlineLoading
                     ? t("header.checking_status")
                     : data.isOnline
                       ? t("header.printer_online")
@@ -156,7 +156,7 @@ export function LabelEditView(): React.JSX.Element {
 
             {/* Scale/Info indicator */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-full shadow-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-3">
-              <span>203 DPI</span>
+              <span>600 DPI</span>
               <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
               <span>Label Size Auto</span>
             </div>

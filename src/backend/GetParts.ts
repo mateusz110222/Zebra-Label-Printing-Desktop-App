@@ -33,6 +33,7 @@ export default function GetParts(): void {
           data: resp.data,
         };
       } else {
+        console.log(resp);
         return {
           status: false,
           message: "backend.parts.GET_PARTS_FAIL",
@@ -41,6 +42,7 @@ export default function GetParts(): void {
         };
       }
     } catch (error) {
+      console.log(error);
       const errorMsg =
         error instanceof Error
           ? error.message

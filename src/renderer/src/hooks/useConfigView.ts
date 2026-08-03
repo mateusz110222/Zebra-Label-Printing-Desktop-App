@@ -14,6 +14,10 @@ interface UseConfigData {
   displayedBaudRate: number;
   hasConfig: boolean;
   isEditing: boolean;
+  dbHost: string;
+  dbUser: string;
+  dbPass: string;
+  dbName: string;
 }
 
 interface UseConfigStatus {
@@ -33,6 +37,10 @@ interface UseConfigActions {
   handleAction: (action: "SAVE" | "TEST") => Promise<void>;
   setIsEditing: (isEditing: boolean) => void;
   setUiMessage: (msg: UiMessage | null) => void;
+  setDbHost: (host: string) => void;
+  setDbUser: (user: string) => void;
+  setDbPass: (pass: string) => void;
+  setDbName: (name: string) => void;
 }
 
 interface UseConfigViewReturn {
@@ -58,6 +66,11 @@ export function useConfigView(): UseConfigViewReturn {
   const [displayedCom, setDisplayedCom] = useState("");
   const [displayedBaudRate, setDisplayedBaudRate] = useState(9600);
 
+  const [dbHost, setDbHost] = useState("");
+  const [dbUser, setDbUser] = useState("");
+  const [dbPass, setDbPass] = useState("");
+  const [dbName, setDbName] = useState("");
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
@@ -68,14 +81,13 @@ export function useConfigView(): UseConfigViewReturn {
     const init = async (): Promise<void> => {
       setIsInitializing(true);
       try {
-        const serialPortsResp =
-          await window.electron.ipcRenderer.invoke("get-serialPorts");
+        const serialPortsResp = await window.api.GetSerialPorts();
 
         if (!isMounted) return;
-        if (serialPortsResp.status) setSerialPorts(serialPortsResp.data);
+        if (serialPortsResp.status)
+          setSerialPorts(serialPortsResp.data as string[]);
 
-        const configResponse =
-          await window.electron.ipcRenderer.invoke("get-printer-config");
+        const configResponse = await window.api.GetPrinterConfig();
 
         if (!isMounted) return;
         if (configResponse.status && configResponse.data) {
@@ -102,6 +114,14 @@ export function useConfigView(): UseConfigViewReturn {
             setIsEditing(false);
           }
         }
+
+        const dbConfigResponse = await window.api.GetSettings("database");
+        if (dbConfigResponse) {
+          setDbHost(dbConfigResponse.host || "");
+          setDbUser(dbConfigResponse.user || "");
+          setDbPass(dbConfigResponse.password || "");
+          setDbName(dbConfigResponse.database || "");
+        }
       } catch (err) {
         if (!isMounted) return;
         const { message } = extractError(err);
@@ -121,19 +141,28 @@ export function useConfigView(): UseConfigViewReturn {
     setIsProcessing(true);
     setUiMessage(null);
 
+    if (action === "SAVE") {
+      window.api.SetSettings("database", {
+        host: dbHost,
+        user: dbUser,
+        password: dbPass,
+        database: dbName,
+      });
+    }
+
     const payload = {
       type: connectionType,
-      ip: connectionType === "IP" ? ipAddress : null,
-      port: connectionType === "IP" ? parseInt(port) : null,
-      comPort: connectionType === "COM" ? selectedCom : null,
-      baudRate: connectionType === "COM" ? baudRate : null,
+      ip: connectionType === "IP" ? ipAddress : undefined,
+      port: connectionType === "IP" ? parseInt(port) : undefined,
+      comPort: connectionType === "COM" ? selectedCom : undefined,
+      baudRate: connectionType === "COM" ? baudRate : undefined,
     };
 
     const channel =
       action === "SAVE" ? "save-printer-config" : "test-printer-connection";
 
     try {
-      const resp = await window.electron.ipcRenderer.invoke(channel, payload);
+      const resp = await window.api.SavePrinterConfig(channel, payload);
 
       if (resp.status) {
         setUiMessage({
@@ -144,13 +173,12 @@ export function useConfigView(): UseConfigViewReturn {
               : t("config_view.test_success"),
           details:
             resp.message !== "backend.printer.label_sent_successfully"
-              ? t(resp.message)
+              ? t(resp.message || "")
               : undefined,
         });
 
         if (action === "SAVE") {
-          const configResponse =
-            await window.electron.ipcRenderer.invoke("get-printer-config");
+          const configResponse = await window.api.GetPrinterConfig();
           if (configResponse.status && configResponse.data) {
             const cfg = configResponse.data;
             setConnectionType(cfg.type || "IP");
@@ -171,7 +199,7 @@ export function useConfigView(): UseConfigViewReturn {
             action === "SAVE"
               ? t("config_view.save_error")
               : t("config_view.test_error"),
-          details: t(resp.message),
+          details: t(resp.message || ""),
         });
       }
     } catch (err) {
@@ -187,9 +215,9 @@ export function useConfigView(): UseConfigViewReturn {
   };
 
   const handleRefreshPorts = async (): Promise<void> => {
-    const serialPortsResp =
-      await window.electron.ipcRenderer.invoke("get-serialPorts");
-    if (serialPortsResp.status) setSerialPorts(serialPortsResp.data);
+    const serialPortsResp = await window.api.GetSerialPorts();
+    if (serialPortsResp.status)
+      setSerialPorts(serialPortsResp.data as string[]);
   };
 
   const isValidIpAddress = (ip: string): boolean => {
@@ -202,9 +230,12 @@ export function useConfigView(): UseConfigViewReturn {
   };
 
   const isValid =
-    connectionType === "IP"
+    (connectionType === "IP"
       ? isValidIpAddress(ipAddress) && port.length > 1 && parseInt(port) > 0
-      : selectedCom.length > 0;
+      : selectedCom.length > 0) &&
+    dbHost.length > 0 &&
+    dbUser.length > 0 &&
+    dbName.length > 0;
 
   return {
     data: {
@@ -218,6 +249,10 @@ export function useConfigView(): UseConfigViewReturn {
       displayedBaudRate,
       hasConfig,
       isEditing,
+      dbHost,
+      dbUser,
+      dbPass,
+      dbName,
     },
     status: {
       isInitializing,
@@ -235,6 +270,10 @@ export function useConfigView(): UseConfigViewReturn {
       handleAction,
       setIsEditing,
       setUiMessage,
+      setDbHost,
+      setDbUser,
+      setDbPass,
+      setDbName,
     },
     isValid,
   };

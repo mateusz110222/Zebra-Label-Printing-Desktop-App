@@ -8,8 +8,16 @@ export interface PrinterConfig {
   baudRate?: number;
 }
 
+export interface DatabaseConfig {
+  host?: string;
+  user?: string;
+  password?: string;
+  database?: string;
+}
+
 export const store = new Store<{
   printer: PrinterConfig;
+  database: DatabaseConfig;
 }>({
   defaults: {
     printer: {
@@ -18,6 +26,12 @@ export const store = new Store<{
       port: 9100,
       comPort: "",
       baudRate: 9600,
+    },
+    database: {
+      host: "",
+      user: "",
+      password: "",
+      database: "",
     },
   },
 });

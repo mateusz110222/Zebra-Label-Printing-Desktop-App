@@ -18,9 +18,7 @@ export function HeaderView(): React.JSX.Element {
 
     const GetPrinterStatus = async (): Promise<void> => {
       try {
-        if (!window.electron) return;
-        const response =
-          await window.electron.ipcRenderer.invoke("Get-PrinterStatus");
+        const response = await window.api.GetPrinterStatus();
         if (isMounted) {
           SetisOnline(response.status);
           Setmessage(

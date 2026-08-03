@@ -85,7 +85,16 @@
     "testing": "Testing...",
     "save": "Save Configuration",
     "saving": "Saving...",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "database_title": "Database Configuration",
+    "db_host": "Host",
+    "db_host_placeholder": "e.g., 127.0.0.1",
+    "db_user": "User",
+    "db_user_placeholder": "e.g., root",
+    "db_password": "Password",
+    "db_password_placeholder": "e.g., ••••••••",
+    "db_name": "Database Name",
+    "db_name_placeholder": "e.g., label_print"
   },
   "login": {
     "title": "Login",

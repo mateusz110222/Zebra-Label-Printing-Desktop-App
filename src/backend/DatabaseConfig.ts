@@ -1,4 +1,5 @@
 import mysql from "mysql2/promise";
+import { store } from "./store";
 
 type DatabasePool = ReturnType<typeof mysql.createPool>;
 
@@ -9,23 +10,19 @@ export const getDatabase = (): DatabasePool => {
     return dbPool;
   }
 
-  const dbConfig = {
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  };
+  const dbConfig = store.get("database");
 
   const missingVars: string[] = [];
 
-  if (!dbConfig.host) missingVars.push("DB_HOST");
-  if (!dbConfig.user) missingVars.push("DB_USER");
-  if (!dbConfig.password) missingVars.push("DB_PASSWORD");
-  if (!dbConfig.database) missingVars.push("DB_NAME");
+  if (!dbConfig.host) missingVars.push("host");
+  if (!dbConfig.user) missingVars.push("user");
+  if (!dbConfig.password) missingVars.push("password");
+  if (!dbConfig.database) missingVars.push("database");
 
   if (missingVars.length > 0) {
-    const errorMsg = `BŁĄD KRYTYCZNY: Brakuje zmiennych środowiskowych: ${missingVars.join(", ")}.
-    Ponieważ używasz 'define' w Vite, upewnij się, że plik .env istniał na komputerze deweloperskim PODCZAS BUDOWANIA (npm run build) i zawierał te wartości.`;
+    const errorMsg = `BŁĄD KRYTYCZNY: Brakuje konfiguracji bazy danych: ${missingVars.join(
+      ", ",
+    )}. Uzupełnij je w ustawieniach aplikacji.`;
 
     throw new Error(errorMsg);
   }

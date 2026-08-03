@@ -85,7 +85,16 @@
     "testing": "Testowanie...",
     "save": "Zapisz Konfigurację",
     "saving": "Zapisywanie...",
-    "cancel": "Anuluj"
+    "cancel": "Anuluj",
+    "database_title": "Konfiguracja Bazy Danych",
+    "db_host": "Host",
+    "db_host_placeholder": "np. 127.0.0.1",
+    "db_user": "Użytkownik",
+    "db_user_placeholder": "np. root",
+    "db_password": "Hasło",
+    "db_password_placeholder": "np. ••••••••",
+    "db_name": "Nazwa Bazy Danych",
+    "db_name_placeholder": "np. label_print"
   },
   "login": {
     "title": "Logowanie",

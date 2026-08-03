@@ -43,10 +43,7 @@ export default function useSettingsMenu(
     let isMounted = true;
 
     const loadSettings = async (): Promise<void> => {
-      const savedState = await window.electron.ipcRenderer.invoke(
-        "get-settings",
-        "autoUpdate",
-      );
+      const savedState = await window.api.GetSettings("autoUpdate");
 
       if (isMounted && savedState !== undefined) {
         setAutoUpdateEnabled(savedState);
@@ -61,34 +58,22 @@ export default function useSettingsMenu(
   }, []);
 
   useEffect(() => {
-    const setupListeners = (): void => {
-      if (!window.electron) return;
+    const cleanupAvailable = window.api.OnUpdateAvailable(() => {
+      setUpdateStatus("available");
+    });
 
-      window.electron.ipcRenderer.removeAllListeners("update_available");
-      window.electron.ipcRenderer.removeAllListeners("update_downloaded");
-      window.electron.ipcRenderer.removeAllListeners("download_progress");
+    const cleanupProgress = window.api.OnDownloadProgress((data) => {
+      setProgressPercent(data.percent);
+    });
 
-      window.electron.ipcRenderer.on("update_available", () => {
-        setUpdateStatus("available");
-      });
-
-      window.electron.ipcRenderer.on("download_progress", (_event, data) => {
-        setProgressPercent(data.percent);
-      });
-
-      window.electron.ipcRenderer.on("update_downloaded", () => {
-        setUpdateStatus("ready");
-      });
-    };
-
-    setupListeners();
+    const cleanupDownloaded = window.api.OnUpdateDownloaded(() => {
+      setUpdateStatus("ready");
+    });
 
     return () => {
-      if (window.electron) {
-        window.electron.ipcRenderer.removeAllListeners("update_available");
-        window.electron.ipcRenderer.removeAllListeners("update_downloaded");
-        window.electron.ipcRenderer.removeAllListeners("download_progress");
-      }
+      cleanupAvailable();
+      cleanupProgress();
+      cleanupDownloaded();
     };
   }, []);
 
@@ -112,7 +97,7 @@ export default function useSettingsMenu(
 
     const fetchVersions = async (): Promise<void> => {
       try {
-        const ver = await window.electron.ipcRenderer.invoke("get-app-version");
+        const ver = await window.api.GetAppVersion();
         if (isMounted) setLocalVersion(ver);
       } catch (e) {
         console.warn("Failed to get app version", e);
@@ -120,8 +105,7 @@ export default function useSettingsMenu(
       }
 
       try {
-        const ghVer =
-          await window.electron.ipcRenderer.invoke("get-github-version");
+        const ghVer = await window.api.GetGithubVersion();
         if (isMounted) {
           if (ghVer && ghVer !== "Error") {
             setGithubVersion(ghVer);
@@ -157,8 +141,7 @@ export default function useSettingsMenu(
     setErrorMessage("");
 
     try {
-      const result =
-        await window.electron.ipcRenderer.invoke("check-for-updates");
+      const result = (await window.api.CheckForUpdates()) as any;
 
       if (!result.status) {
         setUpdateStatus("error");
@@ -188,13 +171,11 @@ export default function useSettingsMenu(
     const newState = !autoUpdate;
     setAutoUpdateEnabled(newState);
 
-    window.electron.ipcRenderer.send("set-settings", "autoUpdate", newState);
+    window.api.SetSettings("autoUpdate", newState);
   };
 
   const handleRestart = (): void => {
-    if (window.electron) {
-      window.electron.ipcRenderer.send("restart_app");
-    }
+    window.api.RestartApp();
   };
 
   return {

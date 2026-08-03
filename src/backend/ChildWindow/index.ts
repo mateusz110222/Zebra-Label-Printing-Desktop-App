@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import sharp from "sharp";
 import { getZplTemplate, SaveZplTemplate } from "../hooks/ZPLService";
 
@@ -15,74 +15,106 @@ const renderZpl = async (zpl: string): Promise<string> => {
   return `data:image/png;base64,${finalBase64}`;
 };
 
-export default function ChildWindowHandlers(): void {
-  ipcMain.handle("get-label-zpl", async (_, formatName: string) => {
-    const templateResult = await getZplTemplate(formatName);
-    if (!templateResult.status || templateResult.data == null) {
-      return templateResult;
-    }
-    return {
-      status: true,
-      message: "backend.",
-      data: templateResult.data,
-    };
-  });
+const isAuthorized = (sender: WebContents): boolean => {
+  const url = sender.getURL();
+  return url.includes("#/preview");
+};
 
-  ipcMain.handle("get-labelFormat-preview", async (_, formatName: string) => {
-    try {
-      if (formatName.trim().length === 0) {
+export default function ChildWindowHandlers(): void {
+  ipcMain.handle(
+    "get-label-zpl",
+    async (event: IpcMainInvokeEvent, formatName: string) => {
+      if (!isAuthorized(event.sender)) {
         return {
           status: false,
-          message: "backend.child.formatName_empty",
+          message: "Unauthorized: Access restricted to child window.",
+        };
+      }
+      const templateResult = await getZplTemplate(formatName);
+      if (!templateResult.status || templateResult.data == null) {
+        return templateResult;
+      }
+      return {
+        status: true,
+        message: "backend.",
+        data: templateResult.data,
+      };
+    },
+  );
+
+  ipcMain.handle(
+    "get-labelFormat-preview",
+    async (event: IpcMainInvokeEvent, formatName: string) => {
+      if (!isAuthorized(event.sender)) {
+        return {
+          status: false,
+          message: "Unauthorized: Access restricted to child window.",
+        };
+      }
+      try {
+        if (formatName.trim().length === 0) {
+          return {
+            status: false,
+            message: "backend.child.formatName_empty",
+            data: null,
+            rawError: "formatName missing",
+          };
+        }
+
+        let Label_ZPL: string;
+        if (formatName.trim().startsWith("^XA")) {
+          Label_ZPL = formatName;
+        } else {
+          const templateResult = await getZplTemplate(formatName);
+          if (!templateResult.status || templateResult.data == null) {
+            return templateResult;
+          }
+          Label_ZPL = templateResult.data;
+        }
+
+        const finalBase64 = await renderZpl(Label_ZPL);
+
+        return {
+          status: true,
+          message: "backend.printer.GET_LABEL_PREVIEW_SUCCESS",
+          data: finalBase64,
+        };
+      } catch (error) {
+        return {
+          status: false,
+          message: "backend.print.generate_error",
+          rawError: error instanceof Error ? error.message : String(error),
           data: null,
-          rawError: "formatName missing",
+        };
+      }
+    },
+  );
+  ipcMain.handle(
+    "save-labelformat",
+    async (event: IpcMainInvokeEvent, formatName, data) => {
+      if (!isAuthorized(event.sender)) {
+        return {
+          status: false,
+          message: "Unauthorized: Access restricted to child window.",
+        };
+      }
+      if (formatName.trim().length === 0 || data.trim().length === 0) {
+        return {
+          status: false,
+          message: "backend.labeledit.saved_failed",
         };
       }
 
-      let Label_ZPL: string;
-      if (formatName.trim().startsWith("^XA")) {
-        Label_ZPL = formatName;
-      } else {
-        const templateResult = await getZplTemplate(formatName);
-        if (!templateResult.status || templateResult.data == null) {
-          return templateResult;
-        }
-        Label_ZPL = templateResult.data;
-      }
+      const response = await SaveZplTemplate(formatName, data);
 
-      const finalBase64 = await renderZpl(Label_ZPL);
+      if (!response.status) {
+        return response;
+      }
 
       return {
         status: true,
-        message: "backend.printer.GET_LABEL_PREVIEW_SUCCESS",
-        data: finalBase64,
+        message: "backend.labeledit.saved",
       };
-    } catch (error) {
-      return {
-        status: false,
-        message: "backend.print.generate_error",
-        rawError: error instanceof Error ? error.message : String(error),
-        data: null,
-      };
-    }
-  });
-  ipcMain.handle("save-labelformat", async (_, formatName, data) => {
-    if (formatName.trim().length === 0 || data.trim().length === 0) {
-      return {
-        status: false,
-        message: "backend.labeledit.saved_failed",
-      };
-    }
-
-    const response = await SaveZplTemplate(formatName, data);
-
-    if (!response.status) {
-      return response;
-    }
-
-    return {
-      status: true,
-      message: "backend.labeledit.saved",
-    };
-  });
+    },
+  );
 }
