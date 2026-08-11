@@ -1,11 +1,11 @@
-import React, { useRef } from "react";
+import React, {useRef} from "react";
 import useSettingsMenu from "@renderer/hooks/useSettingsMenu";
 import SettingsOpenButton from "@renderer/components/settings/SettingsOpenButton";
 import UpdateButtonsAndMessage from "@renderer/components/settings/UpdateDownloadButton";
-import { useTranslation } from "react-i18next";
-import { TbLoader2 } from "react-icons/tb";
-import { FiGlobe, FiMonitor, FiMoon, FiSun } from "react-icons/fi";
-import { useTheme } from "@renderer/hooks/useThemeContext";
+import {useTranslation} from "react-i18next";
+import {TbLoader2} from "react-icons/tb";
+import {FiGlobe, FiMonitor, FiMoon, FiSun} from "react-icons/fi";
+import {useTheme} from "@renderer/hooks/useThemeContext";
 
 export function SettingsMenuView(): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function SettingsMenuView(): React.JSX.Element {
             <div className="space-y-2">
               <span className="text-sm text-gray-600 dark:text-slate-300 flex items-center gap-2">
                 <FiGlobe className="w-3.5 h-3.5" />
-                {t("settings.language", "Język")}
+                {t("settings.language")}
               </span>
               <div className="flex gap-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
                 <button
@@ -83,7 +83,7 @@ export function SettingsMenuView(): React.JSX.Element {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   }`}
                 >
-                  Polski
+                  {t("settings.language_pl")}
                 </button>
                 <button
                   type="button"
@@ -94,7 +94,7 @@ export function SettingsMenuView(): React.JSX.Element {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   }`}
                 >
-                  English
+                  {t("settings.language_en")}
                 </button>
               </div>
             </div>
@@ -164,7 +164,7 @@ export function SettingsMenuView(): React.JSX.Element {
                   }`}
                 >
                   <FiMonitor className="w-3.5 h-3.5" />
-                  {t("settings.theme_system", "Auto")}
+                  {t("settings.theme_system")}
                 </button>
               </div>
             </div>

@@ -66,7 +66,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
         if (!isMounted) return;
 
-        if (response.status === false) {
+        if (!response.status) {
           setStatus((prev) => ({
             ...prev,
             criticalError: `${t("print_view.error_fetching_parts")}: ${t(response.message || "")}`,
@@ -74,9 +74,26 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           return;
         }
 
-        setParts(response.data);
+        const partsConfig = await window.api.GetPartsConfig();
+        const selectedOperation = (partsConfig.operation || "")
+          .trim()
+          .toLocaleLowerCase();
+        const filteredParts = (response.data as Part[])
+          .filter(
+            (part) =>
+              !selectedOperation ||
+              (part.Operation || "").trim().toLocaleLowerCase() ===
+              selectedOperation
+          )
+          .sort(
+            (first, second) =>
+              (first.Operation || "").localeCompare(second.Operation || "") ||
+              first.Part_Description.localeCompare(second.Part_Description)
+          );
+
+        setParts(filteredParts);
         setOptions(
-          response.data.map((part: Part) => ({
+          filteredParts.map((part) => ({
             value: part.Serial_Prefix,
             label: `${part.Part_Description} (${part.Serial_Prefix})`,
           })),
@@ -248,7 +265,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
               quantity: qty,
             });
 
-      if (!response || response.status === false) {
+      if (!response || !response.status) {
         setStatus((prev) => ({
           ...prev,
           uiMessage: {

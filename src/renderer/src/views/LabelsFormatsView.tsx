@@ -1,12 +1,8 @@
-import React from "react";
-import {
-  CriticalErrorState,
-  LoadingWrapper,
-  StatusBanner,
-} from "@renderer/components/common";
+import React, { useState } from "react";
+import { CriticalErrorState, LoadingWrapper, StatusBanner } from "@renderer/components/common";
 import { useTranslation } from "react-i18next";
 import { MdOutlinePrint } from "react-icons/md";
-import { BsFileEarmarkX } from "react-icons/bs";
+import { BsExclamationTriangle, BsFileEarmarkX, BsPlusLg } from "react-icons/bs";
 import { useLabelsFormats } from "@renderer/hooks";
 import { LabelCard } from "@renderer/components/Labels/LabelCard";
 
@@ -14,6 +10,17 @@ export function LabelsFormatsView(): React.JSX.Element {
   const { t } = useTranslation();
 
   const { data, actions } = useLabelsFormats();
+  const [formatToDelete, setFormatToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDelete = async (): Promise<void> => {
+    if (!formatToDelete) return;
+
+    setIsDeleting(true);
+    await actions.handleDelete(formatToDelete);
+    setIsDeleting(false);
+    setFormatToDelete(null);
+  };
 
   if (data.criticalError) {
     return (
@@ -27,7 +34,7 @@ export function LabelsFormatsView(): React.JSX.Element {
 
   return (
     <LoadingWrapper isLoading={data.isLoading}>
-      <div className="min-h-full bg-slate-50/50 dark:bg-transparent p-8 font-sans text-slate-800 dark:text-slate-100">
+      <div className="min-h-screen bg-slate-50/50 p-8 font-sans text-slate-800 dark:bg-slate-900 dark:text-slate-100">
         <div className="max-w-5xl mx-auto space-y-8">
           {/* Header Sekcji */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-6">
@@ -46,11 +53,24 @@ export function LabelsFormatsView(): React.JSX.Element {
               </p>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 shadow-sm">
-              {t("label_formats.found")}:{" "}
-              <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                {data.labelsFormats.length}
-              </span>
+            <div className="flex items-center gap-3">
+              <div
+                className="bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 shadow-sm">
+                {t("label_formats.found")}:{" "}
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                  {data.labelsFormats.length}
+                </span>
+              </div>
+              {data.isLoggedIn && (
+                <button
+                  type="button"
+                  onClick={actions.handleCreateClick}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-md shadow-indigo-200 dark:shadow-none transition-colors"
+                >
+                  <BsPlusLg size={16} />
+                  {t("label_formats.new_template")}
+                </button>
+              )}
             </div>
           </div>
 
@@ -72,6 +92,8 @@ export function LabelsFormatsView(): React.JSX.Element {
                   key={format.name}
                   format={format}
                   onClick={() => actions.handleCardClick(format.name)}
+                  onDelete={() => setFormatToDelete(format.name)}
+                  canManage={data.isLoggedIn}
                 />
               ))}
             </div>
@@ -92,6 +114,45 @@ export function LabelsFormatsView(): React.JSX.Element {
             </div>
           )}
         </div>
+        {formatToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-800">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-full bg-red-50 p-3 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                  <BsExclamationTriangle size={22} />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  {t("label_formats.delete_title")}
+                </h3>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {t("label_formats.delete_confirmation", {
+                  name: formatToDelete.replace(/\.[^/.]+$/, "")
+                })}
+              </p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFormatToDelete(null)}
+                  disabled={isDeleting}
+                  className="rounded-lg px-4 py-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 active:scale-[0.98] disabled:opacity-60 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDelete()}
+                  disabled={isDeleting}
+                  className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-red-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none disabled:hover:bg-slate-300 disabled:active:scale-100"
+                >
+                  {isDeleting
+                    ? t("label_formats.deleting")
+                    : t("label_card.delete")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </LoadingWrapper>
   );

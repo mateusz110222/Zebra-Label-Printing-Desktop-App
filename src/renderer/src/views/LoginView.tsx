@@ -100,10 +100,10 @@ export function LoginView(): React.JSX.Element {
               {/* Email input */}
               <div>
                 <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-100 mb-1">
-                  {t("login.email_label", "Email")}
+                  {t("login.email_label")}
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={login}
                   autoFocus
                   onChange={(e) => setLoginState(e.target.value)}
@@ -116,7 +116,7 @@ export function LoginView(): React.JSX.Element {
               {/* Password input */}
               <div>
                 <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-100 mb-1">
-                  {t("login.password_label", "Hasło")}
+                  {t("login.password_label")}
                 </label>
                 <div className="relative">
                   <input

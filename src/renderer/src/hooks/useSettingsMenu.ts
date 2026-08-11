@@ -46,7 +46,7 @@ export default function useSettingsMenu(
       const savedState = await window.api.GetSettings("autoUpdate");
 
       if (isMounted && savedState !== undefined) {
-        setAutoUpdateEnabled(savedState);
+        setAutoUpdateEnabled(savedState === true);
       }
     };
 
@@ -63,7 +63,7 @@ export default function useSettingsMenu(
     });
 
     const cleanupProgress = window.api.OnDownloadProgress((data) => {
-      setProgressPercent(data.percent);
+      setProgressPercent(Number(data.percent));
     });
 
     const cleanupDownloaded = window.api.OnUpdateDownloaded(() => {
@@ -115,7 +115,7 @@ export default function useSettingsMenu(
         }
       } catch (e) {
         if (isMounted) setGithubVersion("-");
-        console.log("GitHub version check skipped or failed:", e);
+        console.error("GitHub version check skipped or failed:", e);
       }
     };
 
@@ -141,7 +141,7 @@ export default function useSettingsMenu(
     setErrorMessage("");
 
     try {
-      const result = (await window.api.CheckForUpdates()) as any;
+      const result = await window.api.CheckForUpdates();
 
       if (!result.status) {
         setUpdateStatus("error");

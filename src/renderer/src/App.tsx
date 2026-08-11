@@ -1,21 +1,15 @@
 import React from "react";
 import { HashRouter as Router, Route, Routes } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
-import {
-  ConfigView,
-  HistoryView,
-  LabelEditView,
-  LabelsFormatsView,
-  LayoutView,
-  LoginView,
-  PrintView,
-  ReprintView,
-} from "./views";
+import { ConfigView, LabelEditView, LabelsFormatsView, LayoutView, LoginView, PrintView, ReprintView } from "./views";
 
 function App(): React.JSX.Element {
+  const { t } = useTranslation();
+
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -26,11 +20,10 @@ function App(): React.JSX.Element {
               <Route path="/login" element={<LoginView />} />
               <Route path="templates" element={<LabelsFormatsView />} />
               <Route path="config" element={<ConfigView />} />
-              <Route path="history" element={<HistoryView />} />
               <Route path="reprint" element={<ReprintView />} />
             </Route>
             <Route path="/preview" element={<LabelEditView />} />
-            <Route path="*" element={<div>Nie znaleziono strony</div>} />
+            <Route path="*" element={<div>{t("common.page_not_found")}</div>} />
           </Routes>
         </Router>
       </AuthProvider>

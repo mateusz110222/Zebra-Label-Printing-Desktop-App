@@ -28,7 +28,7 @@ export function LabelEditView(): React.JSX.Element {
             <StatusBanner
               type={data.uiMessage.type}
               message={data.uiMessage.text}
-              onClose={() => {}}
+              onClose={actions.dismissUiMessage}
             />
           </div>
         )}
@@ -40,10 +40,22 @@ export function LabelEditView(): React.JSX.Element {
               <BsFileEarmarkCode size={20} />
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-tight">ZPL Designer</h1>
-              <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest leading-none">
-                {data.cleanName || "Nowy szablon"}
-              </p>
+              <h1 className="text-sm font-bold tracking-tight">
+                {t("label_editor.title")}
+              </h1>
+              {data.isNewTemplate ? (
+                <input
+                  value={data.cleanName}
+                  onChange={(event) => actions.setCleanName(event.target.value)}
+                  className="mt-1 w-52 bg-transparent border-b border-slate-300 dark:border-slate-600 text-[11px] text-slate-600 dark:text-slate-300 font-mono outline-none focus:border-indigo-500"
+                  placeholder={t("label_formats.name_placeholder")}
+                  aria-label={t("label_formats.name")}
+                />
+              ) : (
+                <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest leading-none">
+                  {data.cleanName}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -88,7 +100,7 @@ export function LabelEditView(): React.JSX.Element {
             <button
               onClick={() => window.location.reload()}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-400"
-              title="Odśwież"
+              title={t("label_editor.refresh")}
             >
               <BsPrinter size={20} />
             </button>
@@ -101,11 +113,17 @@ export function LabelEditView(): React.JSX.Element {
           <div className="w-1/2 flex flex-col bg-slate-900 dark:bg-[#0d1117] relative border-r border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between px-4 py-2 bg-slate-950 border-b border-white/5">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                ZPL Code
+                {t("label_editor.code")}
               </span>
               <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
-                <span>Lines: {data.parsedData.split("\n").length}</span>
-                <span>Chars: {data.parsedData.length}</span>
+                <span>
+                  {t("label_editor.lines", {
+                    count: data.parsedData.split("\n").length
+                  })}
+                </span>
+                <span>
+                  {t("label_editor.chars", { count: data.parsedData.length })}
+                </span>
               </div>
             </div>
 
@@ -114,7 +132,7 @@ export function LabelEditView(): React.JSX.Element {
               onChange={(e) => actions.setParsedData(e.target.value)}
               className="flex-1 w-full p-6 bg-transparent text-indigo-300 font-mono text-sm leading-relaxed resize-none outline-none custom-scrollbar selection:bg-indigo-500/30"
               spellCheck={false}
-              placeholder="Wpisz kod ZPL..."
+              placeholder={t("label_editor.placeholder")}
             />
 
             <div className="absolute bottom-4 right-6 pointer-events-none opacity-20 hidden lg:block">
@@ -126,7 +144,7 @@ export function LabelEditView(): React.JSX.Element {
           <div className="flex-1 flex flex-col bg-slate-100/30 dark:bg-slate-950/30 overflow-hidden relative">
             <div className="flex items-center px-4 py-2 bg-white/50 dark:bg-black/20 border-b border-slate-200 dark:border-slate-800">
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                Live Preview
+                {t("label_editor.preview")}
               </span>
             </div>
 
@@ -137,7 +155,7 @@ export function LabelEditView(): React.JSX.Element {
                   <div className="relative bg-white dark:bg-slate-800 p-6 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-w-full overflow-hidden transition-transform duration-300 hover:scale-[1.01]">
                     <img
                       src={data.previewImage}
-                      alt="ZPL Preview"
+                      alt={t("label_editor.preview_alt")}
                       className="max-w-full h-auto object-contain pointer-events-none select-none"
                     />
                   </div>
@@ -156,9 +174,9 @@ export function LabelEditView(): React.JSX.Element {
 
             {/* Scale/Info indicator */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-full shadow-lg text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-3">
-              <span>600 DPI</span>
+              <span>{t("label_editor.dpi")}</span>
               <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
-              <span>Label Size Auto</span>
+              <span>{t("label_editor.label_size_auto")}</span>
             </div>
           </div>
         </main>

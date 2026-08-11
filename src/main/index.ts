@@ -17,6 +17,7 @@ import GetGithubVersions from "../backend/GetGithubVersions";
 import UpdatesHandler from "../backend/UpdatesHandler";
 import SettingsHandler from "../backend/SettingsHandler";
 import ChildWindowHandlers from "../backend/ChildWindow";
+import PartsConfigHandler from "../backend/PartsConfig";
 
 let mainWindow: BrowserWindow;
 
@@ -37,6 +38,7 @@ function createWindow(): void {
   });
 
   mainWindow.once("ready-to-show", () => {
+    mainWindow.maximize();
     mainWindow.show();
   });
 
@@ -53,6 +55,7 @@ function createWindow(): void {
 }
 
 GetParts();
+PartsConfigHandler();
 PrintLabel();
 TestPrinterConnection();
 SavePrinterConfig();
@@ -97,10 +100,6 @@ app.whenReady().then(() => {
       };
     }
     return { action: "deny" };
-  });
-
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
   });
 
   app.on("activate", function () {

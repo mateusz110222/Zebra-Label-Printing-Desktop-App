@@ -23,13 +23,7 @@ const isAuthorized = (sender: WebContents): boolean => {
 export default function ChildWindowHandlers(): void {
   ipcMain.handle(
     "get-label-zpl",
-    async (event: IpcMainInvokeEvent, formatName: string) => {
-      if (!isAuthorized(event.sender)) {
-        return {
-          status: false,
-          message: "Unauthorized: Access restricted to child window.",
-        };
-      }
+    async (_event: IpcMainInvokeEvent, formatName: string) => {
       const templateResult = await getZplTemplate(formatName);
       if (!templateResult.status || templateResult.data == null) {
         return templateResult;
@@ -44,7 +38,7 @@ export default function ChildWindowHandlers(): void {
 
   ipcMain.handle(
     "get-labelFormat-preview",
-    async (event: IpcMainInvokeEvent, formatName: string) => {
+    async (event: IpcMainInvokeEvent, input: string | { zpl: string }) => {
       if (!isAuthorized(event.sender)) {
         return {
           status: false,
@@ -52,6 +46,28 @@ export default function ChildWindowHandlers(): void {
         };
       }
       try {
+        const rawZpl =
+          typeof input === "object" && input !== null ? input.zpl : undefined;
+        const formatName = typeof input === "string" ? input : "";
+
+        if (rawZpl !== undefined) {
+          if (typeof rawZpl !== "string" || rawZpl.trim().length === 0) {
+            return {
+              status: false,
+              message: "backend.child.formatName_empty",
+              data: null,
+              rawError: "ZPL content missing"
+            };
+          }
+
+          const finalBase64 = await renderZpl(rawZpl);
+          return {
+            status: true,
+            message: "backend.printer.GET_LABEL_PREVIEW_SUCCESS",
+            data: finalBase64
+          };
+        }
+
         if (formatName.trim().length === 0) {
           return {
             status: false,
