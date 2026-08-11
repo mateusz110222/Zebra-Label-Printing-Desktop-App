@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, {createContext, ReactNode, useContext, useState} from "react";
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -26,6 +26,7 @@ export function AuthProvider({
   };
 
   const logout = (): void => {
+    void window.api.Logout();
     setLoginState(null);
     setIsLoggedIn(false);
     setCanEdit(false);

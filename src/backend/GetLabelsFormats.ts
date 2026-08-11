@@ -1,17 +1,21 @@
-import { ipcMain, app } from "electron";
-import { readdir, readFile } from "node:fs/promises";
+import { app, ipcMain } from "electron";
+import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
+
+const getTemplatesPath = (): string =>
+  app.isPackaged
+    ? path.join(process.resourcesPath, "zpl_templates")
+    : path.join(app.getAppPath(), "zpl_templates");
+
+const getTemplateFileName = (name: string): string | null => {
+  if (!/^[^\\/:*?"<>|]+\.(zpl|txt)$/i.test(name)) return null;
+  return path.basename(name);
+};
 
 export default function GetLabelsFormats(): void {
   ipcMain.handle("get-labels-formats", async () => {
     try {
-      let templatesPath: string;
-
-      if (app.isPackaged) {
-        templatesPath = path.join(process.resourcesPath, "zpl_templates");
-      } else {
-        templatesPath = path.join(app.getAppPath(), "zpl_templates");
-      }
+      const templatesPath = getTemplatesPath();
 
       const filenames = await readdir(templatesPath);
 
@@ -45,6 +49,24 @@ export default function GetLabelsFormats(): void {
         message: "backend.labels.ERROR_LOADING_TEMPLATES",
         error: error instanceof Error ? error.message : String(error),
         data: [],
+      };
+    }
+  });
+
+  ipcMain.handle("delete-label-format", async (_event, name: string) => {
+    const filename = getTemplateFileName(name);
+    if (!filename) {
+      return { status: false, message: "backend.labels.INVALID_TEMPLATE_NAME" };
+    }
+
+    try {
+      await unlink(path.join(getTemplatesPath(), filename));
+      return { status: true, message: "backend.labels.TEMPLATE_DELETED" };
+    } catch (error) {
+      return {
+        status: false,
+        message: "backend.labels.ERROR_DELETING_TEMPLATE",
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   });
