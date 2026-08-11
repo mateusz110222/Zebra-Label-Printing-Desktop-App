@@ -15,9 +15,24 @@ export interface DatabaseConfig {
   database?: string;
 }
 
+export interface LocalPart {
+  Operation: string;
+  Part_Number: string;
+  Part_Description: string;
+  Serial_Prefix: string;
+  Label_Format: string;
+}
+
+export interface PartsConfig {
+  source: "server" | "local";
+  operation: string;
+  localParts: LocalPart[];
+}
+
 export const store = new Store<{
   printer: PrinterConfig;
   database: DatabaseConfig;
+  parts: PartsConfig;
 }>({
   defaults: {
     printer: {
@@ -33,5 +48,10 @@ export const store = new Store<{
       password: "",
       database: "",
     },
+    parts: {
+      source: "server",
+      operation: "",
+      localParts: []
+    }
   },
 });

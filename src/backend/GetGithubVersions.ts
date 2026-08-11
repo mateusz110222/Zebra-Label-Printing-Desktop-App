@@ -1,9 +1,12 @@
-import { ipcMain } from "electron";
+import {ipcMain} from "electron";
 
 export default function GetGithubVersions(): void {
   ipcMain.handle("get-github-version", async () => {
-    const url =
-      "https://api.github.com/repos/mateusz110222/Zebra-Label-Printing-Desktop-App/releases/latest";
+    const url = process.env.GITHUB_RELEASE_URL;
+
+    if (!url) {
+      return "GitHub release URL is not configured.";
+    }
 
     try {
       const response = await fetch(url);

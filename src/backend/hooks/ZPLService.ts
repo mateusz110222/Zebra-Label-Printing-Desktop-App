@@ -5,6 +5,7 @@ import { Pool, RowDataPacket } from "mysql2/promise";
 import { app } from "electron";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
+import GetBmsDate from "./GetBmsDate";
 
 interface Part {
   Part_Number: string;
@@ -26,7 +27,10 @@ export async function getZplTemplate(
   let templatesPath: string, rawTemplate: string;
   try {
     if (app.isPackaged) {
-      templatesPath = path.join(process.resourcesPath, "zpl_templates");
+      templatesPath = path.join(
+        path.dirname(app.getPath("exe")),
+        "zpl_templates"
+      );
     } else {
       templatesPath = path.join(app.getAppPath(), "zpl_templates");
     }
@@ -120,7 +124,10 @@ export async function generatePrintZPL(
 
     const { maxId, next, type_name } = rows[0];
 
-    if (next + quantity - 1 > maxId) {
+    const numNext = parseInt(next, 36);
+    const numMaxId = parseInt(maxId, 36);
+
+    if (numNext + quantity - 1 > numMaxId) {
       return {
         status: false,
         message: "backend.print.serial_range_exceeded",
@@ -137,6 +144,7 @@ export async function generatePrintZPL(
         SERIALPREFIX: part.Serial_Prefix,
         SERIALNUM1: currentSerial,
         JDATE: GetJulianDate(""),
+        BMSCSTDATEF: GetBmsDate(""),
         NUMCOPIES: 1,
         DESCRIPTION: part.Part_Description,
         ID_LABEL: Math.random().toString(36).substring(2, 7).toUpperCase(),
@@ -197,7 +205,6 @@ export async function generateReprintZPL(
     const { type_name, next } = rows[0];
     let fullBatchZpl = "";
 
-    // If serialNumber is "0" (placeholder), use next serial from DB instead
     const baseSerial = serialNumber === "0" ? String(next) : serialNumber;
 
     for (let i = 0; i < quantity; i++) {
@@ -207,6 +214,7 @@ export async function generateReprintZPL(
         SERIALPREFIX: part.Serial_Prefix,
         SERIALNUM1: currentSerial,
         JDATE: GetJulianDate(date),
+        BMSCSTDATEF: GetBmsDate(date),
         NUMCOPIES: 1,
         DESCRIPTION: part.Part_Description,
         ID_LABEL: Math.random().toString(36).substring(2, 7).toUpperCase(),
@@ -230,13 +238,19 @@ export async function generateReprintZPL(
 
 export async function generatePreviewZPL(
   part: Part,
+  templateOverride?: string
 ): Promise<GenerateZPLResult> {
   try {
-    const templateResult = await getZplTemplate(part.Label_Format);
-    if (!templateResult.status) {
-      return templateResult;
+    let rawTemplate: string;
+    if (templateOverride?.trim()) {
+      rawTemplate = templateOverride;
+    } else {
+      const templateResult = await getZplTemplate(part.Label_Format);
+      if (!templateResult.status) {
+        return templateResult;
+      }
+      rawTemplate = templateResult.data!;
     }
-    const rawTemplate = templateResult.data!;
     const pool = getDbPool();
 
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -261,6 +275,7 @@ export async function generatePreviewZPL(
       SERIALPREFIX: part.Serial_Prefix,
       SERIALNUM1: next,
       JDATE: GetJulianDate(""),
+      BMSCSTDATEF: GetBmsDate(""),
       NUMCOPIES: 1,
       DESCRIPTION: part.Part_Description,
     };

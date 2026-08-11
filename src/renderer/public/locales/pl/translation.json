@@ -4,7 +4,9 @@
     "submit": "Wyślij",
     "cancel": "Anuluj",
     "save": "Zapisz",
-    "test": "Testuj"
+    "test": "Testuj",
+    "close": "Zamknij",
+    "page_not_found": "Nie znaleziono strony"
   },
   "sidebar": {
     "app_title": "Label Print APP",
@@ -54,8 +56,8 @@
     "printing_blocked_midnight": "Drukowanie zablokowane ze względu na zmianę daty (23:55 - 00:05). Spróbuj ponownie za chwilę."
   },
   "config_view": {
-    "title": "Konfiguracja Drukarki",
-    "subtitle": "Skonfiguruj połączenie drukarki sieciowej lub przez port COM.",
+    "title": "Konfiguracja aplikacji",
+    "subtitle": "Zarządzaj połączeniem drukarki oraz ustawieniami bazy danych.",
     "error": "Błąd Konfiguracji",
     "select_from_list": "-- Wybierz z listy --",
     "loading_system": "Wczytywanie konfiguracji...",
@@ -86,6 +88,15 @@
     "save": "Zapisz Konfigurację",
     "saving": "Zapisywanie...",
     "cancel": "Anuluj",
+    "connection_tab": "Drukarka",
+    "database_tab": "Baza danych",
+    "parts_tab": "Lista części",
+    "printer_access_title": "Brak dostępu do konfiguracji drukarki",
+    "printer_access_message": "Zaloguj się kontem z uprawnieniami IT, aby skonfigurować połączenie z drukarką.",
+    "database_access_title": "Brak dostępu do konfiguracji bazy danych",
+    "database_access_message": "Zaloguj się kontem z uprawnieniami IT, aby zmienić ustawienia połączenia z bazą danych.",
+    "parts_access_title": "Brak dostępu do konfiguracji części",
+    "parts_access_message": "Zaloguj się kontem z uprawnieniami IT, aby zmienić źródło listy części i zarządzać lokalnymi rekordami.",
     "database_title": "Konfiguracja Bazy Danych",
     "db_host": "Host",
     "db_host_placeholder": "np. 127.0.0.1",
@@ -94,7 +105,38 @@
     "db_password": "Hasło",
     "db_password_placeholder": "np. ••••••••",
     "db_name": "Nazwa Bazy Danych",
-    "db_name_placeholder": "np. label_print"
+    "db_name_placeholder": "np. label_print",
+    "database_subtitle": "Zarządzaj ustawieniami połączenia z bazą danych.",
+    "database_connection": "Połączenie z bazą danych"
+  },
+  "parts_config": {
+    "title": "Źródło listy części",
+    "subtitle": "Wybierz, skąd aplikacja ma pobierać części widoczne podczas drukowania.",
+    "operation": "Operacja",
+    "operation_placeholder": "np. HVL",
+    "operation_hint": "Na liście drukowania będą widoczne wyłącznie części o tej wartości Operation.",
+    "source_server_title": "Serwer zewnętrzny",
+    "source_server_description": "Pobieranie aktualnej listy z serwera.",
+    "source_local_title": "Lokalna lista",
+    "source_local_description": "Rekordy zapisane na tym komputerze.",
+    "search_placeholder": "Szukaj po numerze, opisie lub formacie...",
+    "add_record": "Dodaj rekord",
+    "part_number": "Numer części",
+    "description": "Opis",
+    "serial_prefix": "Prefix",
+    "label_format": "Format",
+    "edit_record": "Edytuj rekord",
+    "delete_record": "Usuń rekord",
+    "no_records": "Brak rekordów do wyświetlenia.",
+    "field_Operation": "Operacja",
+    "field_Part_Number": "Numer części",
+    "field_Part_Description": "Opis części",
+    "field_Serial_Prefix": "Prefix seryjny",
+    "field_Label_Format": "Format etykiety",
+    "save_record": "Zapisz rekord",
+    "load_error": "Nie udało się wczytać konfiguracji listy części.",
+    "save_success": "Konfiguracja źródła części została zapisana.",
+    "save_error": "Nie udało się zapisać konfiguracji części."
   },
   "login": {
     "title": "Logowanie",
@@ -102,7 +144,7 @@
     "email_label": "Email",
     "login_label": "Login",
     "password_label": "Hasło",
-    "login_placeholder": "jkowalski@borgwarner.com",
+    "login_placeholder": "uzytkownik@example.com",
     "password_placeholder": "Hasło",
     "login_btn": "Zaloguj",
     "login_successful": "Udało się zalogować",
@@ -123,7 +165,8 @@
       "AUTH_INVALID_CREDENTIALS": "Nieprawidłowy login lub hasło.",
       "AUTH_TIMEOUT": "Nie można połączyć się z serwerem logowania (Timeout).",
       "AUTH_ERROR": "Błąd logowania.",
-      "AUTH_UNKNOWN": "Logowanie nieudane. Nieznany błąd."
+      "AUTH_UNKNOWN": "Logowanie nieudane. Nieznany błąd.",
+      "AUTH_CONFIG_MISSING": "Brak konfiguracji logowania LDAP."
     },
     "printer": {
       "GET_SERIAL_PORTS_SUCCESS": "Pomyślnie pobrano porty szeregowe",
@@ -153,7 +196,8 @@
     },
     "parts": {
       "PARTS_FETCH_SUCCESS": "Pomyślnie pobrano listę części",
-      "GET_PARTS_FAIL": "Błąd podczas pobierania części"
+      "GET_PARTS_FAIL": "Błąd podczas pobierania części",
+      "PARTS_CONFIG_MISSING": "Brak konfiguracji źródła listy części."
     },
     "db": {
       "not_initialized": "Połączenie z bazą danych nie zostało zainicjowane",
@@ -177,7 +221,8 @@
       "invalid_decimal": "Wartość nie jest liczbą (typ decimal)",
       "unsupported_type": "Nieobsługiwany typ numeracji",
       "preview_success": "Podgląd etykiety wygenerowany pomyślnie",
-      "print_success": "Etykieta wygenerowana do druku"
+      "print_success": "Etykieta wygenerowana do druku",
+      "unexpected_error": "Wystąpił nieoczekiwany błąd"
     }
   },
   "reprint": {
@@ -201,13 +246,45 @@
     "theme": "Motyw",
     "theme_light": "Jasny",
     "theme_dark": "Ciemny",
-    "theme_system": "Auto"
+    "theme_system": "Auto",
+    "language": "Język",
+    "unknown_error": "Nieznany błąd",
+    "language_pl": "Polski",
+    "language_en": "English"
   },
   "label_formats": {
     "title": "Szablony Etykiet",
     "subtitle": "Zarządzaj i przeglądaj dostępne formaty wydruku ZPL.",
     "no_templates": "Brak szablonów",
     "no_templates_message": "Nie znaleziono żadnych plików w folderze szablonów.",
-    "found": "Znaleziono"
+    "found": "Znaleziono",
+    "new_template": "Nowy szablon",
+    "name": "Nazwa szablonu",
+    "name_placeholder": "nazwa-szablonu.zpl",
+    "name_and_content_required": "Podaj nazwę i kod ZPL szablonu.",
+    "login_required": "Zaloguj się, aby zarządzać szablonami.",
+    "deleted": "Szablon został usunięty.",
+    "delete_title": "Usunąć szablon?",
+    "delete_confirmation": "Czy na pewno chcesz usunąć szablon {{name}}?",
+    "deleting": "Usuwanie..."
+  },
+  "label_editor": {
+    "title": "Projektant ZPL",
+    "refresh": "Odśwież",
+    "code": "Kod ZPL",
+    "lines": "Wiersze: {{count}}",
+    "chars": "Znaki: {{count}}",
+    "placeholder": "Wpisz kod ZPL...",
+    "preview": "Podgląd na żywo",
+    "dpi": "600 DPI",
+    "label_size_auto": "Automatyczny rozmiar etykiety",
+    "preview_alt": "Podgląd ZPL",
+    "example_part_load_error": "Nie udało się pobrać listy części do podglądu.",
+    "example_part_not_found": "Nie znaleziono części przypisanej do formatu {{format}}.",
+    "example_part_preview_error": "Nie udało się uzupełnić podglądu danymi części {{part}}."
+  },
+  "label_card": {
+    "template_type": "Szablon ZPL",
+    "delete": "Usuń"
   }
 }

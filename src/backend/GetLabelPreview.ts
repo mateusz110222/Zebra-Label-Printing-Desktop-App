@@ -14,17 +14,9 @@ export default function GetLabelPreview(): void {
     "get-label-preview",
     async (
       _event,
-      { part, date, serialNumber },
+      { part, date, serialNumber, zpl }
     ): Promise<LabelPreviewResponse> => {
       try {
-        console.log(
-          "part:",
-          part,
-          "date:",
-          date,
-          "serialNumber:",
-          serialNumber,
-        );
         if (!part || !part.Label_Format) {
           return {
             status: false,
@@ -43,7 +35,7 @@ export default function GetLabelPreview(): void {
           const safeSN = serialNumber || "0";
           result = await generateReprintZPL(part, safeDate, safeSN, 1);
         } else {
-          result = await generatePreviewZPL(part);
+          result = await generatePreviewZPL(part, zpl);
         }
 
         if (!result.status || !result.data) {

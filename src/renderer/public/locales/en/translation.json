@@ -4,7 +4,9 @@
     "submit": "Submit",
     "cancel": "Cancel",
     "save": "Save",
-    "test": "Test"
+    "test": "Test",
+    "close": "Close",
+    "page_not_found": "Page not found"
   },
   "sidebar": {
     "app_title": "Label Print APP",
@@ -54,8 +56,8 @@
     "printing_blocked_midnight": "Printing is blocked due to a date change (23:55–00:05). Please try again shortly."
   },
   "config_view": {
-    "title": "Printer Configuration",
-    "subtitle": "Configure network or COM port connection for the printer.",
+    "title": "Application Configuration",
+    "subtitle": "Manage the printer connection and database settings.",
     "error": "Configuration Error",
     "select_from_list": "-- Select from list --",
     "loading_system": "Loading configuration...",
@@ -86,6 +88,15 @@
     "save": "Save Configuration",
     "saving": "Saving...",
     "cancel": "Cancel",
+    "connection_tab": "Printer",
+    "database_tab": "Database",
+    "parts_tab": "Parts list",
+    "printer_access_title": "No access to printer configuration",
+    "printer_access_message": "Sign in with an IT-authorized account to configure the printer connection.",
+    "database_access_title": "No access to database configuration",
+    "database_access_message": "Sign in with an IT-authorized account to change the database connection settings.",
+    "parts_access_title": "No access to parts configuration",
+    "parts_access_message": "Sign in with an IT-authorized account to change the parts source and manage local records.",
     "database_title": "Database Configuration",
     "db_host": "Host",
     "db_host_placeholder": "e.g., 127.0.0.1",
@@ -94,7 +105,38 @@
     "db_password": "Password",
     "db_password_placeholder": "e.g., ••••••••",
     "db_name": "Database Name",
-    "db_name_placeholder": "e.g., label_print"
+    "db_name_placeholder": "e.g., label_print",
+    "database_subtitle": "Manage the database connection settings.",
+    "database_connection": "Database connection"
+  },
+  "parts_config": {
+    "title": "Parts list source",
+    "subtitle": "Choose where the application should obtain parts shown during printing.",
+    "operation": "Operation",
+    "operation_placeholder": "e.g. HVL",
+    "operation_hint": "Only parts with this Operation value will be shown in the print list.",
+    "source_server_title": "External server",
+    "source_server_description": "Download the current list from the server.",
+    "source_local_title": "Local list",
+    "source_local_description": "Records stored on this computer.",
+    "search_placeholder": "Search by number, description, or format...",
+    "add_record": "Add record",
+    "part_number": "Part number",
+    "description": "Description",
+    "serial_prefix": "Serial prefix",
+    "label_format": "Label format",
+    "edit_record": "Edit record",
+    "delete_record": "Delete record",
+    "no_records": "No records to display.",
+    "field_Operation": "Operation",
+    "field_Part_Number": "Part number",
+    "field_Part_Description": "Part description",
+    "field_Serial_Prefix": "Serial prefix",
+    "field_Label_Format": "Label format",
+    "save_record": "Save record",
+    "load_error": "Failed to load parts list configuration.",
+    "save_success": "Parts source configuration saved.",
+    "save_error": "Failed to save parts configuration."
   },
   "login": {
     "title": "Login",
@@ -102,14 +144,16 @@
     "email_label": "Email",
     "login_label": "Login",
     "password_label": "Password",
-    "login_placeholder": "jkowalski@borgwarner.com",
+    "login_placeholder": "user@example.com",
     "password_placeholder": "Password",
     "login_btn": "Log in",
     "login_successful": "Login successful",
     "login_error": "Error during login",
     "error": "Login Error",
     "logging_in": "Logging in...",
-    "footer_info": "Log in with your corporate Active Directory account"
+    "footer_info": "Log in with your corporate Active Directory account",
+    "show_password": "Show password",
+    "hide_password": "Hide password"
   },
   "status_banner": {
     "success": "Success",
@@ -121,7 +165,8 @@
       "AUTH_INVALID_CREDENTIALS": "Invalid login or password.",
       "AUTH_TIMEOUT": "Could not connect to the login server (Timeout).",
       "AUTH_ERROR": "Login error.",
-      "AUTH_UNKNOWN": "Login failed. Unknown error."
+      "AUTH_UNKNOWN": "Login failed. Unknown error.",
+      "AUTH_CONFIG_MISSING": "LDAP login configuration is missing."
     },
     "printer": {
       "GET_SERIAL_PORTS_SUCCESS": "Serial ports retrieved successfully",
@@ -151,7 +196,8 @@
     },
     "parts": {
       "PARTS_FETCH_SUCCESS": "Parts list retrieved successfully",
-      "GET_PARTS_FAIL": "Error while fetching parts"
+      "GET_PARTS_FAIL": "Error while fetching parts",
+      "PARTS_CONFIG_MISSING": "Parts list source configuration is missing."
     },
     "db": {
       "not_initialized": "Database connection not initialized",
@@ -175,7 +221,8 @@
       "invalid_decimal": "Value is not a number (decimal type)",
       "unsupported_type": "Unsupported numbering type",
       "preview_success": "Label preview generated successfully",
-      "print_success": "Label generated for printing"
+      "print_success": "Label generated for printing",
+      "unexpected_error": "An unexpected error occurred"
     }
   },
   "reprint": {
@@ -199,13 +246,45 @@
     "theme": "Theme",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "Auto"
+    "theme_system": "Auto",
+    "language": "Language",
+    "unknown_error": "Unknown error",
+    "language_pl": "Polish",
+    "language_en": "English"
   },
   "label_formats": {
     "title": "Label Templates",
     "subtitle": "Manage and browse available ZPL print formats.",
     "no_templates": "No templates",
     "no_templates_message": "No files found in the templates folder.",
-    "found": "Found"
+    "found": "Found",
+    "new_template": "New template",
+    "name": "Template name",
+    "name_placeholder": "template-name.zpl",
+    "name_and_content_required": "Enter a template name and ZPL code.",
+    "login_required": "Log in to manage templates.",
+    "deleted": "Template deleted.",
+    "delete_title": "Delete template?",
+    "delete_confirmation": "Delete template {{name}}?",
+    "deleting": "Deleting..."
+  },
+  "label_editor": {
+    "title": "ZPL Designer",
+    "refresh": "Refresh",
+    "code": "ZPL Code",
+    "lines": "Lines: {{count}}",
+    "chars": "Chars: {{count}}",
+    "placeholder": "Enter ZPL code...",
+    "preview": "Live Preview",
+    "dpi": "600 DPI",
+    "label_size_auto": "Label Size Auto",
+    "preview_alt": "ZPL Preview",
+    "example_part_load_error": "Failed to load the parts list for preview.",
+    "example_part_not_found": "No part was found for format {{format}}.",
+    "example_part_preview_error": "Failed to fill the preview with part {{part}}."
+  },
+  "label_card": {
+    "template_type": "ZPL Template",
+    "delete": "Delete"
   }
 }
