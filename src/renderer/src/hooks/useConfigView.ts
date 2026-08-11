@@ -116,11 +116,15 @@ export function useConfigView(): UseConfigViewReturn {
         }
 
         const dbConfigResponse = await window.api.GetSettings("database");
-        if (dbConfigResponse) {
-          setDbHost(dbConfigResponse.host || "");
-          setDbUser(dbConfigResponse.user || "");
-          setDbPass(dbConfigResponse.password || "");
-          setDbName(dbConfigResponse.database || "");
+        if (dbConfigResponse && typeof dbConfigResponse === "object") {
+          const dbConfig = dbConfigResponse as Record<
+            string,
+            string | undefined
+          >;
+          setDbHost(dbConfig.host || "");
+          setDbUser(dbConfig.user || "");
+          setDbPass(dbConfig.password || "");
+          setDbName(dbConfig.database || "");
         }
       } catch (err) {
         if (!isMounted) return;

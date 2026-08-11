@@ -1,8 +1,13 @@
 export interface Part {
+  Operation?: string;
   Part_Number: string;
   Part_Description: string;
   Serial_Prefix: string;
   Label_Format: string;
+}
+
+export interface LocalPart extends Part {
+  Operation: string;
 }
 
 export interface PartOption {

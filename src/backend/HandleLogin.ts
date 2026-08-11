@@ -1,5 +1,5 @@
-import { ipcMain } from "electron";
-import { Client } from "ldapts";
+import {ipcMain} from "electron";
+import {Client} from "ldapts";
 
 interface LoginResponse {
   status: boolean;
@@ -11,22 +11,39 @@ interface LoginResponse {
   };
   rawError?: string;
 }
+
 export default function HandleLogin(): void {
   ipcMain.handle(
     "handle-login",
     async (_event, { login, password }): Promise<LoginResponse> => {
-      const ldapUrl = "ldaps://global.borgwarner.net:3269";
+      const ldapUrl = process.env.LDAP_URL;
+      const ldapDomain = process.env.LDAP_DOMAIN;
+      const searchBase = process.env.LDAP_SEARCH_BASE;
+      const timeout = Number(process.env.LDAP_TIMEOUT_MS || 5000);
+      const rejectUnauthorized =
+        process.env.LDAP_TLS_REJECT_UNAUTHORIZED === "true";
+
+      if (!ldapUrl || !ldapDomain || !searchBase) {
+        return {
+          status: false,
+          message: "backend.auth.AUTH_CONFIG_MISSING"
+        };
+      }
 
       const client = new Client({
         url: ldapUrl,
-        tlsOptions: { rejectUnauthorized: false },
-        timeout: 5000,
+        tlsOptions: {rejectUnauthorized},
+        timeout
       });
 
       try {
-        await client.bind(login, password);
+        const normalizedLogin = login.trim().toLowerCase();
 
-        const searchBase = "DC=global,DC=borgwarner,DC=net";
+        const bindUser = normalizedLogin.includes("@")
+          ? normalizedLogin
+          : `${normalizedLogin}@${ldapDomain}`;
+
+        await client.bind(bindUser, password);
 
         const { searchEntries } = await client.search(searchBase, {
           scope: "sub",

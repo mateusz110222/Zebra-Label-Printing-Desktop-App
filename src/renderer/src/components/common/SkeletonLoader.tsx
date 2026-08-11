@@ -1,15 +1,10 @@
 import React from "react";
 
 interface SkeletonLoaderProps {
-  /** Width of the skeleton - can be a Tailwind class or CSS value */
   width?: string;
-  /** Height of the skeleton - can be a Tailwind class or CSS value */
   height?: string;
-  /** Shape variant: 'rectangle', 'circle', or 'text' */
   variant?: "rectangle" | "circle" | "text";
-  /** Number of text lines to render (only for the 'text' variant) */
   lines?: number;
-  /** Additional CSS classes */
   className?: string;
 }
 
@@ -52,7 +47,6 @@ export default function SkeletonLoader({
     );
   }
 
-  // Default: rectangle
   return (
     <div
       className={`bg-linear-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 rounded animate-shimmer ${width} ${height} ${className}`}
@@ -60,7 +54,6 @@ export default function SkeletonLoader({
   );
 }
 
-// Config skeleton for ConfigView
 export function ConfigViewSkeleton(): React.JSX.Element {
   return (
     <div className="min-h-full flex items-start justify-center p-8">
@@ -110,7 +103,6 @@ export function ConfigViewSkeleton(): React.JSX.Element {
   );
 }
 
-// Universal page skeleton for lazy loading fallback
 export function PageSkeleton(): React.JSX.Element {
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8">
@@ -146,12 +138,10 @@ export function PageSkeleton(): React.JSX.Element {
   );
 }
 
-// Wrapper component with smooth transition from skeleton to content
 interface LoadingWrapperProps {
   isLoading: boolean;
   skeleton?: React.ReactNode;
   children: React.ReactNode;
-  /** Minimum time to show skeleton in ms (default: 300) to prevent flickering */
   minDisplayTime?: number;
 }
 
@@ -170,7 +160,6 @@ export function LoadingWrapper({
     return () => clearTimeout(timer);
   }, [minDisplayTime]);
 
-  // Show skeleton if loading is true OR minimum time hasn't elapsed
   if (isLoading || !elapsed) {
     return <>{skeleton}</>;
   }

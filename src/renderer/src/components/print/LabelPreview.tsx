@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { FiPrinter, FiChevronDown, FiChevronUp } from "react-icons/fi";
+import React, {useState} from "react";
+import {useTranslation} from "react-i18next";
+import {FiChevronDown, FiChevronUp, FiPrinter} from "react-icons/fi";
 
 interface LabelPreviewProps {
   isLoading: boolean;
@@ -28,7 +28,7 @@ export default function LabelPreview({
         <div className="flex items-center gap-2">
           {previewImage && !isExpanded && (
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              {t("print_view.preview_available", "Podgląd dostępny")}
+              {t("print_view.preview_available")}
             </span>
           )}
           {isExpanded ? (

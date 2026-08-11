@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import {useTranslation} from "react-i18next";
 import React from "react";
 
 interface StatusBannerProps {
@@ -74,7 +74,9 @@ export default function StatusBanner({
         )}
       </div>
       <button
+        type="button"
         onClick={onClose}
+        aria-label={t("common.close")}
         className="opacity-50 hover:opacity-100 transition"
       >
         <svg

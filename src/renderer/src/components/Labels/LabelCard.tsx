@@ -1,16 +1,22 @@
 import React from "react";
-import { BsFileEarmarkCode } from "react-icons/bs";
+import { BsFileEarmarkCode, BsTrash } from "react-icons/bs";
 import { MdKeyboardArrowUp } from "react-icons/md";
 import { LabelFormatsResponse } from "../../types";
+import { useTranslation } from "react-i18next";
 
 export const LabelCard = ({
   format,
   onClick,
+                            onDelete,
+                            canManage = false
 }: {
   format: LabelFormatsResponse;
   onClick: () => void;
+  onDelete?: () => void;
+  canManage?: boolean;
 }): React.JSX.Element => {
   const displayName = format.name.replace(/\.[^/.]+$/, "");
+  const { t } = useTranslation();
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group">
@@ -36,7 +42,7 @@ export const LabelCard = ({
               {displayName}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-              ZPL Template
+              {t("label_card.template_type")}
             </p>
           </div>
         </div>
@@ -46,6 +52,18 @@ export const LabelCard = ({
           <MdKeyboardArrowUp size={24} />
         </div>
       </div>
+      {canManage && onDelete && (
+        <div className="flex justify-end border-t border-slate-100 dark:border-slate-700 px-4 py-2">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+          >
+            <BsTrash size={14} />
+            {t("label_card.delete")}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
