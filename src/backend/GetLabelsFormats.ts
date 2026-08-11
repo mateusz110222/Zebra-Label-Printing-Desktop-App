@@ -1,11 +1,7 @@
-import { app, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
-
-const getTemplatesPath = (): string =>
-  app.isPackaged
-    ? path.join(process.resourcesPath, "zpl_templates")
-    : path.join(app.getAppPath(), "zpl_templates");
+import { getTemplatesPath } from "./TemplatePaths";
 
 const getTemplateFileName = (name: string): string | null => {
   if (!/^[^\\/:*?"<>|]+\.(zpl|txt)$/i.test(name)) return null;

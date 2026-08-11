@@ -2,10 +2,10 @@ import GetJulianDate from "./GetJulianDate";
 import { calculateSerial, fillZplTemplate } from "./LabelProcessor";
 import { getDatabase } from "../DatabaseConfig";
 import { Pool, RowDataPacket } from "mysql2/promise";
-import { app } from "electron";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import GetBmsDate from "./GetBmsDate";
+import { getTemplatesPath } from "../TemplatePaths";
 
 interface Part {
   Part_Number: string;
@@ -24,24 +24,15 @@ interface GenerateZPLResult {
 export async function getZplTemplate(
   formatName: string,
 ): Promise<GenerateZPLResult> {
-  let templatesPath: string, rawTemplate: string;
+  let rawTemplate: string;
   try {
-    if (app.isPackaged) {
-      templatesPath = path.join(
-        path.dirname(app.getPath("exe")),
-        "zpl_templates"
-      );
-    } else {
-      templatesPath = path.join(app.getAppPath(), "zpl_templates");
-    }
-
     const fileName =
       formatName.toLowerCase().endsWith(".zpl") ||
       formatName.toLowerCase().endsWith(".txt")
         ? formatName
         : `${formatName}.zpl`;
 
-    const fullPath = path.join(templatesPath, fileName);
+    const fullPath = path.join(getTemplatesPath(), fileName);
     rawTemplate = await readFile(fullPath, "utf-8");
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -66,21 +57,14 @@ export async function SaveZplTemplate(
   formatName: string,
   data: string,
 ): Promise<GenerateZPLResult> {
-  let templatesPath: string;
   try {
-    if (app.isPackaged) {
-      templatesPath = path.join(process.resourcesPath, "zpl_templates");
-    } else {
-      templatesPath = path.join(app.getAppPath(), "zpl_templates");
-    }
-
     const fileName =
       formatName.toLowerCase().endsWith(".zpl") ||
       formatName.toLowerCase().endsWith(".txt")
         ? formatName
         : `${formatName}.zpl`;
 
-    const fullPath = path.join(templatesPath, fileName);
+    const fullPath = path.join(getTemplatesPath(), fileName);
 
     await writeFile(fullPath, data);
   } catch (error) {
