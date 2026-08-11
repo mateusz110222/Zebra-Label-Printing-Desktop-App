@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiDatabase, FiWifi } from "react-icons/fi";
+import { FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 import ConnectionTabs from "./ConnectionTabs";
 
@@ -23,14 +23,6 @@ interface ConfigFormCardProps {
   isValid: boolean;
   onSave: () => void;
   onCancel: () => void;
-  dbHost: string;
-  onDbHostChange: (value: string) => void;
-  dbUser: string;
-  onDbUserChange: (value: string) => void;
-  dbPass: string;
-  onDbPassChange: (value: string) => void;
-  dbName: string;
-  onDbNameChange: (value: string) => void;
 }
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200];
@@ -52,14 +44,6 @@ export default function ConfigFormCard({
   isValid,
   onSave,
   onCancel,
-  dbHost,
-  onDbHostChange,
-  dbUser,
-  onDbUserChange,
-  dbPass,
-  onDbPassChange,
-  dbName,
-  onDbNameChange,
 }: ConfigFormCardProps): React.JSX.Element {
   const { t } = useTranslation();
 
@@ -193,70 +177,6 @@ export default function ConfigFormCard({
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Database config */}
-      <div className="p-8 pt-0">
-        <div className="border-t border-slate-100 dark:border-slate-700 pt-8">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
-            <FiDatabase className="mr-3 text-indigo-500" />
-            {t("config_view.database_title")}
-          </h3>
-          <div className="space-y-6">
-            {/* Host field */}
-            <div className="group">
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                {t("config_view.db_host")}
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={dbHost}
-                onChange={(e) => onDbHostChange(e.target.value)}
-                placeholder={t("config_view.db_host_placeholder")}
-              />
-            </div>
-
-            {/* User field */}
-            <div className="group">
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                {t("config_view.db_user")}
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={dbUser}
-                onChange={(e) => onDbUserChange(e.target.value)}
-                placeholder={t("config_view.db_user_placeholder")}
-              />
-            </div>
-
-            {/* Password field */}
-            <div className="group">
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                {t("config_view.db_password")}
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                type="password"
-                value={dbPass}
-                onChange={(e) => onDbPassChange(e.target.value)}
-                placeholder={t("config_view.db_password_placeholder")}
-              />
-            </div>
-
-            {/* Database name field */}
-            <div className="group">
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                {t("config_view.db_name")}
-              </label>
-              <input
-                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={dbName}
-                onChange={(e) => onDbNameChange(e.target.value)}
-                placeholder={t("config_view.db_name_placeholder")}
-              />
-            </div>
-          </div>
         </div>
       </div>
 

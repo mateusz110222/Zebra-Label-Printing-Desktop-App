@@ -3,7 +3,15 @@ import { useTranslation } from "react-i18next";
 import { FiLock } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-export default function NoConfigCard(): React.JSX.Element {
+interface NoConfigCardProps {
+  titleKey?: string;
+  messageKey?: string;
+}
+
+export default function NoConfigCard({
+                                       titleKey = "config_view.no_config_title",
+                                       messageKey = "config_view.no_config_message"
+                                     }: NoConfigCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -14,10 +22,10 @@ export default function NoConfigCard(): React.JSX.Element {
           <FiLock className="text-4xl text-slate-400 dark:text-slate-500" />
         </div>
         <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-3">
-          {t("config_view.no_config_title")}
+          {t(titleKey)}
         </h3>
         <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-md mx-auto">
-          {t("config_view.no_config_message")}
+          {t(messageKey)}
         </p>
         <button
           onClick={() => navigate("/login")}
