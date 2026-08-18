@@ -18,24 +18,23 @@ interface DatabaseConfigCardProps {
 }
 
 export default function DatabaseConfigCard({
-                                             dbHost,
-                                             onDbHostChange,
-                                             dbUser,
-                                             onDbUserChange,
-                                             dbPass,
-                                             onDbPassChange,
-                                             dbName,
-                                             onDbNameChange,
-                                             isProcessing,
-                                             isValid,
-                                             onSave,
-                                             onCancel
-                                           }: DatabaseConfigCardProps): React.JSX.Element {
+  dbHost,
+  onDbHostChange,
+  dbUser,
+  onDbUserChange,
+  dbPass,
+  onDbPassChange,
+  dbName,
+  onDbNameChange,
+  isProcessing,
+  isValid,
+  onSave,
+  onCancel,
+}: DatabaseConfigCardProps): React.JSX.Element {
   const { t } = useTranslation();
 
   return (
-    <div
-      className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
       <div className="p-8">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
           <FiDatabase className="mr-3 text-indigo-500" />

@@ -2,12 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import Select from "react-select";
 
-import {
-  CriticalErrorState,
-  LoadingWrapper,
-  StatusBanner,
-  SubmitButton,
-} from "../components/common";
+import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
@@ -48,7 +43,12 @@ export function ReprintView(): React.JSX.Element {
 
           {/* Main Card */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
-            <form onSubmit={actions.handlePrint}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void actions.handlePrint();
+              }}
+            >
               <div className="p-4 sm:p-6 lg:p-8">
                 {/* Part Selection */}
                 <div className="mb-6">

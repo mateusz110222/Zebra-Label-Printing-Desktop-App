@@ -54,8 +54,7 @@ export function LabelsFormatsView(): React.JSX.Element {
             </div>
 
             <div className="flex items-center gap-3">
-              <div
-                className="bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 shadow-sm">
+              <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 shadow-sm">
                 {t("label_formats.found")}:{" "}
                 <span className="text-indigo-600 dark:text-indigo-400 font-bold">
                   {data.labelsFormats.length}
@@ -127,7 +126,7 @@ export function LabelsFormatsView(): React.JSX.Element {
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 {t("label_formats.delete_confirmation", {
-                  name: formatToDelete.replace(/\.[^/.]+$/, "")
+                  name: formatToDelete.replace(/\.[^/.]+$/, ""),
                 })}
               </p>
               <div className="mt-6 flex justify-end gap-3">

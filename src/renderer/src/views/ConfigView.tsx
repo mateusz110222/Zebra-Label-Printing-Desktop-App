@@ -1,6 +1,6 @@
-import React, {useEffect, useState} from "react";
-import {useTranslation} from "react-i18next";
-import {ConfigViewSkeleton, CriticalErrorState, LoadingWrapper, StatusBanner} from "../components/common";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { ConfigViewSkeleton, CriticalErrorState, LoadingWrapper, StatusBanner } from "../components/common";
 import {
   ConfigFormCard,
   ConnectionDisplayCard,
@@ -9,15 +9,15 @@ import {
   NoConfigCard,
   PartsSourceConfigCard
 } from "../components/config";
-import {useAuth} from "@renderer/context/AuthContext";
-import {useConfigView} from "@renderer/hooks";
-import {LocalPart} from "@renderer/types";
+import { useAuth } from "@renderer/context/AuthContext";
+import { useConfigView } from "@renderer/hooks";
+import { LocalPart } from "@renderer/types";
 
 export function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
   const { CanEdit } = useAuth();
   const { data, status, actions, isValid } = useConfigView();
-  const {setUiMessage} = actions;
+  const { setUiMessage } = actions;
   const [activeTab, setActiveTab] = useState("connection");
   const [partsSource, setPartsSource] = useState<"server" | "local">("server");
   const [partsOperation, setPartsOperation] = useState("");
@@ -37,15 +37,15 @@ export function ConfigView(): React.JSX.Element {
       .catch(() =>
         setUiMessage({
           type: "error",
-          text: t("parts_config.load_error")
-        })
+          text: t("parts_config.load_error"),
+        }),
       );
   }, [setUiMessage, t]);
 
   const savePartsConfig = async (
     source: "server" | "local",
     operation: string,
-    parts: LocalPart[]
+    parts: LocalPart[],
   ): Promise<void> => {
     if (!CanEdit) return;
 
@@ -54,7 +54,7 @@ export function ConfigView(): React.JSX.Element {
       const response = await window.api.SavePartsConfig({
         source,
         operation,
-        localParts: parts
+        localParts: parts,
       });
       if (response.status) {
         setPartsSource(source);
@@ -63,18 +63,18 @@ export function ConfigView(): React.JSX.Element {
         setPartsConfigVersion((version) => version + 1);
         actions.setUiMessage({
           type: "success",
-          text: t("parts_config.save_success")
+          text: t("parts_config.save_success"),
         });
       } else {
         actions.setUiMessage({
           type: "error",
-          text: t("parts_config.save_error")
+          text: t("parts_config.save_error"),
         });
       }
     } catch {
       actions.setUiMessage({
         type: "error",
-        text: t("parts_config.save_error")
+        text: t("parts_config.save_error"),
       });
     } finally {
       setIsSavingParts(false);
@@ -202,12 +202,12 @@ export function ConfigView(): React.JSX.Element {
           )}
           {activeTab === "database" && (
             <>
-              {!data.hasConfig && !CanEdit ? (
+              {!data.hasDatabaseConfig && !CanEdit ? (
                 <NoConfigCard
                   titleKey="config_view.database_access_title"
                   messageKey="config_view.database_access_message"
                 />
-              ) : !data.isEditing && data.hasConfig ? (
+              ) : !data.isEditing && data.hasDatabaseConfig ? (
                 <DatabaseDisplayCard
                   dbHost={data.dbHost}
                   dbUser={data.dbUser}

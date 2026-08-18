@@ -151,7 +151,7 @@ export function useLabelEdit(): useLabelEditResponse {
           setExamplePart(null);
           setUiMessage({
             type: "error",
-            text: t("label_editor.example_part_load_error")
+            text: t("label_editor.example_part_load_error"),
           });
           return;
         }
@@ -167,14 +167,14 @@ export function useLabelEdit(): useLabelEditResponse {
           setExamplePart(null);
           setUiMessage({
             type: "error",
-            text: t("label_editor.example_part_load_error")
+            text: t("label_editor.example_part_load_error"),
           });
           return;
         }
 
         const formatName = normalizeFormatName(cleanName);
         const matchingPart = (partsData as Part[]).find(
-          (part) => normalizeFormatName(part.Label_Format) === formatName
+          (part) => normalizeFormatName(part.Label_Format) === formatName,
         );
 
         setExamplePart(matchingPart || null);
@@ -182,8 +182,8 @@ export function useLabelEdit(): useLabelEditResponse {
           setUiMessage({
             type: "error",
             text: t("label_editor.example_part_not_found", {
-              format: cleanName
-            })
+              format: cleanName,
+            }),
           });
         } else {
           setUiMessage(null);
@@ -194,7 +194,7 @@ export function useLabelEdit(): useLabelEditResponse {
           setExamplePart(null);
           setUiMessage({
             type: "error",
-            text: t("label_editor.example_part_load_error")
+            text: t("label_editor.example_part_load_error"),
           });
         }
       }
@@ -217,15 +217,15 @@ export function useLabelEdit(): useLabelEditResponse {
             part: examplePart,
             date: "",
             serialNumber: "",
-            zpl: zplOrName
+            zpl: zplOrName,
           });
 
           if (isMounted) {
             if (!response.status) {
               setCriticalError(
                 t("label_editor.example_part_preview_error", {
-                  part: examplePart.Part_Number
-                })
+                  part: examplePart.Part_Number,
+                }),
               );
             } else if (response.data) {
               setPreviewImage(response.data);
@@ -281,7 +281,7 @@ export function useLabelEdit(): useLabelEditResponse {
     if (!templateName || !parsedData.trim()) {
       setUiMessage({
         type: "error",
-        text: t("label_formats.name_and_content_required")
+        text: t("label_formats.name_and_content_required"),
       });
       return;
     }
@@ -289,7 +289,7 @@ export function useLabelEdit(): useLabelEditResponse {
     try {
       const response = await window.api.SaveLabelFormat(
         templateName,
-        parsedData
+        parsedData,
       );
       if (response.status) {
         setUiMessage({

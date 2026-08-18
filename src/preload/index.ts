@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 interface PrinterPayload {
-  type: "IP" | "COM" | "USB";
+  type: "IP" | "COM";
   ip?: string;
   port?: number;
   comPort?: string;
@@ -68,8 +68,10 @@ const api = {
     part: PartPayload;
     quantity: number;
     serialNumber: string;
+    date: string;
   }) => ipcRenderer.invoke("reprint-label", payload),
   GetPrinterStatus: () => ipcRenderer.invoke("Get-PrinterStatus"),
+  GetSystemHealth: () => ipcRenderer.invoke("get-system-health"),
   GetSerialPorts: () => ipcRenderer.invoke("get-serialPorts"),
   GetPrinterConfig: () => ipcRenderer.invoke("get-printer-config"),
   SavePrinterConfig: (channel: string, payload: PrinterPayload) =>
@@ -85,11 +87,24 @@ const api = {
   RestartApp: () => ipcRenderer.send("restart_app"),
   GetSettings: (key: string): Promise<unknown> =>
     ipcRenderer.invoke("get-settings", key),
+  GetDatabaseConfig: () => ipcRenderer.invoke("get-database-config"),
+  SaveDatabaseConfig: (payload: {
+    host: string;
+    user: string;
+    password: string;
+    database: string;
+  }) => ipcRenderer.invoke("save-database-config", payload),
 
   // Auth
   Login: (payload: LoginPayload): Promise<unknown> =>
     ipcRenderer.invoke("handle-login", payload),
   Logout: (): Promise<void> => ipcRenderer.invoke("handle-logout"),
+
+  // Audit history
+  GetAuditLogs: (query: Record<string, unknown>) =>
+    ipcRenderer.invoke("get-audit-logs", query),
+  ExportAuditLogs: (query: Record<string, unknown>) =>
+    ipcRenderer.invoke("export-audit-logs", query),
 
   // Events
   OnUpdateAvailable: (callback: () => void) => {
@@ -100,7 +115,7 @@ const api = {
   OnDownloadProgress: (callback: (data: UpdateProgress) => void) => {
     const sub = (
       _event: Electron.IpcRendererEvent,
-      data: UpdateProgress
+      data: UpdateProgress,
     ): void => callback(data);
     ipcRenderer.on("download_progress", sub);
     return () => ipcRenderer.removeListener("download_progress", sub);

@@ -9,9 +9,9 @@ interface NoConfigCardProps {
 }
 
 export default function NoConfigCard({
-                                       titleKey = "config_view.no_config_title",
-                                       messageKey = "config_view.no_config_message"
-                                     }: NoConfigCardProps): React.JSX.Element {
+  titleKey = "config_view.no_config_title",
+  messageKey = "config_view.no_config_message",
+}: NoConfigCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -33,6 +33,13 @@ export default function NoConfigCard({
         >
           <FiLock className="mr-2" />
           {t("config_view.login_to_configure")}
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate("/health")}
+          className="mx-auto mt-5 block text-sm font-semibold text-indigo-600 underline-offset-4 transition-colors hover:text-indigo-500 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300"
+        >
+          {t("config_view.open_system_health")} →
         </button>
       </div>
     </div>

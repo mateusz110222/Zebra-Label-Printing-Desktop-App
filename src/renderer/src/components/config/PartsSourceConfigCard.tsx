@@ -12,7 +12,7 @@ interface Props {
   onSave: (
     source: "server" | "local",
     operation: string,
-    parts: LocalPart[]
+    parts: LocalPart[],
   ) => Promise<void>;
 }
 
@@ -21,17 +21,17 @@ const emptyPart = (): LocalPart => ({
   Part_Number: "",
   Part_Description: "",
   Serial_Prefix: "",
-  Label_Format: ""
+  Label_Format: "",
 });
 
 export default function PartsSourceConfigCard({
-                                                source,
-                                                operation,
-                                                parts,
-                                                isProcessing,
-                                                canEdit,
-                                                onSave
-                                              }: Props): React.JSX.Element {
+  source,
+  operation,
+  parts,
+  isProcessing,
+  canEdit,
+  onSave,
+}: Props): React.JSX.Element {
   const { t } = useTranslation();
   const [selectedSource, setSelectedSource] = useState(source);
   const [selectedOperation, setSelectedOperation] = useState(operation);
@@ -47,10 +47,10 @@ export default function PartsSourceConfigCard({
         .map((part, index) => ({ part, index }))
         .filter(({ part }) =>
           Object.values(part).some((value) =>
-            value.toLowerCase().includes(query.toLowerCase())
-          )
+            value.toLowerCase().includes(query.toLowerCase()),
+          ),
         ),
-    [items, query]
+    [items, query],
   );
 
   const updateDraft = (key: keyof LocalPart, value: string): void =>
@@ -61,21 +61,20 @@ export default function PartsSourceConfigCard({
     setIsEditorOpen(false);
   };
   const canSaveRecord = Object.values(draft).every(
-    (value) => value.trim().length > 0
+    (value) => value.trim().length > 0,
   );
   const saveRecord = (): void => {
     if (!canEdit || !canSaveRecord) return;
     setItems((current) =>
       editingIndex === null
         ? [...current, draft]
-        : current.map((item, index) => (index === editingIndex ? draft : item))
+        : current.map((item, index) => (index === editingIndex ? draft : item)),
     );
     resetEditor();
   };
 
   return (
-    <div
-      className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
       <div className="p-6 sm:p-8 space-y-6">
         <div>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-3">
@@ -147,81 +146,81 @@ export default function PartsSourceConfigCard({
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-700 text-left">
-                <tr>
-                  {[
-                    t("parts_config.operation"),
-                    t("parts_config.part_number"),
-                    t("parts_config.description"),
-                    t("parts_config.serial_prefix"),
-                    t("parts_config.label_format"),
-                    ""
-                  ].map((heading) => (
-                    <th
-                      key={heading}
-                      className="px-3 py-3 font-semibold whitespace-nowrap"
-                    >
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
+                  <tr>
+                    {[
+                      t("parts_config.operation"),
+                      t("parts_config.part_number"),
+                      t("parts_config.description"),
+                      t("parts_config.serial_prefix"),
+                      t("parts_config.label_format"),
+                      "",
+                    ].map((heading) => (
+                      <th
+                        key={heading}
+                        className="px-3 py-3 font-semibold whitespace-nowrap"
+                      >
+                        {heading}
+                      </th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody>
-                {visibleItems.map(({ part, index }) => (
-                  <tr
-                    key={`${part.Part_Number}-${index}`}
-                    className="border-t border-slate-100 dark:border-slate-700"
-                  >
-                    <td className="px-3 py-3">{part.Operation}</td>
-                    <td className="px-3 py-3 font-mono">
-                      {part.Part_Number}
-                    </td>
-                    <td className="px-3 py-3">{part.Part_Description}</td>
-                    <td className="px-3 py-3 font-mono">
-                      {part.Serial_Prefix}
-                    </td>
-                    <td className="px-3 py-3">{part.Label_Format}</td>
-                    <td className="px-3 py-3 flex gap-2">
-                      <button
-                        aria-label={t("parts_config.edit_record")}
-                        onClick={() => {
-                          if (!canEdit) return;
-                          setEditingIndex(index);
-                          setDraft(part);
-                          setIsEditorOpen(true);
-                        }}
-                        disabled={!canEdit}
-                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                      >
-                        <FiEdit2 />
-                      </button>
-                      <button
-                        aria-label={t("parts_config.delete_record")}
-                        onClick={() =>
-                          canEdit &&
-                          setItems((current) =>
-                            current.filter(
-                              (_, itemIndex) => itemIndex !== index
-                            )
-                          )
-                        }
-                        disabled={!canEdit}
-                        className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                      >
-                        <FiTrash2 />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {visibleItems.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-3 py-8 text-center text-slate-500"
+                  {visibleItems.map(({ part, index }) => (
+                    <tr
+                      key={`${part.Part_Number}-${index}`}
+                      className="border-t border-slate-100 dark:border-slate-700"
                     >
-                      {t("parts_config.no_records")}
-                    </td>
-                  </tr>
-                )}
+                      <td className="px-3 py-3">{part.Operation}</td>
+                      <td className="px-3 py-3 font-mono">
+                        {part.Part_Number}
+                      </td>
+                      <td className="px-3 py-3">{part.Part_Description}</td>
+                      <td className="px-3 py-3 font-mono">
+                        {part.Serial_Prefix}
+                      </td>
+                      <td className="px-3 py-3">{part.Label_Format}</td>
+                      <td className="px-3 py-3 flex gap-2">
+                        <button
+                          aria-label={t("parts_config.edit_record")}
+                          onClick={() => {
+                            if (!canEdit) return;
+                            setEditingIndex(index);
+                            setDraft(part);
+                            setIsEditorOpen(true);
+                          }}
+                          disabled={!canEdit}
+                          className="rounded-md p-1.5 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button
+                          aria-label={t("parts_config.delete_record")}
+                          onClick={() =>
+                            canEdit &&
+                            setItems((current) =>
+                              current.filter(
+                                (_, itemIndex) => itemIndex !== index,
+                              ),
+                            )
+                          }
+                          disabled={!canEdit}
+                          className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {visibleItems.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-3 py-8 text-center text-slate-500"
+                      >
+                        {t("parts_config.no_records")}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

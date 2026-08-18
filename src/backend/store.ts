@@ -51,7 +51,7 @@ export const store = new Store<{
     parts: {
       source: "server",
       operation: "",
-      localParts: []
-    }
+      localParts: [],
+    },
   },
 });

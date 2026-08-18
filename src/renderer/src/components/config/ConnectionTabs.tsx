@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 
-type ConnectionType = "IP" | "COM" | "USB";
+type ConnectionType = "IP" | "COM";
 
 interface ConnectionTabsProps {
   activeTab: ConnectionType;

@@ -1,6 +1,7 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from "electron";
 import sharp from "sharp";
 import { getZplTemplate, SaveZplTemplate } from "../hooks/ZPLService";
+import { appendAuditLog, canViewAuditLogs } from "../AuditLog";
 
 const renderZpl = async (zpl: string): Promise<string> => {
   const { ready } = await import("zpl-renderer-js");
@@ -56,7 +57,7 @@ export default function ChildWindowHandlers(): void {
               status: false,
               message: "backend.child.formatName_empty",
               data: null,
-              rawError: "ZPL content missing"
+              rawError: "ZPL content missing",
             };
           }
 
@@ -64,7 +65,7 @@ export default function ChildWindowHandlers(): void {
           return {
             status: true,
             message: "backend.printer.GET_LABEL_PREVIEW_SUCCESS",
-            data: finalBase64
+            data: finalBase64,
           };
         }
 
@@ -108,10 +109,10 @@ export default function ChildWindowHandlers(): void {
   ipcMain.handle(
     "save-labelformat",
     async (event: IpcMainInvokeEvent, formatName, data) => {
-      if (!isAuthorized(event.sender)) {
+      if (!isAuthorized(event.sender) || !canViewAuditLogs()) {
         return {
           status: false,
-          message: "Unauthorized: Access restricted to child window.",
+          message: "backend.audit.unauthorized",
         };
       }
       if (formatName.trim().length === 0 || data.trim().length === 0) {
@@ -124,8 +125,27 @@ export default function ChildWindowHandlers(): void {
       const response = await SaveZplTemplate(formatName, data);
 
       if (!response.status) {
+        await appendAuditLog({
+          category: "template",
+          action: "TEMPLATE_SAVED",
+          status: "failure",
+          details: {
+            name: formatName,
+            error: response.rawError || response.message,
+          },
+        });
         return response;
       }
+
+      await appendAuditLog({
+        category: "template",
+        action: "TEMPLATE_SAVED",
+        status: "success",
+        details: {
+          name: formatName,
+          sizeBytes: Buffer.byteLength(data, "utf8"),
+        },
+      });
 
       return {
         status: true,

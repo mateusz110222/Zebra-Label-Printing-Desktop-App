@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { SidebarView, HeaderView } from "./index";
+import { HeaderView, SidebarView } from "./index";
 import React from "react";
 
 export function LayoutView(): React.JSX.Element {

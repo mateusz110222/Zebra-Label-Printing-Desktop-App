@@ -7,8 +7,8 @@ import { useTranslation } from "react-i18next";
 export const LabelCard = ({
   format,
   onClick,
-                            onDelete,
-                            canManage = false
+  onDelete,
+  canManage = false,
 }: {
   format: LabelFormatsResponse;
   onClick: () => void;
