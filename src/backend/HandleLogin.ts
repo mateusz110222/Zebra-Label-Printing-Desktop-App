@@ -1,5 +1,6 @@
-import {ipcMain} from "electron";
-import {Client} from "ldapts";
+import { ipcMain } from "electron";
+import { Client } from "ldapts";
+import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "./AuditLog";
 
 interface LoginResponse {
   status: boolean;
@@ -24,16 +25,23 @@ export default function HandleLogin(): void {
         process.env.LDAP_TLS_REJECT_UNAUTHORIZED === "true";
 
       if (!ldapUrl || !ldapDomain || !searchBase) {
+        await appendAuditLog({
+          category: "auth",
+          action: "LOGIN",
+          status: "failure",
+          actor: login?.trim() || "anonymous",
+          details: { reason: "AUTH_CONFIG_MISSING" },
+        });
         return {
           status: false,
-          message: "backend.auth.AUTH_CONFIG_MISSING"
+          message: "backend.auth.AUTH_CONFIG_MISSING",
         };
       }
 
       const client = new Client({
         url: ldapUrl,
-        tlsOptions: {rejectUnauthorized},
-        timeout
+        tlsOptions: { rejectUnauthorized },
+        timeout,
       });
 
       try {
@@ -62,13 +70,25 @@ export default function HandleLogin(): void {
         await client.unbind();
         const userData = searchEntries[0] || {};
 
+        const fullName = userData.cn?.toString() || normalizedLogin;
+        const department = userData.department?.toString() || "";
+        const title = userData.title?.toString() || "";
+        setAuditSession(fullName, department.includes("IT"));
+        await appendAuditLog({
+          category: "auth",
+          action: "LOGIN",
+          status: "success",
+          actor: fullName,
+          details: { login: normalizedLogin, department, title },
+        });
+
         return {
           status: true,
           message: "backend.auth.AUTH_SUCCESS",
           data: {
-            FullName: userData.cn.toString(),
-            department: userData.department.toString(),
-            title: userData.title.toString(),
+            FullName: fullName,
+            department,
+            title,
           },
         };
       } catch (error) {
@@ -87,6 +107,14 @@ export default function HandleLogin(): void {
           userMessage = "backend.auth.AUTH_TIMEOUT";
         }
 
+        await appendAuditLog({
+          category: "auth",
+          action: "LOGIN",
+          status: "failure",
+          actor: login?.trim() || "anonymous",
+          details: { reason: userMessage, error: errorMsg },
+        });
+
         return {
           status: false,
           message: userMessage,
@@ -95,4 +123,15 @@ export default function HandleLogin(): void {
       }
     },
   );
+
+  ipcMain.handle("handle-logout", async () => {
+    const actor = getAuditActor();
+    await appendAuditLog({
+      category: "auth",
+      action: "LOGOUT",
+      status: "success",
+      actor,
+    });
+    clearAuditSession();
+  });
 }

@@ -1,6 +1,6 @@
-import React, {useState} from "react";
-import {useTranslation} from "react-i18next";
-import {FiChevronDown, FiChevronUp, FiPrinter} from "react-icons/fi";
+import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { FiChevronDown, FiChevronUp, FiPrinter } from "react-icons/fi";
 
 interface LabelPreviewProps {
   isLoading: boolean;

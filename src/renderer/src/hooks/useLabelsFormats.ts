@@ -84,13 +84,13 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
     const response = await window.api.DeleteLabelFormat(formatName);
     if (response.status) {
       setLabelsFormats((formats) =>
-        formats.filter((format) => format.name !== formatName)
+        formats.filter((format) => format.name !== formatName),
       );
       setUiMessage({ type: "success", text: t("label_formats.deleted") });
     } else {
       setUiMessage({
         type: "error",
-        text: t(response.message || "config_view.save_error")
+        text: t(response.message || "config_view.save_error"),
       });
     }
   };
@@ -101,14 +101,14 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
       criticalError,
       uiMessage,
       labelsFormats,
-      isLoggedIn
+      isLoggedIn,
     },
     actions: {
       setCriticalError,
       setUiMessage,
       handleCardClick,
       handleCreateClick,
-      handleDelete
+      handleDelete,
     },
   };
 }

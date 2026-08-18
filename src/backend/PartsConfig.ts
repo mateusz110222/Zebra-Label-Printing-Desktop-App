@@ -1,5 +1,6 @@
-import {ipcMain} from "electron";
-import {LocalPart, PartsConfig, store} from "./store";
+import { ipcMain } from "electron";
+import { LocalPart, PartsConfig, store } from "./store";
+import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
 
 const isValidPart = (part: unknown): part is LocalPart => {
   if (!part || typeof part !== "object") return false;
@@ -9,30 +10,45 @@ const isValidPart = (part: unknown): part is LocalPart => {
     "Part_Number",
     "Part_Description",
     "Serial_Prefix",
-    "Label_Format"
+    "Label_Format",
   ].every(
     (key) =>
-      typeof candidate[key] === "string" && candidate[key].trim().length > 0
+      typeof candidate[key] === "string" && candidate[key].trim().length > 0,
   );
 };
 
 export default function PartsConfigHandler(): void {
   ipcMain.handle("get-parts-config", (): PartsConfig => store.get("parts"));
 
-  ipcMain.handle("save-parts-config", (_event, config: PartsConfig) => {
+  ipcMain.handle("save-parts-config", async (_event, config: PartsConfig) => {
+    if (!canViewAuditLogs()) {
+      return { status: false, message: "backend.audit.unauthorized" };
+    }
     if (
       !config ||
       !["server", "local"].includes(config.source) ||
       typeof config.operation !== "string"
     ) {
-      return {status: false, message: "backend.parts.INVALID_CONFIG"};
+      await appendAuditLog({
+        category: "config",
+        action: "PARTS_CONFIG_CHANGED",
+        status: "failure",
+        details: { reason: "INVALID_CONFIG" },
+      });
+      return { status: false, message: "backend.parts.INVALID_CONFIG" };
     }
 
     if (
       !Array.isArray(config.localParts) ||
       !config.localParts.every(isValidPart)
     ) {
-      return {status: false, message: "backend.parts.INVALID_PART"};
+      await appendAuditLog({
+        category: "config",
+        action: "PARTS_CONFIG_CHANGED",
+        status: "failure",
+        details: { reason: "INVALID_PART" },
+      });
+      return { status: false, message: "backend.parts.INVALID_PART" };
     }
 
     store.set("parts", {
@@ -43,9 +59,19 @@ export default function PartsConfigHandler(): void {
         Part_Number: part.Part_Number.trim(),
         Part_Description: part.Part_Description.trim(),
         Serial_Prefix: part.Serial_Prefix.trim(),
-        Label_Format: part.Label_Format.trim()
-      }))
+        Label_Format: part.Label_Format.trim(),
+      })),
     });
-    return {status: true, message: "backend.parts.PARTS_CONFIG_SAVED"};
+    await appendAuditLog({
+      category: "config",
+      action: "PARTS_CONFIG_CHANGED",
+      status: "success",
+      details: {
+        source: config.source,
+        operation: config.operation.trim(),
+        localPartsCount: config.localParts.length,
+      },
+    });
+    return { status: true, message: "backend.parts.PARTS_CONFIG_SAVED" };
   });
 }

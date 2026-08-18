@@ -1,4 +1,4 @@
-import {ipcMain} from "electron";
+import { ipcMain } from "electron";
 
 export default function GetGithubVersions(): void {
   ipcMain.handle("get-github-version", async () => {

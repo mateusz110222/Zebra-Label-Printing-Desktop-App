@@ -21,7 +21,7 @@ export interface UiMessage {
   details?: string;
 }
 
-export type ConnectionType = "IP" | "COM" | "USB";
+export type ConnectionType = "IP" | "COM";
 
 export interface PrinterConfig {
   type: ConnectionType;

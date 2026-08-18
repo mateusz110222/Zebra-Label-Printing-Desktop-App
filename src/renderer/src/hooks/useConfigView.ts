@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConnectionType, UiMessage } from "../types";
 import { extractError } from "../utils/errorUtils";
+import { useAuth } from "../context/AuthContext";
 
 interface UseConfigData {
   connectionType: ConnectionType;
@@ -13,6 +14,7 @@ interface UseConfigData {
   displayedCom: string;
   displayedBaudRate: number;
   hasConfig: boolean;
+  hasDatabaseConfig: boolean;
   isEditing: boolean;
   dbHost: string;
   dbUser: string;
@@ -52,6 +54,7 @@ interface UseConfigViewReturn {
 
 export function useConfigView(): UseConfigViewReturn {
   const { t } = useTranslation();
+  const { CanEdit } = useAuth();
 
   const [criticalError, setCriticalError] = useState<string | null>(null);
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
@@ -74,6 +77,7 @@ export function useConfigView(): UseConfigViewReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
+  const [hasDatabaseConfig, setHasDatabaseConfig] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -115,16 +119,17 @@ export function useConfigView(): UseConfigViewReturn {
           }
         }
 
-        const dbConfigResponse = await window.api.GetSettings("database");
-        if (dbConfigResponse && typeof dbConfigResponse === "object") {
-          const dbConfig = dbConfigResponse as Record<
-            string,
-            string | undefined
-          >;
+        const dbConfigResponse = await window.api.GetDatabaseConfig();
+        if (!isMounted) return;
+        if (dbConfigResponse.status && dbConfigResponse.data) {
+          const dbConfig = dbConfigResponse.data;
           setDbHost(dbConfig.host || "");
           setDbUser(dbConfig.user || "");
-          setDbPass(dbConfig.password || "");
+          setDbPass(CanEdit ? dbConfig.password || "" : "");
           setDbName(dbConfig.database || "");
+          setHasDatabaseConfig(
+            Boolean(dbConfig.host || dbConfig.user || dbConfig.database),
+          );
         }
       } catch (err) {
         if (!isMounted) return;
@@ -139,33 +144,42 @@ export function useConfigView(): UseConfigViewReturn {
     return () => {
       isMounted = false;
     };
-  }, [t]);
+  }, [CanEdit, t]);
 
   const handleAction = async (action: "SAVE" | "TEST"): Promise<void> => {
     setIsProcessing(true);
     setUiMessage(null);
 
-    if (action === "SAVE") {
-      window.api.SetSettings("database", {
-        host: dbHost,
-        user: dbUser,
-        password: dbPass,
-        database: dbName,
-      });
-    }
-
-    const payload = {
-      type: connectionType,
-      ip: connectionType === "IP" ? ipAddress : undefined,
-      port: connectionType === "IP" ? parseInt(port) : undefined,
-      comPort: connectionType === "COM" ? selectedCom : undefined,
-      baudRate: connectionType === "COM" ? baudRate : undefined,
-    };
-
-    const channel =
-      action === "SAVE" ? "save-printer-config" : "test-printer-connection";
-
     try {
+      if (action === "SAVE") {
+        const databaseResponse = await window.api.SaveDatabaseConfig({
+          host: dbHost,
+          user: dbUser,
+          password: dbPass,
+          database: dbName,
+        });
+        if (!databaseResponse.status) {
+          setUiMessage({
+            type: "error",
+            text: t("config_view.save_error"),
+            details: t(databaseResponse.message || ""),
+          });
+          return;
+        }
+        setHasDatabaseConfig(true);
+      }
+
+      const payload = {
+        type: connectionType,
+        ip: connectionType === "IP" ? ipAddress : undefined,
+        port: connectionType === "IP" ? parseInt(port) : undefined,
+        comPort: connectionType === "COM" ? selectedCom : undefined,
+        baudRate: connectionType === "COM" ? baudRate : undefined,
+      };
+
+      const channel =
+        action === "SAVE" ? "save-printer-config" : "test-printer-connection";
+
       const resp = await window.api.SavePrinterConfig(channel, payload);
 
       if (resp.status) {
@@ -252,6 +266,7 @@ export function useConfigView(): UseConfigViewReturn {
       displayedCom,
       displayedBaudRate,
       hasConfig,
+      hasDatabaseConfig,
       isEditing,
       dbHost,
       dbUser,

@@ -1,5 +1,5 @@
-import {ipcMain} from "electron";
-import {LocalPart, store} from "./store";
+import { ipcMain } from "electron";
+import { LocalPart, store } from "./store";
 
 export interface PartsResponse {
   status: boolean;
@@ -16,7 +16,7 @@ export default function GetParts(): void {
         return {
           status: true,
           message: "backend.parts.PARTS_FETCH_SUCCESS",
-          data: partsConfig.localParts
+          data: partsConfig.localParts,
         };
       }
 
@@ -28,16 +28,16 @@ export default function GetParts(): void {
           status: false,
           message: "backend.parts.PARTS_CONFIG_MISSING",
           rawError: "PARTS_CONFIG_URL is not configured.",
-          data: []
+          data: [],
         };
       }
 
       const response = await fetch(partsConfigUrl, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({file: partsConfigFile})
+        body: JSON.stringify({ file: partsConfigFile }),
       });
 
       const resp = await response.json();

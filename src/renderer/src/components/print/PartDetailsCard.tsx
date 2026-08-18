@@ -1,6 +1,6 @@
 import React, { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { FiPackage, FiHash, FiLayers } from "react-icons/fi";
+import { FiHash, FiLayers, FiPackage } from "react-icons/fi";
 
 interface Part {
   Part_Number: string;

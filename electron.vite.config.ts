@@ -22,23 +22,23 @@ export default defineConfig(({ mode }) => {
         "process.env.LDAP_URL": JSON.stringify(env.LDAP_URL || ""),
         "process.env.LDAP_DOMAIN": JSON.stringify(env.LDAP_DOMAIN || ""),
         "process.env.LDAP_SEARCH_BASE": JSON.stringify(
-          env.LDAP_SEARCH_BASE || ""
+          env.LDAP_SEARCH_BASE || "",
         ),
         "process.env.LDAP_TLS_REJECT_UNAUTHORIZED": JSON.stringify(
-          env.LDAP_TLS_REJECT_UNAUTHORIZED || "false"
+          env.LDAP_TLS_REJECT_UNAUTHORIZED || "false",
         ),
         "process.env.LDAP_TIMEOUT_MS": JSON.stringify(
-          env.LDAP_TIMEOUT_MS || "5000"
+          env.LDAP_TIMEOUT_MS || "5000",
         ),
         "process.env.PARTS_CONFIG_URL": JSON.stringify(
-          env.PARTS_CONFIG_URL || ""
+          env.PARTS_CONFIG_URL || "",
         ),
         "process.env.PARTS_CONFIG_FILE": JSON.stringify(
-          env.PARTS_CONFIG_FILE || "lps.json"
+          env.PARTS_CONFIG_FILE || "lps.json",
         ),
         "process.env.GITHUB_RELEASE_URL": JSON.stringify(
-          env.GITHUB_RELEASE_URL || ""
-        )
+          env.GITHUB_RELEASE_URL || "",
+        ),
       },
     },
     preload: {

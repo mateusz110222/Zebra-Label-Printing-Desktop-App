@@ -19,12 +19,13 @@ interface UsePrintLabelData {
   serialNumber: string;
   options: PartOption[];
   previewImage: string | null;
+  lastPrintSummary: PrintLabelResult | null;
 }
 
 interface UsePrintLabelActions {
   handleSelectChange: (option: PartOption | null) => Promise<void>;
   handleQuantityChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  handlePrint: (e: ChangeEvent) => Promise<void>;
+  handlePrint: () => Promise<void>;
   clearUiMessage: () => void;
   handleSerialNumberChange: (SerialNumber: string) => void;
   handleDateChange: (date: string) => void;
@@ -47,7 +48,10 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [date, setDate] = useState<string>("");
   const [serialNumber, setSerialNumber] = useState<string>("");
+  const [lastPrintSummary, setLastPrintSummary] =
+    useState<PrintLabelResult | null>(null);
   const previewCache = useRef<Record<string, string>>({});
+  const printInProgress = useRef(false);
 
   const [status, setStatus] = useState<UsePrintLabelStatus>({
     isLoading: true,
@@ -83,12 +87,12 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
             (part) =>
               !selectedOperation ||
               (part.Operation || "").trim().toLocaleLowerCase() ===
-              selectedOperation
+                selectedOperation,
           )
           .sort(
             (first, second) =>
               (first.Operation || "").localeCompare(second.Operation || "") ||
-              first.Part_Description.localeCompare(second.Part_Description)
+              first.Part_Description.localeCompare(second.Part_Description),
           );
 
         setParts(filteredParts);
@@ -112,7 +116,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
 
     fetchParts();
     return () => {
-      isMounted = true;
+      isMounted = false;
     };
   }, [t]);
 
@@ -122,8 +126,16 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     serialNumber: string | "",
   ): Promise<void> {
     try {
-      if (previewCache.current[part.Serial_Prefix] && mode !== "reprint") {
-        setPreviewImage(previewCache.current[part.Serial_Prefix]);
+      const cacheKey = [
+        mode,
+        part.Part_Number,
+        part.Serial_Prefix,
+        part.Label_Format,
+        date,
+        serialNumber,
+      ].join("|");
+      if (previewCache.current[cacheKey]) {
+        setPreviewImage(previewCache.current[cacheKey]);
         setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
         return;
       }
@@ -134,7 +146,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       });
 
       if (response.status && response.data) {
-        previewCache.current[part.Serial_Prefix] = response.data;
+        previewCache.current[cacheKey] = response.data;
         setPreviewImage(response.data);
       } else {
         setStatus((prev) => ({
@@ -167,6 +179,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     option: PartOption | null,
   ): Promise<void> => {
     setPreviewImage(null);
+    setLastPrintSummary(null);
 
     if (!option) {
       setSelectedPart(null);
@@ -225,16 +238,17 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   };
 
-  const handlePrint = async (e: ChangeEvent): Promise<void> => {
-    e.preventDefault();
+  const handlePrint = async (): Promise<void> => {
+    if (printInProgress.current) return;
     setStatus((prev) => ({ ...prev, uiMessage: null }));
+    setLastPrintSummary(null);
 
     const qty = typeof labelQuantity === "number" ? labelQuantity : 1;
     if (!selectedPart || qty < 1) return;
 
-    const date = new Date();
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
 
     const isMidnightBlock =
       (hours === 23 && minutes >= 55) || (hours === 0 && minutes <= 5);
@@ -250,6 +264,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       return;
     }
 
+    printInProgress.current = true;
     setStatus((prev) => ({ ...prev, isPrinting: true }));
 
     try {
@@ -259,6 +274,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
               part: selectedPart,
               quantity: qty,
               serialNumber: serialNumber,
+              date,
             })
           : await window.api.PrintLabel({
               part: selectedPart,
@@ -289,6 +305,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           details: t(response.rawError || ""),
         },
       }));
+      setLastPrintSummary(response);
     } catch (err: unknown) {
       const { message, details } = extractError(err);
       setStatus((prev) => ({
@@ -300,6 +317,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         },
       }));
     } finally {
+      printInProgress.current = false;
       setStatus((prev) => ({ ...prev, isPrinting: false }));
     }
   };
@@ -323,6 +341,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       previewImage,
       date,
       serialNumber,
+      lastPrintSummary,
     },
     status,
     actions: {

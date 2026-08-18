@@ -5,7 +5,17 @@ import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
-import { ConfigView, LabelEditView, LabelsFormatsView, LayoutView, LoginView, PrintView, ReprintView } from "./views";
+import {
+  AuditLogsView,
+  ConfigView,
+  LabelEditView,
+  LabelsFormatsView,
+  LayoutView,
+  LoginView,
+  PrintView,
+  ReprintView,
+  SystemHealthView
+} from "./views";
 
 function App(): React.JSX.Element {
   const { t } = useTranslation();
@@ -21,6 +31,8 @@ function App(): React.JSX.Element {
               <Route path="templates" element={<LabelsFormatsView />} />
               <Route path="config" element={<ConfigView />} />
               <Route path="reprint" element={<ReprintView />} />
+              <Route path="history" element={<AuditLogsView />} />
+              <Route path="health" element={<SystemHealthView />} />
             </Route>
             <Route path="/preview" element={<LabelEditView />} />
             <Route path="*" element={<div>{t("common.page_not_found")}</div>} />

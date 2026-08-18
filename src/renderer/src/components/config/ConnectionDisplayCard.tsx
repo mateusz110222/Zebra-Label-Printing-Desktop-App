@@ -1,10 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiWifi, FiPlay } from "react-icons/fi";
+import { FiPlay, FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 
 interface ConnectionDisplayCardProps {
-  connectionType: "IP" | "COM" | "USB";
+  connectionType: "IP" | "COM";
   ipAddress: string;
   port: string;
   comPort: string;

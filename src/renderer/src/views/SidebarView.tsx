@@ -1,7 +1,7 @@
-import React, {useEffect, useState} from "react";
-import {NavLink} from "react-router-dom";
-import {useTranslation} from "react-i18next";
-import {useAuth} from "@renderer/context/AuthContext";
+import React, { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useAuth } from "@renderer/context/AuthContext";
 
 export function SidebarView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -31,6 +31,8 @@ export function SidebarView(): React.JSX.Element {
     { name: t("sidebar.templates"), path: "/templates", protected: false },
     { name: t("sidebar.config"), path: "/config", protected: false },
     { name: t("sidebar.reprint"), path: "/reprint", protected: true },
+    { name: t("sidebar.history"), path: "/history", protected: true },
+    { name: t("sidebar.health"), path: "/health", protected: false },
   ];
 
   return (

@@ -1,9 +1,5 @@
 import net from "net";
-import {
-  PrinterConnectionBase,
-  ConnectionResult,
-  PrinterConfig,
-} from "../PrinterConnectionBase";
+import { ConnectionResult, PrinterConfig, PrinterConnectionBase } from "../PrinterConnectionBase";
 
 class IpConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {

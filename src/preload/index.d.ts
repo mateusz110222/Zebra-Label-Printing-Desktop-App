@@ -9,7 +9,7 @@ declare global {
   }
 
   interface PrinterPayload {
-    type: "IP" | "COM" | "USB";
+    type: "IP" | "COM";
     ip?: string;
     port?: number;
     comPort?: string;
@@ -82,15 +82,25 @@ declare global {
       PrintLabel: (payload: {
         part: PartPayload;
         quantity: number;
-      }) => Promise<{ status: boolean; message?: string; rawError?: string }>;
+      }) => Promise<PrintLabelResult>;
       ReprintLabel: (payload: {
         part: PartPayload;
         quantity: number;
         serialNumber: string;
-      }) => Promise<{ status: boolean; message?: string; rawError?: string }>;
+        date: string;
+      }) => Promise<PrintLabelResult>;
       GetPrinterStatus: () => Promise<{
         status: boolean;
-        data?: string;
+        reachable: boolean;
+        ready: boolean;
+        detailsAvailable: boolean;
+        data?: PrinterStatusDetails;
+        message?: string;
+        rawError?: string;
+      }>;
+      GetSystemHealth: () => Promise<{
+        status: boolean;
+        data?: SystemHealthData;
         message?: string;
       }>;
       GetSerialPorts: () => Promise<{
@@ -120,6 +130,14 @@ declare global {
       SetSettings: (key: string, value: unknown) => void;
       RestartApp: () => void;
       GetSettings: (key: string) => Promise<unknown>;
+      GetDatabaseConfig: () => Promise<{
+        status: boolean;
+        data?: DatabasePayload;
+        message?: string;
+      }>;
+      SaveDatabaseConfig: (
+        payload: DatabasePayload,
+      ) => Promise<{ status: boolean; message?: string; rawError?: string }>;
 
       // Auth
       Login: (payload: { login: string; password: string }) => Promise<{
@@ -130,6 +148,26 @@ declare global {
       }>;
       Logout: () => Promise<void>;
 
+      // Audit history
+      GetAuditLogs: (query: AuditLogQuery) => Promise<{
+        status: boolean;
+        message?: string;
+        rawError?: string;
+        data?: {
+          entries: AuditLogEntry[];
+          total: number;
+          page: number;
+          pageSize: number;
+        };
+      }>;
+      ExportAuditLogs: (query: AuditLogQuery) => Promise<{
+        status: boolean;
+        canceled?: boolean;
+        filePath?: string;
+        message?: string;
+        rawError?: string;
+      }>;
+
       // Events
       OnUpdateAvailable: (callback: () => void) => () => void;
       OnDownloadProgress: (
@@ -138,5 +176,99 @@ declare global {
       OnUpdateDownloaded: (callback: () => void) => () => void;
       RemoveAllListeners: (channel: string) => void;
     };
+  }
+
+  interface AuditLogQuery {
+    scope?: "all" | "print" | "audit";
+    category?: "all" | "print" | "auth" | "config" | "template" | "system";
+    status?: "all" | "success" | "failure";
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    pageSize?: number;
+  }
+
+  interface DatabasePayload {
+    host: string;
+    user: string;
+    password: string;
+    database: string;
+  }
+
+  interface PrintLabelResult {
+    status: boolean;
+    message?: string;
+    rawError?: string;
+    deliveryStatus?: "sent" | "failed";
+    serialStart?: string;
+    serialEnd?: string;
+    julianDate?: string;
+    bmsDate?: string;
+    quantity?: number;
+    printerReachable?: boolean;
+    printerReady?: boolean;
+    printerStatusMessage?: string;
+  }
+
+  interface PrinterStatusDetails {
+    paperOut: boolean;
+    paused: boolean;
+    headOpen: boolean;
+    ribbonOut: boolean;
+    bufferFull: boolean;
+    underTemperature: boolean;
+    overTemperature: boolean;
+    formatsInBuffer: number;
+    labelsRemaining: number;
+  }
+
+  interface SystemHealthData {
+    overallStatus: "healthy" | "warning" | "error";
+    checkedAt: string;
+    database: {
+      status: boolean;
+      reachable: boolean;
+      configuredHost: string;
+      configuredDatabase: string;
+      serverHostname: string;
+      databaseName: string;
+      engine: string | null;
+      engineOk: boolean;
+      duplicateFamilies: Array<{ name: string; count: number }>;
+      timeDriftMs: number | null;
+      message: string;
+      rawError?: string;
+    };
+    printer: {
+      status: boolean;
+      reachable: boolean;
+      ready: boolean;
+      detailsAvailable: boolean;
+      message: string;
+      rawError?: string;
+      data?: PrinterStatusDetails;
+      type: "IP" | "COM";
+      target: string;
+    };
+    templates: {
+      status: boolean;
+      path: string;
+      count: number;
+      message: string;
+      rawError?: string;
+    };
+  }
+
+  interface AuditLogEntry {
+    id: string;
+    timestamp: string;
+    category: "print" | "auth" | "config" | "template" | "system";
+    action: string;
+    status: "success" | "failure";
+    actor: string;
+    workstation: string;
+    appVersion: string;
+    details: Record<string, string | number | boolean | null>;
   }
 }

@@ -1,12 +1,8 @@
 import { ipcMain } from "electron";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
-import { getTemplatesPath } from "./TemplatePaths";
-
-const getTemplateFileName = (name: string): string | null => {
-  if (!/^[^\\/:*?"<>|]+\.(zpl|txt)$/i.test(name)) return null;
-  return path.basename(name);
-};
+import { getTemplatesPath, normalizeTemplateFileName } from "./TemplatePaths";
+import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
 
 export default function GetLabelsFormats(): void {
   ipcMain.handle("get-labels-formats", async () => {
@@ -50,19 +46,43 @@ export default function GetLabelsFormats(): void {
   });
 
   ipcMain.handle("delete-label-format", async (_event, name: string) => {
-    const filename = getTemplateFileName(name);
+    if (!canViewAuditLogs()) {
+      return { status: false, message: "backend.audit.unauthorized" };
+    }
+    const filename = normalizeTemplateFileName(name);
     if (!filename) {
+      await appendAuditLog({
+        category: "template",
+        action: "TEMPLATE_DELETED",
+        status: "failure",
+        details: { name, reason: "INVALID_TEMPLATE_NAME" },
+      });
       return { status: false, message: "backend.labels.INVALID_TEMPLATE_NAME" };
     }
 
     try {
       await unlink(path.join(getTemplatesPath(), filename));
+      await appendAuditLog({
+        category: "template",
+        action: "TEMPLATE_DELETED",
+        status: "success",
+        details: { name: filename },
+      });
       return { status: true, message: "backend.labels.TEMPLATE_DELETED" };
     } catch (error) {
+      await appendAuditLog({
+        category: "template",
+        action: "TEMPLATE_DELETED",
+        status: "failure",
+        details: {
+          name: filename,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
       return {
         status: false,
         message: "backend.labels.ERROR_DELETING_TEMPLATE",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   });

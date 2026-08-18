@@ -4,7 +4,7 @@ import { FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 import ConnectionTabs from "./ConnectionTabs";
 
-type ConnectionType = "IP" | "COM" | "USB";
+type ConnectionType = "IP" | "COM";
 
 interface ConfigFormCardProps {
   connectionType: ConnectionType;

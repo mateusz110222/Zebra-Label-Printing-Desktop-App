@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { fillZplTemplate, calculateSerial } from "../hooks/LabelProcessor";
+import { describe, expect, it } from "vitest";
+import { BASE34_ALPHABET, calculateSerial, fillZplTemplate, parseSerialValue } from "../hooks/LabelProcessor";
+import GetJulianDate from "../hooks/GetJulianDate";
+import GetCmcJulianDate from "../hooks/GetCmcJulianDate";
 
 /**
  * Testy dla funkcji fillZplTemplate
@@ -103,6 +105,18 @@ describe("calculateSerial", () => {
       const result = calculateSerial("000Z", 1, "base34");
       expect(result.toUpperCase()).toBe(result);
     });
+
+    it("używa alfabetu bez liter I oraz O", () => {
+      expect(BASE34_ALPHABET).toBe("0123456789ABCDEFGHJKLMNPQRSTUVWXYZ");
+      expect(calculateSerial("000H", 1, "base34")).toBe("000J");
+      expect(calculateSerial("000N", 1, "base34")).toBe("000P");
+    });
+
+    it("odrzuca znaki spoza alfabetu base34", () => {
+      expect(() => calculateSerial("000I", 1, "base34")).toThrow(
+        "backend.print.invalid_base34",
+      );
+    });
   });
 
   describe("nieobsługiwane typy", () => {
@@ -111,5 +125,32 @@ describe("calculateSerial", () => {
         "backend.print.unsupported_type",
       );
     });
+  });
+});
+
+describe("parseSerialValue", () => {
+  it("interpretuje zakres decimal w systemie dziesiętnym", () => {
+    const remaining =
+      parseSerialValue("0100", "decimal") -
+      parseSerialValue("0099", "decimal") +
+      1n;
+    expect(remaining).toBe(2n);
+  });
+});
+
+describe("GetJulianDate", () => {
+  it("zwraca poprawny dzień roku podczas czasu letniego", () => {
+    expect(GetJulianDate("2026-08-13")).toBe("26225");
+  });
+
+  it("obsługuje rok przestępny", () => {
+    expect(GetJulianDate("2028-12-31")).toBe("28366");
+  });
+});
+
+describe("GetCmcJulianDate", () => {
+  it("usuwa pierwszą cyfrę z Julian Date", () => {
+    expect(GetCmcJulianDate("26225")).toBe("6225");
+    expect(GetCmcJulianDate("28366")).toBe("8366");
   });
 });

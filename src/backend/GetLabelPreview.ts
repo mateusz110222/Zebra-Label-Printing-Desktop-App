@@ -14,7 +14,7 @@ export default function GetLabelPreview(): void {
     "get-label-preview",
     async (
       _event,
-      { part, date, serialNumber, zpl }
+      { part, date, serialNumber, zpl },
     ): Promise<LabelPreviewResponse> => {
       try {
         if (!part || !part.Label_Format) {

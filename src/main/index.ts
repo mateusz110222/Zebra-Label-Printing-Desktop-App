@@ -18,6 +18,9 @@ import UpdatesHandler from "../backend/UpdatesHandler";
 import SettingsHandler from "../backend/SettingsHandler";
 import ChildWindowHandlers from "../backend/ChildWindow";
 import PartsConfigHandler from "../backend/PartsConfig";
+import AuditLogHandlers from "../backend/AuditLogHandlers";
+import SaveDatabaseConfig from "../backend/SaveDatabaseConfig";
+import SystemHealthHandler from "../backend/SystemHealth";
 
 let mainWindow: BrowserWindow;
 
@@ -68,6 +71,9 @@ GetLabelPreview();
 GetLabelsFormats();
 SettingsHandler();
 ChildWindowHandlers();
+AuditLogHandlers();
+SaveDatabaseConfig();
+SystemHealthHandler();
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.electron");

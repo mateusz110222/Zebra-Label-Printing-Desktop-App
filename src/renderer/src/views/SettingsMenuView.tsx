@@ -1,11 +1,11 @@
-import React, {useRef} from "react";
+import React, { useRef } from "react";
 import useSettingsMenu from "@renderer/hooks/useSettingsMenu";
 import SettingsOpenButton from "@renderer/components/settings/SettingsOpenButton";
 import UpdateButtonsAndMessage from "@renderer/components/settings/UpdateDownloadButton";
-import {useTranslation} from "react-i18next";
-import {TbLoader2} from "react-icons/tb";
-import {FiGlobe, FiMonitor, FiMoon, FiSun} from "react-icons/fi";
-import {useTheme} from "@renderer/hooks/useThemeContext";
+import { useTranslation } from "react-i18next";
+import { TbLoader2 } from "react-icons/tb";
+import { FiGlobe, FiMonitor, FiMoon, FiSun } from "react-icons/fi";
+import { useTheme } from "@renderer/hooks/useThemeContext";
 
 export function SettingsMenuView(): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null);

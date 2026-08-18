@@ -118,7 +118,7 @@ export function LabelEditView(): React.JSX.Element {
               <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
                 <span>
                   {t("label_editor.lines", {
-                    count: data.parsedData.split("\n").length
+                    count: data.parsedData.split("\n").length,
                   })}
                 </span>
                 <span>
