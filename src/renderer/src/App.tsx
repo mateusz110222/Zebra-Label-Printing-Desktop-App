@@ -1,8 +1,8 @@
 import React from "react";
-import { HashRouter as Router, Route, Routes } from "react-router-dom";
+import { HashRouter as Router, Navigate, Route, Routes } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 
 import {
@@ -17,6 +17,15 @@ import {
   SystemHealthView
 } from "./views";
 
+function ItProtectedRoute({
+  children,
+}: {
+  children: React.JSX.Element;
+}): React.JSX.Element {
+  const { CanEdit } = useAuth();
+  return CanEdit ? children : <Navigate to="/login" replace />;
+}
+
 function App(): React.JSX.Element {
   const { t } = useTranslation();
 
@@ -30,7 +39,14 @@ function App(): React.JSX.Element {
               <Route path="/login" element={<LoginView />} />
               <Route path="templates" element={<LabelsFormatsView />} />
               <Route path="config" element={<ConfigView />} />
-              <Route path="reprint" element={<ReprintView />} />
+              <Route
+                path="reprint"
+                element={
+                  <ItProtectedRoute>
+                    <ReprintView />
+                  </ItProtectedRoute>
+                }
+              />
               <Route path="history" element={<AuditLogsView />} />
               <Route path="health" element={<SystemHealthView />} />
             </Route>

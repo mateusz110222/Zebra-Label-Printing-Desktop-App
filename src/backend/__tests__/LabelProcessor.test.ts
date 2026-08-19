@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { BASE34_ALPHABET, calculateSerial, fillZplTemplate, parseSerialValue } from "../hooks/LabelProcessor";
+import {
+  BASE34_ALPHABET,
+  calculateSerial,
+  calculateSerialCounter,
+  fillZplTemplate,
+  parseSerialValue
+} from "../hooks/LabelProcessor";
 import GetJulianDate from "../hooks/GetJulianDate";
 import GetCmcJulianDate from "../hooks/GetCmcJulianDate";
 
@@ -125,6 +131,16 @@ describe("calculateSerial", () => {
         "backend.print.unsupported_type",
       );
     });
+  });
+});
+
+describe("calculateSerialCounter", () => {
+  it("encodes the exhausted decimal counter beyond the label width", () => {
+    expect(calculateSerialCounter("9999", 1, "decimal")).toBe("10000");
+  });
+
+  it("encodes the exhausted base34 counter beyond the label width", () => {
+    expect(calculateSerialCounter("ZZ", 1, "base34")).toBe("100");
   });
 });
 

@@ -48,7 +48,7 @@ const encodeBase34 = (value: bigint): string => {
   return result;
 };
 
-export const calculateSerial = (
+export const calculateSerialCounter = (
   startValue: string,
   increment: number,
   typeName: string,
@@ -70,8 +70,17 @@ export const calculateSerial = (
     throw new Error("backend.print.unsupported_type");
   }
 
-  if (result.length > targetLength) {
+  return result.padStart(targetLength, "0");
+};
+
+export const calculateSerial = (
+  startValue: string,
+  increment: number,
+  typeName: string,
+): string => {
+  const result = calculateSerialCounter(startValue, increment, typeName);
+  if (result.length > startValue.length) {
     throw new Error("backend.print.serial_range_exceeded");
   }
-  return result.padStart(targetLength, "0");
+  return result;
 };

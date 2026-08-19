@@ -1,6 +1,9 @@
 import { Socket } from "node:net";
 import { SerialPort } from "serialport";
 import type { PrinterConfig } from "./store";
+import { listUsbPrinters } from "./WindowsPrinter";
+import { isAccessDenied, sleep } from "./SystemHealth";
+import { parseHostStatus } from "./parseHostStatus";
 
 export interface PrinterStatusDetails {
   paperOut: boolean;
@@ -23,73 +26,6 @@ export interface PrinterStatusResult {
   rawError?: string;
   data?: PrinterStatusDetails;
 }
-
-const parseFlag = (value: string | undefined): boolean => value?.trim() === "1";
-
-export const parseHostStatus = (rawStatus: string): PrinterStatusResult => {
-  const lines = rawStatus
-    .split("\x03")
-    .map((line) =>
-      line
-        .replaceAll("\x02", "")
-        .replaceAll("\r", "")
-        .replaceAll("\n", "")
-        .trim(),
-    )
-    .filter(Boolean);
-
-  if (lines.length < 2) {
-    return {
-      status: false,
-      reachable: true,
-      ready: false,
-      detailsAvailable: false,
-      message: "backend.printer.status_unavailable",
-      rawError: rawStatus.slice(0, 500),
-    };
-  }
-
-  const first = lines[0].split(",");
-  const second = lines[1].split(",");
-  const details: PrinterStatusDetails = {
-    paperOut: parseFlag(first[1]),
-    paused: parseFlag(first[2]),
-    bufferFull: parseFlag(first[5]),
-    underTemperature: parseFlag(first[10]),
-    overTemperature: parseFlag(first[11]),
-    headOpen: parseFlag(second[2]),
-    ribbonOut: parseFlag(second[3]),
-    formatsInBuffer: Number.parseInt(first[4] || "0", 10) || 0,
-    labelsRemaining: Number.parseInt(second[7] || "0", 10) || 0,
-  };
-  const ready = !Object.entries(details).some(
-    ([key, value]) =>
-      typeof value === "boolean" &&
-      value &&
-      key !== "formatsInBuffer" &&
-      key !== "labelsRemaining",
-  );
-
-  let message = "backend.printer.ready";
-  if (details.paperOut) message = "backend.printer.paper_out";
-  else if (details.headOpen) message = "backend.printer.head_open";
-  else if (details.ribbonOut) message = "backend.printer.ribbon_out";
-  else if (details.paused) message = "backend.printer.paused";
-  else if (details.bufferFull) message = "backend.printer.buffer_full";
-  else if (details.overTemperature)
-    message = "backend.printer.over_temperature";
-  else if (details.underTemperature)
-    message = "backend.printer.under_temperature";
-
-  return {
-    status: ready,
-    reachable: true,
-    ready,
-    detailsAvailable: true,
-    message,
-    data: details,
-  };
-};
 
 const queryIpPrinterStatus = (
   config: PrinterConfig,
@@ -192,9 +128,88 @@ const queryComPrinterStatus = (
     });
   });
 
-export const queryPrinterStatus = (
+const queryUsbPrinterStatus = async (
   config: PrinterConfig,
-): Promise<PrinterStatusResult> =>
-  config.type === "IP"
-    ? queryIpPrinterStatus(config)
-    : queryComPrinterStatus(config);
+): Promise<PrinterStatusResult> => {
+  if (!config.usbPrinterName?.trim()) {
+    return {
+      status: false,
+      reachable: false,
+      ready: false,
+      detailsAvailable: false,
+      message: "backend.printer.no_usb_config",
+    };
+  }
+
+  try {
+    const configuredName = config.usbPrinterName.trim().toLocaleLowerCase();
+    const printer = (await listUsbPrinters()).find(
+      ({ name }) => name.toLocaleLowerCase() === configuredName,
+    );
+    if (!printer) {
+      return {
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.printer.usb_not_found",
+      };
+    }
+
+    const ready = !printer.workOffline && printer.printerStatus !== 7;
+    return {
+      status: ready,
+      reachable: true,
+      ready,
+      detailsAvailable: false,
+      message: ready
+        ? "backend.printer.connected_usb"
+        : "backend.printer.usb_offline",
+    };
+  } catch (error) {
+    return {
+      status: false,
+      reachable: false,
+      ready: false,
+      detailsAvailable: false,
+      message: "backend.printer.usb_status_error",
+      rawError: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const queryPrinterStatusOnce = (
+  config: PrinterConfig,
+): Promise<PrinterStatusResult> => {
+  switch (config.type) {
+    case "IP":
+      return queryIpPrinterStatus(config);
+
+    case "COM":
+      return queryComPrinterStatus(config);
+
+    case "USB":
+      return queryUsbPrinterStatus(config);
+
+    default:
+      return Promise.resolve({
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.printer.unknown_connection",
+      });
+  }
+};
+
+export const queryPrinterStatus = async (
+  config: PrinterConfig,
+): Promise<PrinterStatusResult> => {
+  let result = await queryPrinterStatusOnce(config);
+
+  if (isAccessDenied(result.rawError)) {
+    await sleep(1000);
+    result = await queryPrinterStatusOnce(config);
+  }
+  return result;
+};

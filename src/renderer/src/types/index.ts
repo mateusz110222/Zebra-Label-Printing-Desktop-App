@@ -21,7 +21,7 @@ export interface UiMessage {
   details?: string;
 }
 
-export type ConnectionType = "IP" | "COM";
+export type ConnectionType = "IP" | "COM" | "USB";
 
 export interface PrinterConfig {
   type: ConnectionType;
@@ -29,6 +29,15 @@ export interface PrinterConfig {
   port?: number;
   comPort?: string;
   baudRate?: number;
+  usbPrinterName?: string;
+}
+
+export interface UsbPrinterInfo {
+  name: string;
+  portName: string;
+  driverName: string;
+  workOffline: boolean;
+  printerStatus: number;
 }
 
 export interface LabelFormatsResponse {

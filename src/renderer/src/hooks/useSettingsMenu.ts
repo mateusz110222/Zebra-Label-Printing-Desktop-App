@@ -43,10 +43,15 @@ export default function useSettingsMenu(
     let isMounted = true;
 
     const loadSettings = async (): Promise<void> => {
-      const savedState = await window.api.GetSettings("autoUpdate");
-
-      if (isMounted && savedState !== undefined) {
-        setAutoUpdateEnabled(savedState === true);
+      try {
+        const savedState = await window.api.GetAutoUpdateSetting();
+        if (isMounted && savedState !== undefined) {
+          setAutoUpdateEnabled(savedState);
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        const { message } = extractError(error);
+        setErrorMessage(t(message));
       }
     };
 
@@ -55,7 +60,7 @@ export default function useSettingsMenu(
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const cleanupAvailable = window.api.OnUpdateAvailable(() => {
@@ -169,9 +174,19 @@ export default function useSettingsMenu(
 
   const toggleAutoUpdate = async (): Promise<void> => {
     const newState = !autoUpdate;
-    setAutoUpdateEnabled(newState);
-
-    window.api.SetSettings("autoUpdate", newState);
+    try {
+      const response = await window.api.SetAutoUpdateSetting(newState);
+      if (!response.status) {
+        setErrorMessage(
+          response.message ? t(response.message) : t("settings.unknown_error"),
+        );
+        return;
+      }
+      setAutoUpdateEnabled(response.enabled ?? newState);
+    } catch (error) {
+      const { message } = extractError(error);
+      setErrorMessage(t(message));
+    }
   };
 
   const handleRestart = (): void => {

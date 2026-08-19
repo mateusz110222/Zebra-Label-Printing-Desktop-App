@@ -5,6 +5,7 @@ import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 import GetParts from "../backend/GetParts";
 import PrintLabel from "../backend/PrintLabel";
 import GetSerialPorts from "../backend/GetSerialPorts";
+import GetUsbPrinters from "../backend/GetUsbPrinters";
 import TestPrinterConnection from "../backend/TestPrinterConnection";
 import SavePrinterConfig from "../backend/SavePrinterConfig";
 import GetPrinterConfig from "../backend/GetPrinterConfig";
@@ -21,10 +22,31 @@ import PartsConfigHandler from "../backend/PartsConfig";
 import AuditLogHandlers from "../backend/AuditLogHandlers";
 import SaveDatabaseConfig from "../backend/SaveDatabaseConfig";
 import SystemHealthHandler from "../backend/SystemHealth";
+import { clearAuditSession } from "../backend/AuditLog";
+import {
+  getRendererEntryUrl,
+  isAllowedExternalUrl,
+  isAllowedPreviewUrl,
+  isRendererDocumentUrl
+} from "../backend/PreviewWindowPolicy";
 
 let mainWindow: BrowserWindow;
 
+const openExternalUrl = (url: string): void => {
+  if (!isAllowedExternalUrl(url)) return;
+
+  void shell.openExternal(url).catch((error) => {
+    console.error("Unable to open external URL:", error);
+  });
+};
+
 function createWindow(): void {
+  const rendererEntryUrl = getRendererEntryUrl(
+    app.isPackaged,
+    process.env["ELECTRON_RENDERER_URL"],
+    __dirname,
+  );
+
   mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -45,9 +67,71 @@ function createWindow(): void {
     mainWindow.show();
   });
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedPreviewUrl(url, rendererEntryUrl)) {
+      return {
+        action: "allow",
+        show: false,
+        overrideBrowserWindowOptions: {
+          frame: true,
+          autoHideMenuBar: true,
+          sandbox: true,
+          contextIsolation: true,
+          nodeIntegration: false,
+          webSecurity: true,
+          fullscreenable: false,
+          webPreferences: {
+            preload: join(__dirname, "../preload/label-format.js"),
+            devTools: !app.isPackaged,
+          },
+        },
+      };
+    }
+
+    openExternalUrl(url);
+
     return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (isRendererDocumentUrl(url, rendererEntryUrl)) return;
+
+    event.preventDefault();
+    openExternalUrl(url);
+  });
+
+  mainWindow.webContents.on(
+    "did-start-navigation",
+    (_event, _url, isInPlace, isMainFrame) => {
+      if (isMainFrame && !isInPlace) clearAuditSession();
+    },
+  );
+
+  mainWindow.webContents.on("render-process-gone", () => {
+    clearAuditSession();
+  });
+
+  mainWindow.webContents.once("destroyed", () => {
+    clearAuditSession();
+  });
+
+  mainWindow.webContents.on("did-create-window", (childWindow, details) => {
+    if (!isAllowedPreviewUrl(details.url, rendererEntryUrl)) {
+      childWindow.destroy();
+      return;
+    }
+
+    childWindow.webContents.on("will-navigate", (event, url) => {
+      if (isAllowedPreviewUrl(url, rendererEntryUrl)) return;
+
+      event.preventDefault();
+      openExternalUrl(url);
+    });
+
+    childWindow.webContents.setWindowOpenHandler(({ url }) => {
+      openExternalUrl(url);
+      return { action: "deny" };
+    });
   });
 
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
@@ -64,6 +148,7 @@ TestPrinterConnection();
 SavePrinterConfig();
 GetPrinterConfig();
 GetSerialPorts();
+GetUsbPrinters();
 IsOnline();
 GetGithubVersions();
 HandleLogin();
@@ -84,29 +169,6 @@ app.whenReady().then(() => {
 
   createWindow();
   UpdatesHandler(mainWindow);
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.includes("#/preview")) {
-      return {
-        action: "allow",
-        show: false,
-        overrideBrowserWindowOptions: {
-          frame: true,
-          autoHideMenuBar: true,
-          sandbox: true,
-          contextIsolation: true,
-          nodeIntegration: false,
-          webSecurity: true,
-          fullscreenable: false,
-          webPreferences: {
-            preload: join(__dirname, "../preload/label-format.js"),
-            devTools: !app.isPackaged,
-          },
-        },
-      };
-    }
-    return { action: "deny" };
-  });
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

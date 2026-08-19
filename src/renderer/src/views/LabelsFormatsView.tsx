@@ -60,7 +60,7 @@ export function LabelsFormatsView(): React.JSX.Element {
                   {data.labelsFormats.length}
                 </span>
               </div>
-              {data.isLoggedIn && (
+              {data.canManage && (
                 <button
                   type="button"
                   onClick={actions.handleCreateClick}
@@ -92,7 +92,7 @@ export function LabelsFormatsView(): React.JSX.Element {
                   format={format}
                   onClick={() => actions.handleCardClick(format.name)}
                   onDelete={() => setFormatToDelete(format.name)}
-                  canManage={data.isLoggedIn}
+                  canManage={data.canManage}
                 />
               ))}
             </div>

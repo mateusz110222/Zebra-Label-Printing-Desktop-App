@@ -2,10 +2,14 @@ import { app, ipcMain } from "electron";
 import { autoUpdater, UpdateCheckResult } from "electron-updater";
 import log from "electron-log";
 import { clean, gt } from "semver";
+import { appendAuditLog, checkAuditLogWritable } from "./AuditLog";
+import { store } from "./store";
 
 export default function UpdatesHandler(
   mainWindow: Electron.BrowserWindow,
 ): void {
+  autoUpdater.autoDownload = store.get("autoUpdate");
+
   if (!app.isPackaged) {
     autoUpdater.forceDevUpdateConfig = true;
   }
@@ -13,6 +17,8 @@ export default function UpdatesHandler(
   if (app.isPackaged) autoUpdater.autoInstallOnAppQuit = true;
 
   mainWindow.once("ready-to-show", () => {
+    if (!store.get("autoUpdate")) return;
+
     const checkFn = app.isPackaged
       ? autoUpdater.checkForUpdatesAndNotify()
       : autoUpdater.checkForUpdates();
@@ -37,19 +43,25 @@ export default function UpdatesHandler(
   });
 
   ipcMain.handle("check-for-updates", async () => {
+    const currentAutoDownload = autoUpdater.autoDownload;
     try {
-      const currentAutoDownload = autoUpdater.autoDownload;
-
+      // A manual check controls downloading explicitly after comparing versions.
+      autoUpdater.autoDownload = false;
       const result = await autoUpdater.checkForUpdates();
-
-      autoUpdater.autoDownload = currentAutoDownload;
-
-      if (!result?.updateInfo.version) return { updateAvailable: false };
+      if (!result?.updateInfo.version) {
+        return { status: true, updateAvailable: false };
+      }
 
       const githubVersion = clean(result.updateInfo.version);
       if (!githubVersion) return { updateAvailable: false };
 
       const isNewer = gt(githubVersion, app.getVersion());
+
+      if (isNewer) {
+        void autoUpdater.downloadUpdate().catch((error) => {
+          log.error("Update download failed:", error);
+        });
+      }
 
       return {
         status: true,
@@ -65,6 +77,8 @@ export default function UpdatesHandler(
         status: false,
         message: errorMsg,
       };
+    } finally {
+      autoUpdater.autoDownload = store.get("autoUpdate") ?? currentAutoDownload;
     }
   });
 
@@ -87,7 +101,45 @@ export default function UpdatesHandler(
   });
 
   ipcMain.handle("set-auto-update", async (_event, enable: boolean) => {
+    if (typeof enable !== "boolean") {
+      return { status: false, message: "backend.update.invalid_setting" };
+    }
+
+    const auditStorage = await checkAuditLogWritable();
+    if (!auditStorage.status) {
+      return {
+        status: false,
+        message: "backend.audit.storage_unavailable",
+        rawError: auditStorage.rawError,
+      };
+    }
+
+    const previousSetting = store.get("autoUpdate");
+    const previousAutoDownload = autoUpdater.autoDownload;
+    store.set("autoUpdate", enable);
     autoUpdater.autoDownload = enable;
-    return true;
+    const auditPersisted = await appendAuditLog({
+      category: "config",
+      action: "AUTO_UPDATE_CHANGED",
+      status: "success",
+      details: { enabled: enable },
+    });
+
+    if (!auditPersisted) {
+      store.set("autoUpdate", previousSetting);
+      autoUpdater.autoDownload = previousAutoDownload;
+      return {
+        status: false,
+        message: "backend.audit.storage_unavailable",
+      };
+    }
+
+    if (enable) {
+      void autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+        log.error("Automatic update check failed:", error);
+      });
+    }
+
+    return { status: true, enabled: enable };
   });
 }

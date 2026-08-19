@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { LocalPart, PartsConfig, store } from "./store";
-import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
 
 const isValidPart = (part: unknown): part is LocalPart => {
   if (!part || typeof part !== "object") return false;
@@ -51,7 +51,17 @@ export default function PartsConfigHandler(): void {
       return { status: false, message: "backend.parts.INVALID_PART" };
     }
 
-    store.set("parts", {
+    const auditStorage = await checkAuditLogWritable();
+    if (!auditStorage.status) {
+      return {
+        status: false,
+        message: "backend.audit.storage_unavailable",
+        rawError: auditStorage.rawError,
+      };
+    }
+
+    const previousConfig = store.get("parts");
+    const normalizedConfig: PartsConfig = {
       source: config.source,
       operation: config.operation.trim(),
       localParts: config.localParts.map((part) => ({
@@ -61,8 +71,9 @@ export default function PartsConfigHandler(): void {
         Serial_Prefix: part.Serial_Prefix.trim(),
         Label_Format: part.Label_Format.trim(),
       })),
-    });
-    await appendAuditLog({
+    };
+    store.set("parts", normalizedConfig);
+    const auditPersisted = await appendAuditLog({
       category: "config",
       action: "PARTS_CONFIG_CHANGED",
       status: "success",
@@ -72,6 +83,15 @@ export default function PartsConfigHandler(): void {
         localPartsCount: config.localParts.length,
       },
     });
+
+    if (!auditPersisted) {
+      store.set("parts", previousConfig);
+      return {
+        status: false,
+        message: "backend.audit.storage_unavailable",
+      };
+    }
+
     return { status: true, message: "backend.parts.PARTS_CONFIG_SAVED" };
   });
 }

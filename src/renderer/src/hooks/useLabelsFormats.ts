@@ -10,7 +10,7 @@ interface useLabelsFormatsResponse {
     criticalError: string | undefined;
     uiMessage: UiMessage | null;
     labelsFormats: LabelFormatsResponse[];
-    isLoggedIn: boolean;
+    canManage: boolean;
   };
   actions: {
     setCriticalError: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -23,7 +23,7 @@ interface useLabelsFormatsResponse {
 
 export function useLabelsFormats(): useLabelsFormatsResponse {
   const { t } = useTranslation();
-  const { isLoggedIn } = useAuth();
+  const { CanEdit } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [criticalError, setCriticalError] = useState<string | undefined>("");
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
@@ -68,29 +68,43 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
   };
 
   const handleCreateClick = (): void => {
-    if (!isLoggedIn) {
-      setUiMessage({ type: "error", text: t("label_formats.login_required") });
+    if (!CanEdit) {
+      setUiMessage({
+        type: "error",
+        text: t("label_formats.it_access_required"),
+      });
       return;
     }
     window.open("#/preview?new=true", "_blank");
   };
 
   const handleDelete = async (formatName: string): Promise<void> => {
-    if (!isLoggedIn) {
-      setUiMessage({ type: "error", text: t("label_formats.login_required") });
+    if (!CanEdit) {
+      setUiMessage({
+        type: "error",
+        text: t("label_formats.it_access_required"),
+      });
       return;
     }
 
-    const response = await window.api.DeleteLabelFormat(formatName);
-    if (response.status) {
-      setLabelsFormats((formats) =>
-        formats.filter((format) => format.name !== formatName),
-      );
-      setUiMessage({ type: "success", text: t("label_formats.deleted") });
-    } else {
+    try {
+      const response = await window.api.DeleteLabelFormat(formatName);
+      if (response.status) {
+        setLabelsFormats((formats) =>
+          formats.filter((format) => format.name !== formatName),
+        );
+        setUiMessage({ type: "success", text: t("label_formats.deleted") });
+        return;
+      }
       setUiMessage({
         type: "error",
         text: t(response.message || "config_view.save_error"),
+      });
+    } catch (error) {
+      const { message } = extractError(error);
+      setUiMessage({
+        type: "error",
+        text: t(message || "config_view.save_error"),
       });
     }
   };
@@ -101,7 +115,7 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
       criticalError,
       uiMessage,
       labelsFormats,
-      isLoggedIn,
+      canManage: CanEdit,
     },
     actions: {
       setCriticalError,

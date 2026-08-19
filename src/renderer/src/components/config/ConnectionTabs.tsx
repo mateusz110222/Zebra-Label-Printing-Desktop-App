@@ -1,9 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiWifi } from "react-icons/fi";
+import { FiPrinter, FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 
-type ConnectionType = "IP" | "COM";
+type ConnectionType = "IP" | "COM" | "USB";
 
 interface ConnectionTabsProps {
   activeTab: ConnectionType;
@@ -44,6 +44,20 @@ export default function ConnectionTabs({
           className={`text-xl ${activeTab === "COM" ? "text-orange-500 dark:text-orange-400" : ""}`}
         />
         <span>{t("config_view.tabs_com")}</span>
+      </button>
+
+      <button
+        onClick={() => onTabChange("USB")}
+        className={`flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+          activeTab === "USB"
+            ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-b-2 border-emerald-600 dark:border-emerald-400"
+            : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+        }`}
+      >
+        <FiPrinter
+          className={`text-xl ${activeTab === "USB" ? "text-emerald-500 dark:text-emerald-400" : ""}`}
+        />
+        <span>{t("config_view.tabs_usb")}</span>
       </button>
     </div>
   );

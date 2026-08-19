@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { generatePreviewZPL, generateReprintZPL } from "./hooks/ZPLService";
+import { generatePreviewZPL, generateReprintPreviewZPL } from "./hooks/ZPLService";
 import sharp from "sharp";
 
 interface LabelPreviewResponse {
@@ -33,7 +33,7 @@ export default function GetLabelPreview(): void {
         if (useReprint || serialNumber === "0") {
           const safeDate = date || new Date().toISOString().split("T")[0];
           const safeSN = serialNumber || "0";
-          result = await generateReprintZPL(part, safeDate, safeSN, 1);
+          result = await generateReprintPreviewZPL(part, safeDate, safeSN);
         } else {
           result = await generatePreviewZPL(part, zpl);
         }

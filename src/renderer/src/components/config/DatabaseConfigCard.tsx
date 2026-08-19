@@ -98,7 +98,7 @@ export default function DatabaseConfigCard({
 
       {/* Form actions */}
       <div className="p-8 pt-0">
-        <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+        <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <button
             onClick={onCancel}
             className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"

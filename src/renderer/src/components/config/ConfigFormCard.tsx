@@ -1,10 +1,16 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiWifi } from "react-icons/fi";
+import { FiPrinter, FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 import ConnectionTabs from "./ConnectionTabs";
 
-type ConnectionType = "IP" | "COM";
+type ConnectionType = "IP" | "COM" | "USB";
+
+interface UsbPrinterOption {
+  name: string;
+  portName: string;
+  driverName: string;
+}
 
 interface ConfigFormCardProps {
   connectionType: ConnectionType;
@@ -19,6 +25,10 @@ interface ConfigFormCardProps {
   onBaudRateChange: (value: number) => void;
   serialPorts: string[];
   onRefreshPorts: () => void;
+  selectedUsbPrinter: string;
+  onUsbPrinterChange: (value: string) => void;
+  usbPrinters: UsbPrinterOption[];
+  onRefreshUsbPrinters: () => void;
   isProcessing: boolean;
   isValid: boolean;
   onSave: () => void;
@@ -40,6 +50,10 @@ export default function ConfigFormCard({
   onBaudRateChange,
   serialPorts,
   onRefreshPorts,
+  selectedUsbPrinter,
+  onUsbPrinterChange,
+  usbPrinters,
+  onRefreshUsbPrinters,
   isProcessing,
   isValid,
   onSave,
@@ -175,6 +189,55 @@ export default function ConfigFormCard({
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {connectionType === "USB" && (
+            <div className="group">
+              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
+                {t("config_view.usb_printer")}
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <FiPrinter className="text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+                </div>
+                <select
+                  className="w-full pl-11 pr-10 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                  value={selectedUsbPrinter}
+                  onClick={onRefreshUsbPrinters}
+                  onChange={(event) => onUsbPrinterChange(event.target.value)}
+                >
+                  <option value="" disabled>
+                    {t("config_view.select_usb_printer")}
+                  </option>
+                  {usbPrinters.length === 0 && (
+                    <option disabled>{t("config_view.no_usb_printers")}</option>
+                  )}
+                  {usbPrinters.map((printer) => (
+                    <option key={printer.name} value={printer.name}>
+                      {printer.name} ({printer.portName})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                  <svg
+                    className="w-4 h-4 text-slate-400 dark:text-slate-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {t("config_view.usb_hint")}
+              </p>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import GetJulianDate from "./GetJulianDate";
 import GetCmcJulianDate from "./GetCmcJulianDate";
-import { calculateSerial, fillZplTemplate, parseSerialValue } from "./LabelProcessor";
+import { calculateSerial, calculateSerialCounter, fillZplTemplate, parseSerialValue } from "./LabelProcessor";
 import { getDatabase } from "../DatabaseConfig";
 import { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import path from "node:path";
@@ -14,6 +14,17 @@ interface Part {
   Serial_Prefix: string;
   Label_Format: string;
   Part_Description: string;
+}
+
+interface FamilyRow extends RowDataPacket {
+  pk: number;
+  maxId: string | number;
+  next: string | number;
+  type_name: string;
+}
+
+interface EngineRow extends RowDataPacket {
+  ENGINE: string | null;
 }
 
 export interface GeneratedLabelMetadata {
@@ -33,6 +44,23 @@ interface GenerateZPLResult {
 
 const hashZpl = (zpl: string): string =>
   createHash("sha256").update(zpl, "utf8").digest("hex");
+
+const isValidIsoDate = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+};
+
+const invalidDataResult = (rawError: string): GenerateZPLResult => ({
+  status: false,
+  message: "backend.print.invalid_data",
+  rawError,
+});
 
 export async function getZplTemplate(
   formatName: string,
@@ -119,7 +147,23 @@ export async function generatePrintZPL(
     try {
       await connection.beginTransaction();
 
-      const [rows] = await connection.query<RowDataPacket[]>(
+      const [[engine]] = await connection.query<EngineRow[]>(
+        `SELECT ENGINE
+         FROM information_schema.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'family'`,
+      );
+
+      if (engine?.ENGINE?.toUpperCase() !== "INNODB") {
+        await connection.rollback();
+        return {
+          status: false,
+          message: "backend.db.error",
+          rawError: "The family table must use the InnoDB engine",
+        };
+      }
+
+      const [rows] = await connection.query<FamilyRow[]>(
         `SELECT f.pk, f.maxId, f.next, st.name as type_name
          FROM family f
                 LEFT JOIN type st ON f.type_fk = st.pk
@@ -154,10 +198,11 @@ export async function generatePrintZPL(
 
       if (numNext + BigInt(quantity) - 1n > numMaxId) {
         await connection.rollback();
+        const remaining = numNext > numMaxId ? 0n : numMaxId - numNext + 1n;
         return {
           status: false,
           message: "backend.print.serial_range_exceeded",
-          rawError: `Remaining: ${numMaxId - numNext + 1n}`,
+          rawError: `Remaining: ${remaining}`,
         };
       }
 
@@ -193,7 +238,13 @@ export async function generatePrintZPL(
         });
       }
 
-      const nextValueForDb = calculateSerial(currentNext, quantity, serialType);
+      // The counter is allowed to grow one character past maxId. That value is
+      // never printed; it is a durable exhausted-range marker for the next request.
+      const nextValueForDb = calculateSerialCounter(
+        currentNext,
+        quantity,
+        serialType,
+      );
       const [updateResult] = await connection.query<ResultSetHeader>(
         "UPDATE family SET next = ? WHERE pk = ?",
         [nextValueForDb, pk],
@@ -238,16 +289,70 @@ export async function generateReprintZPL(
   serialNumber: string,
   quantity: number = 1,
 ): Promise<GenerateZPLResult> {
+  return generateReprintZPLInternal(part, date, serialNumber, quantity, false);
+}
+
+export async function generateReprintPreviewZPL(
+  part: Part,
+  date: string,
+  serialNumber: string,
+): Promise<GenerateZPLResult> {
+  return generateReprintZPLInternal(
+    part,
+    date,
+    typeof serialNumber === "string" ? serialNumber.trim() || "0" : "",
+    1,
+    true,
+  );
+}
+
+async function generateReprintZPLInternal(
+  part: Part,
+  date: string,
+  serialNumber: string,
+  quantity: number,
+  allowCurrentNextForPreview: boolean,
+): Promise<GenerateZPLResult> {
   try {
-    const templateResult = await getZplTemplate(part.Label_Format);
-    if (!templateResult.status) {
-      return templateResult;
+    if (
+      !part ||
+      typeof part.Part_Number !== "string" ||
+      typeof part.Serial_Prefix !== "string" ||
+      typeof part.Label_Format !== "string" ||
+      typeof part.Part_Description !== "string"
+    ) {
+      return invalidDataResult("Invalid part data");
     }
-    const rawTemplate = templateResult.data!;
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      return invalidDataResult(`Invalid quantity: ${quantity}`);
+    }
+
+    if (typeof date !== "string") {
+      return invalidDataResult("Date is required");
+    }
+    const normalizedDate = date.trim();
+    if (!isValidIsoDate(normalizedDate)) {
+      return invalidDataResult(`Invalid date: ${date}`);
+    }
+
+    if (typeof serialNumber !== "string") {
+      return invalidDataResult("Serial number is required");
+    }
+    const requestedSerial = serialNumber.trim().toUpperCase();
+    if (!requestedSerial) {
+      return invalidDataResult("Serial number is required");
+    }
+    if (requestedSerial === "0" && !allowCurrentNextForPreview) {
+      return invalidDataResult(
+        "Serial number 0 is reserved for label preview and cannot be reprinted",
+      );
+    }
+
     const pool = getDbPool();
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT st.name as type_name, f.next
+    const [rows] = await pool.query<FamilyRow[]>(
+      `SELECT f.pk, f.maxId, f.next, st.name as type_name
        FROM family f
               LEFT JOIN type st ON f.type_fk = st.pk
        WHERE f.name = ?`,
@@ -262,16 +367,69 @@ export async function generateReprintZPL(
       };
     }
 
-    const { type_name, next } = rows[0];
+    if (rows.length !== 1) {
+      return {
+        status: false,
+        message: "backend.db.error",
+        rawError: `Multiple family rows found for ${part.Part_Number}`,
+      };
+    }
+
+    const { type_name, next, maxId } = rows[0];
+    const maxSerial = String(maxId).trim().toUpperCase();
+    const baseSerial =
+      requestedSerial === "0"
+        ? String(next).trim().toUpperCase()
+        : requestedSerial;
+
+    const numericMax = parseSerialValue(maxSerial, type_name);
+    const numericNext = parseSerialValue(String(next), type_name);
+    if (
+      requestedSerial === "0" &&
+      parseSerialValue(baseSerial, type_name) > numericMax
+    ) {
+      return {
+        status: false,
+        message: "backend.print.serial_range_exceeded",
+        rawError: "The serial range is exhausted",
+      };
+    }
+
+    if (!baseSerial || baseSerial.length !== maxSerial.length) {
+      return invalidDataResult(
+        `Serial number must contain exactly ${maxSerial.length} characters`,
+      );
+    }
+
+    const numericBase = parseSerialValue(baseSerial, type_name);
+    if (numericBase + BigInt(quantity) - 1n > numericMax) {
+      return {
+        status: false,
+        message: "backend.print.serial_range_exceeded",
+        rawError: "The requested serial range is outside family.maxId",
+      };
+    }
+    if (
+      !allowCurrentNextForPreview &&
+      numericBase + BigInt(quantity) - 1n >= numericNext
+    ) {
+      return invalidDataResult(
+        "A reprint can only use serial numbers reserved by an earlier print",
+      );
+    }
+
+    const templateResult = await getZplTemplate(part.Label_Format);
+    if (!templateResult.status) {
+      return templateResult;
+    }
+    const rawTemplate = templateResult.data!;
     let fullBatchZpl = "";
     const labels: GeneratedLabelMetadata[] = [];
 
-    const baseSerial = serialNumber === "0" ? String(next) : serialNumber;
-
     for (let i = 0; i < quantity; i++) {
       const currentSerial = calculateSerial(baseSerial, i, type_name);
-      const julianDate = GetJulianDate(date);
-      const bmsDate = GetBmsDate(date);
+      const julianDate = GetJulianDate(normalizedDate);
+      const bmsDate = GetBmsDate(normalizedDate);
       const labelId = Math.random().toString(36).substring(2, 7).toUpperCase();
       const printData = {
         PARTNUM: part.Part_Number,
@@ -326,9 +484,10 @@ export async function generatePreviewZPL(
     }
     const pool = getDbPool();
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT f.next
+    const [rows] = await pool.query<FamilyRow[]>(
+      `SELECT f.pk, f.next, f.maxId, st.name AS type_name
        FROM family f
+              LEFT JOIN type st ON f.type_fk = st.pk
        WHERE f.name = ?`,
       [part.Part_Number],
     );
@@ -341,7 +500,25 @@ export async function generatePreviewZPL(
       };
     }
 
-    const { next } = rows[0];
+    if (rows.length !== 1) {
+      return {
+        status: false,
+        message: "backend.db.error",
+        rawError: `Multiple family rows found for ${part.Part_Number}`,
+      };
+    }
+
+    const { next, maxId, type_name } = rows[0];
+    if (
+      parseSerialValue(String(next), type_name) >
+      parseSerialValue(String(maxId), type_name)
+    ) {
+      return {
+        status: false,
+        message: "backend.print.serial_range_exceeded",
+        rawError: "The serial range is exhausted",
+      };
+    }
 
     const julianDate = GetJulianDate("");
     const printData = {

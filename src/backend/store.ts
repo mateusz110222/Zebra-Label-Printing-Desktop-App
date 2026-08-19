@@ -1,11 +1,12 @@
 import Store from "electron-store";
 
 export interface PrinterConfig {
-  type: "IP" | "COM";
+  type: "IP" | "COM" | "USB";
   ip?: string;
   port?: number;
   comPort?: string;
   baudRate?: number;
+  usbPrinterName?: string;
 }
 
 export interface DatabaseConfig {
@@ -33,6 +34,7 @@ export const store = new Store<{
   printer: PrinterConfig;
   database: DatabaseConfig;
   parts: PartsConfig;
+  autoUpdate: boolean;
 }>({
   defaults: {
     printer: {
@@ -41,6 +43,7 @@ export const store = new Store<{
       port: 9100,
       comPort: "",
       baudRate: 9600,
+      usbPrinterName: "",
     },
     database: {
       host: "",
@@ -53,5 +56,6 @@ export const store = new Store<{
       operation: "",
       localParts: [],
     },
+    autoUpdate: true,
   },
 });

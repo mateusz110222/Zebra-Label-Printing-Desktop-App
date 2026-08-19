@@ -15,20 +15,30 @@ export default defineConfig(({ mode }) => {
         },
       },
       define: {
-        "process.env.DB_HOST": JSON.stringify(env.DB_HOST),
-        "process.env.DB_USER": JSON.stringify(env.DB_USER),
-        "process.env.DB_PASSWORD": JSON.stringify(env.DB_PASSWORD),
-        "process.env.DB_NAME": JSON.stringify(env.DB_NAME),
         "process.env.LDAP_URL": JSON.stringify(env.LDAP_URL || ""),
-        "process.env.LDAP_DOMAIN": JSON.stringify(env.LDAP_DOMAIN || ""),
+        "process.env.LDAP_LOGIN_DOMAIN": JSON.stringify(
+          env.LDAP_LOGIN_DOMAIN || "",
+        ),
         "process.env.LDAP_SEARCH_BASE": JSON.stringify(
           env.LDAP_SEARCH_BASE || "",
         ),
         "process.env.LDAP_TLS_REJECT_UNAUTHORIZED": JSON.stringify(
-          env.LDAP_TLS_REJECT_UNAUTHORIZED || "false",
+          env.LDAP_TLS_REJECT_UNAUTHORIZED || "true",
+        ),
+        "process.env.LDAP_TLS_ALLOW_LEGACY_SERVER_CERT": JSON.stringify(
+          env.LDAP_TLS_ALLOW_LEGACY_SERVER_CERT || "false",
+        ),
+        "process.env.LDAP_CA_CERT_PATH": JSON.stringify(
+          env.LDAP_CA_CERT_PATH || "",
         ),
         "process.env.LDAP_TIMEOUT_MS": JSON.stringify(
           env.LDAP_TIMEOUT_MS || "5000",
+        ),
+        "process.env.LDAP_CONNECT_TIMEOUT_MS": JSON.stringify(
+          env.LDAP_CONNECT_TIMEOUT_MS || "3000",
+        ),
+        "process.env.LDAP_IT_DEPARTMENTS": JSON.stringify(
+          env.LDAP_IT_DEPARTMENTS || "IT",
         ),
         "process.env.PARTS_CONFIG_URL": JSON.stringify(
           env.PARTS_CONFIG_URL || "",

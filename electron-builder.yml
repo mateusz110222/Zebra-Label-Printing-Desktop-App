@@ -11,7 +11,7 @@ files:
   - "!src/*"
   - "!electron.vite.config.{js,ts,mjs,cjs}"
   - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
-  - "!{.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
   - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
 
 asarUnpack:
@@ -22,6 +22,10 @@ extraFiles:
     to: "zpl_templates"
     filter:
       - "**/*"
+  - from: "certs/"
+    to: "certs"
+    filter:
+      - "**/*.pem"
 win:
   executableName: MATZ Label Print App
   icon: icon.ico
@@ -36,7 +40,7 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  deleteAppDataOnUninstall: true
+  deleteAppDataOnUninstall: false
 
 mac:
   icon: icon.icns

@@ -14,6 +14,7 @@ interface Props {
     operation: string,
     parts: LocalPart[],
   ) => Promise<void>;
+  onCancel: () => void;
 }
 
 const emptyPart = (): LocalPart => ({
@@ -31,6 +32,7 @@ export default function PartsSourceConfigCard({
   isProcessing,
   canEdit,
   onSave,
+  onCancel,
 }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const [selectedSource, setSelectedSource] = useState(source);
@@ -103,6 +105,7 @@ export default function PartsSourceConfigCard({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(["server", "local"] as const).map((value) => (
             <button
+              type="button"
               key={value}
               onClick={() => setSelectedSource(value)}
               disabled={!canEdit}
@@ -130,6 +133,7 @@ export default function PartsSourceConfigCard({
                 className="w-full sm:max-w-md px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
               />
               <button
+                type="button"
                 onClick={() => {
                   if (!canEdit) return;
                   setEditingIndex(null);
@@ -181,6 +185,7 @@ export default function PartsSourceConfigCard({
                       <td className="px-3 py-3">{part.Label_Format}</td>
                       <td className="px-3 py-3 flex gap-2">
                         <button
+                          type="button"
                           aria-label={t("parts_config.edit_record")}
                           onClick={() => {
                             if (!canEdit) return;
@@ -194,6 +199,7 @@ export default function PartsSourceConfigCard({
                           <FiEdit2 />
                         </button>
                         <button
+                          type="button"
                           aria-label={t("parts_config.delete_record")}
                           onClick={() =>
                             canEdit &&
@@ -227,14 +233,56 @@ export default function PartsSourceConfigCard({
           </>
         )}
       </div>
-      <div className="px-6 sm:px-8 pb-8 flex justify-end">
-        <button
-          onClick={() => void onSave(selectedSource, selectedOperation, items)}
-          disabled={!canEdit || isProcessing}
-          className="px-6 py-2.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-sm transition hover:bg-indigo-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:scale-[0.98] disabled:bg-slate-400 disabled:shadow-none disabled:hover:bg-slate-400 disabled:active:scale-100"
-        >
-          {isProcessing ? t("config_view.saving") : t("config_view.save")}
-        </button>
+      <div className="p-8 pt-0">
+        <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            {t("config_view.cancel")}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              void onSave(selectedSource, selectedOperation, items)
+            }
+            disabled={!canEdit || isProcessing}
+            className={`inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${
+              canEdit && !isProcessing
+                ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95"
+                : "bg-slate-300 dark:bg-slate-600 cursor-not-allowed"
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                {t("config_view.saving")}
+              </>
+            ) : (
+              t("config_view.save")
+            )}
+          </button>
+        </div>
       </div>
       {isEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
@@ -259,12 +307,14 @@ export default function PartsSourceConfigCard({
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
+                type="button"
                 onClick={resetEditor}
                 className="rounded-lg px-4 py-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 active:scale-[0.98] dark:hover:bg-slate-700 dark:hover:text-slate-100"
               >
                 {t("common.cancel")}
               </button>
               <button
+                type="button"
                 onClick={saveRecord}
                 disabled={!canEdit || !canSaveRecord}
                 className="rounded-lg bg-indigo-600 px-4 py-2 text-white shadow-sm transition hover:bg-indigo-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none disabled:hover:bg-slate-300 disabled:active:scale-100"
