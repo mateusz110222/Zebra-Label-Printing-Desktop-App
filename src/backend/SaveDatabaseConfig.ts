@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import mysql from "mysql2/promise";
-import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
 import { closeDatabase } from "./DatabaseConfig";
 import { DatabaseConfig, store } from "./store";
 
@@ -42,6 +42,16 @@ export default function SaveDatabaseConfig(): void {
         return { status: false, message: "backend.config.invalid_database" };
       }
 
+      const auditStorage = await checkAuditLogWritable();
+      if (!auditStorage.status) {
+        return {
+          status: false,
+          message: "backend.audit.storage_unavailable",
+          rawError: auditStorage.rawError,
+        };
+      }
+
+      const previousConfig = { ...store.get("database") };
       let testConnection: mysql.Connection | null = null;
       try {
         testConnection = await mysql.createConnection({
@@ -55,9 +65,9 @@ export default function SaveDatabaseConfig(): void {
         await testConnection.end();
         testConnection = null;
 
-        await closeDatabase();
         store.set("database", config);
-        await appendAuditLog({
+        await closeDatabase();
+        const auditPersisted = await appendAuditLog({
           category: "config",
           action: "DATABASE_CONFIG_CHANGED",
           status: "success",
@@ -67,27 +77,53 @@ export default function SaveDatabaseConfig(): void {
             user: config.user,
           },
         });
+
+        if (!auditPersisted) {
+          store.set("database", previousConfig);
+          await closeDatabase().catch(() => undefined);
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+          };
+        }
+
         return {
           status: true,
           message: "backend.config.database_save_success",
         };
       } catch (error) {
         const rawError = error instanceof Error ? error.message : String(error);
-        await appendAuditLog({
+        store.set("database", previousConfig);
+        await closeDatabase().catch(() => undefined);
+        const errorCode =
+          error && typeof error === "object" && "code" in error
+            ? String(error.code)
+            : "DATABASE_CONNECTION_FAILED";
+        const auditPersisted = await appendAuditLog({
           category: "config",
           action: "DATABASE_CONFIG_CHANGED",
           status: "failure",
           details: {
             host: config.host || "",
             database: config.database || "",
-            error: rawError,
+            errorCode,
           },
         });
+        if (!auditPersisted) {
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+          };
+        }
         return {
           status: false,
           message: "backend.config.database_connection_failed",
           rawError,
         };
+      } finally {
+        if (testConnection) {
+          await testConnection.end().catch(() => undefined);
+        }
       }
     },
   );

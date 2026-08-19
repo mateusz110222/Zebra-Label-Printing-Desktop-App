@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { StatusBanner } from "../components/common";
@@ -18,12 +18,14 @@ export function LoginView(): React.JSX.Element {
   const [login, setLoginState] = useState<string>("");
   const [password, setPasswordState] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const loginInProgress = useRef(false);
 
   const navigate = useNavigate();
 
   const HandleLogin = async (): Promise<void> => {
-    if (!login || !password) return;
+    if (!login || !password || loginInProgress.current) return;
 
+    loginInProgress.current = true;
     setIsProcessing(true);
     try {
       const response = await window.api.Login({
@@ -35,13 +37,13 @@ export function LoginView(): React.JSX.Element {
         setUiMessage({
           type: "error",
           text: t(response.message || ""),
+          details: response.rawError,
         });
-        setIsProcessing(false);
         return;
       }
 
       const FullName = response.data.FullName;
-      const CanEdit = response.data.department.includes("IT");
+      const CanEdit = response.data.canEdit;
 
       setUiMessage({
         type: "success",
@@ -55,9 +57,12 @@ export function LoginView(): React.JSX.Element {
       setUiMessage({
         type: "error",
         text: t(message),
+        details: String(error),
       });
+    } finally {
+      loginInProgress.current = false;
+      setIsProcessing(false);
     }
-    setIsProcessing(false);
   };
 
   const isValid = login.length > 0 && password.length > 0;
@@ -107,7 +112,6 @@ export function LoginView(): React.JSX.Element {
                   value={login}
                   autoFocus
                   onChange={(e) => setLoginState(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && HandleLogin()}
                   placeholder={t("login.login_placeholder")}
                   className="block w-full rounded-lg border-0 py-2.5 px-3 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm"
                 />
@@ -123,7 +127,6 @@ export function LoginView(): React.JSX.Element {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPasswordState(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && HandleLogin()}
                     placeholder={t("login.password_placeholder")}
                     className="block w-full rounded-lg border-0 py-2.5 px-3 pr-10 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 dark:ring-slate-600 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm"
                   />

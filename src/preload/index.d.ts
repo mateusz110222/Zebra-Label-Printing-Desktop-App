@@ -9,11 +9,12 @@ declare global {
   }
 
   interface PrinterPayload {
-    type: "IP" | "COM";
+    type: "IP" | "COM" | "USB";
     ip?: string;
     port?: number;
     comPort?: string;
     baudRate?: number;
+    usbPrinterName?: string;
   }
 
   interface Window {
@@ -108,15 +109,33 @@ declare global {
         data?: string[];
         message?: string;
       }>;
+      GetUsbPrinters: () => Promise<{
+        status: boolean;
+        data?: Array<{
+          name: string;
+          portName: string;
+          driverName: string;
+          workOffline: boolean;
+          printerStatus: number;
+        }>;
+        message?: string;
+        rawError?: string;
+      }>;
       GetPrinterConfig: () => Promise<{
         status: boolean;
         message?: string;
         data?: PrinterPayload;
       }>;
       SavePrinterConfig: (
-        channel: string,
         payload: PrinterPayload,
       ) => Promise<{ status: boolean; message?: string }>;
+      TestPrinterConnection: (payload?: PrinterPayload) => Promise<{
+        status: boolean;
+        message?: string;
+        rawError?: string;
+        auditPersisted?: boolean;
+        auditStatusMessage?: string;
+      }>;
 
       // App/Settings
       GetAppVersion: () => Promise<string>;
@@ -127,9 +146,11 @@ declare global {
         version?: string;
         message?: string;
       }>;
-      SetSettings: (key: string, value: unknown) => void;
       RestartApp: () => void;
-      GetSettings: (key: string) => Promise<unknown>;
+      GetAutoUpdateSetting: () => Promise<boolean>;
+      SetAutoUpdateSetting: (
+        enabled: boolean,
+      ) => Promise<{ status: boolean; enabled?: boolean; message?: string }>;
       GetDatabaseConfig: () => Promise<{
         status: boolean;
         data?: DatabasePayload;
@@ -143,7 +164,12 @@ declare global {
       Login: (payload: { login: string; password: string }) => Promise<{
         status: boolean;
         message?: string;
-        data?: { FullName: string; department: string; title: string };
+        data?: {
+          FullName: string;
+          department: string;
+          title: string;
+          canEdit: boolean;
+        };
         rawError?: string;
       }>;
       Logout: () => Promise<void>;
@@ -209,6 +235,8 @@ declare global {
     printerReachable?: boolean;
     printerReady?: boolean;
     printerStatusMessage?: string;
+    auditPersisted?: boolean;
+    auditStatusMessage?: string;
   }
 
   interface PrinterStatusDetails {
@@ -256,6 +284,13 @@ declare global {
       path: string;
       count: number;
       message: string;
+      rawError?: string;
+    };
+    audit: {
+      status: boolean;
+      path: string;
+      message: string;
+      lastFailureAt: string | null;
       rawError?: string;
     };
   }

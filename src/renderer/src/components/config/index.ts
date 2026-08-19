@@ -5,3 +5,4 @@ export { default as ConfigFormCard } from "./ConfigFormCard";
 export { default as DatabaseConfigCard } from "./DatabaseConfigCard";
 export { default as DatabaseDisplayCard } from "./DatabaseDisplayCard";
 export { default as PartsSourceConfigCard } from "./PartsSourceConfigCard";
+export { default as PartsSourceDisplayCard } from "./PartsSourceDisplayCard";

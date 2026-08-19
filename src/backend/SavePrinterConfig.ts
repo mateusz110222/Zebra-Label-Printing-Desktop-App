@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { PrinterConfig, store } from "./store";
-import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
 
 export default function SavePrinterConfig(): void {
   ipcMain.handle(
@@ -28,8 +28,28 @@ export default function SavePrinterConfig(): void {
           });
           return { status: false, message: "backend.config.no_com_selected" };
         }
+        if (config.type === "USB" && !config.usbPrinterName?.trim()) {
+          await appendAuditLog({
+            category: "config",
+            action: "PRINTER_CONFIG_CHANGED",
+            status: "failure",
+            details: { type: config.type, reason: "no_usb_selected" },
+          });
+          return { status: false, message: "backend.config.no_usb_selected" };
+        }
+
+        const auditStorage = await checkAuditLogWritable();
+        if (!auditStorage.status) {
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+            rawError: auditStorage.rawError,
+          };
+        }
+
+        const previousConfig = { ...store.get("printer") };
         store.set("printer", config);
-        await appendAuditLog({
+        const auditPersisted = await appendAuditLog({
           category: "config",
           action: "PRINTER_CONFIG_CHANGED",
           status: "success",
@@ -38,9 +58,19 @@ export default function SavePrinterConfig(): void {
             target:
               config.type === "IP"
                 ? `${config.ip}:${config.port}`
-                : `${config.comPort}@${config.baudRate}`,
+                : config.type === "COM"
+                  ? `${config.comPort}@${config.baudRate}`
+                  : config.usbPrinterName || "",
           },
         });
+
+        if (!auditPersisted) {
+          store.set("printer", previousConfig);
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+          };
+        }
 
         return { status: true, message: "backend.config.save_success" };
       } catch (error) {

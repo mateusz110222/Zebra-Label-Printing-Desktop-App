@@ -7,7 +7,8 @@ import {
   DatabaseConfigCard,
   DatabaseDisplayCard,
   NoConfigCard,
-  PartsSourceConfigCard
+  PartsSourceConfigCard,
+  PartsSourceDisplayCard
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useConfigView } from "@renderer/hooks";
@@ -16,7 +17,8 @@ import { LocalPart } from "@renderer/types";
 export function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
   const { CanEdit } = useAuth();
-  const { data, status, actions, isValid } = useConfigView();
+  const { data, status, actions, isPrinterValid, isDatabaseValid } =
+    useConfigView();
   const { setUiMessage } = actions;
   const [activeTab, setActiveTab] = useState("connection");
   const [partsSource, setPartsSource] = useState<"server" | "local">("server");
@@ -24,6 +26,17 @@ export function ConfigView(): React.JSX.Element {
   const [localParts, setLocalParts] = useState<LocalPart[]>([]);
   const [partsConfigVersion, setPartsConfigVersion] = useState(0);
   const [isSavingParts, setIsSavingParts] = useState(false);
+  const [isPartsEditing, setIsPartsEditing] = useState(false);
+  const hasPartsConfig =
+    partsOperation.trim().length > 0 ||
+    partsSource === "local" ||
+    localParts.length > 0;
+
+  const cancelPartsSourceEdit = (): void => {
+    setIsPartsEditing(false);
+    setPartsConfigVersion((version) => version + 1);
+    actions.setUiMessage(null);
+  };
 
   useEffect(() => {
     void window.api
@@ -61,6 +74,7 @@ export function ConfigView(): React.JSX.Element {
         setPartsOperation(operation);
         setLocalParts(parts);
         setPartsConfigVersion((version) => version + 1);
+        setIsPartsEditing(false);
         actions.setUiMessage({
           type: "success",
           text: t("parts_config.save_success"),
@@ -166,17 +180,18 @@ export function ConfigView(): React.JSX.Element {
                   titleKey="config_view.printer_access_title"
                   messageKey="config_view.printer_access_message"
                 />
-              ) : !data.isEditing && data.hasConfig ? (
+              ) : !data.isPrinterEditing && data.hasConfig ? (
                 <ConnectionDisplayCard
                   connectionType={data.connectionType}
                   ipAddress={data.ipAddress}
                   port={data.port}
                   comPort={data.displayedCom}
                   baudRate={data.displayedBaudRate}
+                  usbPrinterName={data.displayedUsbPrinter}
                   canEdit={CanEdit}
-                  isProcessing={status.isProcessing}
-                  onTest={() => actions.handleAction("TEST")}
-                  onEdit={() => actions.setIsEditing(true)}
+                  isProcessing={status.isPrinterProcessing}
+                  onTest={() => actions.handlePrinterAction("TEST")}
+                  onEdit={actions.beginPrinterEdit}
                 />
               ) : (
                 <ConfigFormCard
@@ -192,10 +207,14 @@ export function ConfigView(): React.JSX.Element {
                   onBaudRateChange={actions.setBaudRate}
                   serialPorts={data.serialPorts}
                   onRefreshPorts={actions.handleRefreshPorts}
-                  isProcessing={status.isProcessing}
-                  isValid={isValid}
-                  onSave={() => actions.handleAction("SAVE")}
-                  onCancel={() => actions.setIsEditing(false)}
+                  selectedUsbPrinter={data.selectedUsbPrinter}
+                  onUsbPrinterChange={actions.setSelectedUsbPrinter}
+                  usbPrinters={data.usbPrinters}
+                  onRefreshUsbPrinters={actions.handleRefreshUsbPrinters}
+                  isProcessing={status.isPrinterProcessing}
+                  isValid={isPrinterValid}
+                  onSave={() => actions.handlePrinterAction("SAVE")}
+                  onCancel={actions.cancelPrinterEdit}
                 />
               )}
             </>
@@ -207,13 +226,13 @@ export function ConfigView(): React.JSX.Element {
                   titleKey="config_view.database_access_title"
                   messageKey="config_view.database_access_message"
                 />
-              ) : !data.isEditing && data.hasDatabaseConfig ? (
+              ) : !data.isDatabaseEditing && data.hasDatabaseConfig ? (
                 <DatabaseDisplayCard
                   dbHost={data.dbHost}
                   dbUser={data.dbUser}
                   dbName={data.dbName}
                   canEdit={CanEdit}
-                  onEdit={() => actions.setIsEditing(true)}
+                  onEdit={actions.beginDatabaseEdit}
                 />
               ) : (
                 <DatabaseConfigCard
@@ -225,25 +244,34 @@ export function ConfigView(): React.JSX.Element {
                   onDbPassChange={actions.setDbPass}
                   dbName={data.dbName}
                   onDbNameChange={actions.setDbName}
-                  isProcessing={status.isProcessing}
-                  isValid={isValid}
-                  onSave={() => actions.handleAction("SAVE")}
-                  onCancel={() => actions.setIsEditing(false)}
+                  isProcessing={status.isDatabaseProcessing}
+                  isValid={isDatabaseValid}
+                  onSave={actions.handleDatabaseSave}
+                  onCancel={actions.cancelDatabaseEdit}
                 />
               )}
             </>
           )}
-          {activeTab === "parts" && (
-            <PartsSourceConfigCard
-              key={partsConfigVersion}
-              source={partsSource}
-              operation={partsOperation}
-              parts={localParts}
-              isProcessing={isSavingParts}
-              canEdit={CanEdit}
-              onSave={savePartsConfig}
-            />
-          )}
+          {activeTab === "parts" &&
+            (!isPartsEditing && hasPartsConfig ? (
+              <PartsSourceDisplayCard
+                source={partsSource}
+                operation={partsOperation}
+                canEdit={CanEdit}
+                onEdit={() => setIsPartsEditing(true)}
+              />
+            ) : (
+              <PartsSourceConfigCard
+                key={partsConfigVersion}
+                source={partsSource}
+                operation={partsOperation}
+                parts={localParts}
+                isProcessing={isSavingParts}
+                canEdit={CanEdit}
+                onSave={savePartsConfig}
+                onCancel={cancelPartsSourceEdit}
+              />
+            ))}
         </div>
       </div>
     </LoadingWrapper>

@@ -1,11 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 interface PrinterPayload {
-  type: "IP" | "COM";
+  type: "IP" | "COM" | "USB";
   ip?: string;
   port?: number;
   comPort?: string;
   baudRate?: number;
+  usbPrinterName?: string;
 }
 
 interface PartPayload {
@@ -73,20 +74,23 @@ const api = {
   GetPrinterStatus: () => ipcRenderer.invoke("Get-PrinterStatus"),
   GetSystemHealth: () => ipcRenderer.invoke("get-system-health"),
   GetSerialPorts: () => ipcRenderer.invoke("get-serialPorts"),
+  GetUsbPrinters: () => ipcRenderer.invoke("get-usb-printers"),
   GetPrinterConfig: () => ipcRenderer.invoke("get-printer-config"),
-  SavePrinterConfig: (channel: string, payload: PrinterPayload) =>
-    ipcRenderer.invoke(channel, payload),
+  SavePrinterConfig: (payload: PrinterPayload) =>
+    ipcRenderer.invoke("save-printer-config", payload),
+  TestPrinterConnection: (payload?: PrinterPayload) =>
+    ipcRenderer.invoke("test-printer-connection", payload),
 
   // App/Settings
   GetAppVersion: () => ipcRenderer.invoke("get-app-version"),
   GetGithubVersion: () => ipcRenderer.invoke("get-github-version"),
   CheckForUpdates: (): Promise<UpdateCheckResponse> =>
     ipcRenderer.invoke("check-for-updates"),
-  SetSettings: (key: string, value: unknown): void =>
-    ipcRenderer.send("set-settings", key, value),
   RestartApp: () => ipcRenderer.send("restart_app"),
-  GetSettings: (key: string): Promise<unknown> =>
-    ipcRenderer.invoke("get-settings", key),
+  GetAutoUpdateSetting: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-auto-update-setting"),
+  SetAutoUpdateSetting: (enabled: boolean) =>
+    ipcRenderer.invoke("set-auto-update", enabled),
   GetDatabaseConfig: () => ipcRenderer.invoke("get-database-config"),
   SaveDatabaseConfig: (payload: {
     host: string;

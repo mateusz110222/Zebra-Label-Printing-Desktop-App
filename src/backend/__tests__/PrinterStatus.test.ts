@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHostStatus } from "../PrinterStatus";
+import { parseHostStatus } from "../parseHostStatus";
 
 const hostStatus = (first: string[], second: string[]): string =>
   `\x02${first.join(",")}\x03\x02${second.join(",")}\x03\x02PASS\x03`;

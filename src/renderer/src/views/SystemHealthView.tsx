@@ -104,13 +104,25 @@ export function SystemHealthView(): React.JSX.Element {
                 </div>
               </div>
 
-              <div className="grid gap-5 lg:grid-cols-3">
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="font-bold">{t("health.database")}</h2>
                     <StatusPill ok={health.database.status} />
                   </div>
                   <dl className="space-y-3 text-sm">
+                    {!health.database.status && (
+                      <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                        <dt className="font-semibold">
+                          {t(health.database.message)}
+                        </dt>
+                        {health.database.rawError && (
+                          <dd className="mt-1 break-all font-mono text-xs">
+                            {health.database.rawError}
+                          </dd>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <dt className="text-slate-500">{t("health.target")}</dt>
                       <dd className="break-all font-mono">
@@ -141,6 +153,18 @@ export function SystemHealthView(): React.JSX.Element {
                           : `${Math.round(health.database.timeDriftMs / 1000)} s`}
                       </dd>
                     </div>
+                    <div>
+                      <dt className="text-slate-500">
+                        {t("health.duplicates")}
+                      </dt>
+                      <dd className="break-all">
+                        {health.database.duplicateFamilies.length === 0
+                          ? t("health.none")
+                          : health.database.duplicateFamilies
+                              .map((item) => `${item.name} (${item.count})`)
+                              .join(", ")}
+                      </dd>
+                    </div>
                   </dl>
                 </section>
 
@@ -150,6 +174,16 @@ export function SystemHealthView(): React.JSX.Element {
                     <StatusPill ok={health.printer.ready} />
                   </div>
                   <dl className="space-y-3 text-sm">
+                    {!health.printer.ready && health.printer.rawError && (
+                      <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                        <dt className="font-semibold">
+                          {t(health.printer.message)}
+                        </dt>
+                        <dd className="mt-1 break-all font-mono text-xs">
+                          {health.printer.rawError}
+                        </dd>
+                      </div>
+                    )}
                     <div>
                       <dt className="text-slate-500">{t("health.target")}</dt>
                       <dd className="font-mono">
@@ -193,6 +227,18 @@ export function SystemHealthView(): React.JSX.Element {
                     <StatusPill ok={health.templates.status} />
                   </div>
                   <dl className="space-y-3 text-sm">
+                    {!health.templates.status && (
+                      <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                        <dt className="font-semibold">
+                          {t(health.templates.message)}
+                        </dt>
+                        {health.templates.rawError && (
+                          <dd className="mt-1 break-all font-mono text-xs">
+                            {health.templates.rawError}
+                          </dd>
+                        )}
+                      </div>
+                    )}
                     <div>
                       <dt className="text-slate-500">
                         {t("health.template_count")}
@@ -207,6 +253,49 @@ export function SystemHealthView(): React.JSX.Element {
                         {health.templates.path}
                       </dd>
                     </div>
+                  </dl>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="font-bold">{t("health.audit")}</h2>
+                    <StatusPill ok={health.audit.status} />
+                  </div>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-slate-500">
+                        {t("health.storage_status")}
+                      </dt>
+                      <dd>{t(health.audit.message)}</dd>
+                    </div>
+                    {health.audit.rawError && (
+                      <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                        <dt className="font-semibold">
+                          {t("health.write_error_details")}
+                        </dt>
+                        <dd className="mt-1 break-all font-mono text-xs">
+                          {health.audit.rawError}
+                        </dd>
+                      </div>
+                    )}
+                    <div>
+                      <dt className="text-slate-500">{t("health.path")}</dt>
+                      <dd className="break-all font-mono text-xs">
+                        {health.audit.path}
+                      </dd>
+                    </div>
+                    {health.audit.lastFailureAt && (
+                      <div>
+                        <dt className="text-slate-500">
+                          {t("health.last_failure")}
+                        </dt>
+                        <dd>
+                          {new Date(
+                            health.audit.lastFailureAt,
+                          ).toLocaleString()}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                 </section>
               </div>

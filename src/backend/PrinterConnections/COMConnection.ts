@@ -1,9 +1,5 @@
 import { SerialPort } from "serialport";
-import {
-  ConnectionResult,
-  PrinterConfig,
-  PrinterConnectionBase,
-} from "../PrinterConnectionBase";
+import { ConnectionResult, PrinterConfig, PrinterConnectionBase } from "../PrinterConnectionBase";
 
 class COMConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {
@@ -31,9 +27,7 @@ class COMConnectionImpl extends PrinterConnectionBase {
     try {
       const ports = await SerialPort.list();
       const portInfo = ports.find(
-        (p) =>
-          p.path.toUpperCase() === comPortName ||
-          p.path.toUpperCase().includes(comPortName),
+        (p) => p.path.trim().toUpperCase() === comPortName,
       );
 
       if (!portInfo) {
@@ -46,16 +40,33 @@ class COMConnectionImpl extends PrinterConnectionBase {
       }
 
       return new Promise((resolve) => {
+        let settled = false;
         const port = new SerialPort({
           path: portInfo.path,
-          baudRate: this.config.baudRate,
+          baudRate: this.config.baudRate || 9600,
           autoOpen: false,
         });
+        const timeout = setTimeout(() => {
+          if (port.isOpen) port.close(() => undefined);
+          finish({ status: false, message: "backend.printer.timeout" });
+        }, 10_000);
 
-        port.on("error", () => {
+        const finish = (result: ConnectionResult): void => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          resolve(result);
+        };
+
+        port.on("error", (error) => {
           if (port.isOpen) {
-            port.close(() => {});
+            port.close(() => undefined);
           }
+          finish({
+            status: false,
+            message: "backend.printer.serial_critical_error",
+            rawError: error.message,
+          });
         });
 
         port.open((err) => {
@@ -65,24 +76,38 @@ class COMConnectionImpl extends PrinterConnectionBase {
               ? "backend.printer.com_busy"
               : "backend.printer.com_open_error";
 
-            resolve({ status: false, message: msg });
+            finish({ status: false, message: msg, rawError: err.message });
             return;
           }
 
           port.write(this.label, (err) => {
             if (err) {
               port.close(() => {
-                resolve({
+                finish({
                   status: false,
                   message: "backend.printer.com_write_error",
+                  rawError: err.message,
                 });
               });
             } else {
-              port.drain(() => {
-                port.close(() => {
-                  resolve({
-                    status: true,
-                    message: "backend.printer.label_sent_successfully",
+              port.drain((drainError) => {
+                if (drainError) {
+                  port.close(() =>
+                    finish({
+                      status: false,
+                      message: "backend.printer.com_write_error",
+                      rawError: drainError.message,
+                    }),
+                  );
+                  return;
+                }
+                port.close((closeError) => {
+                  finish({
+                    status: !closeError,
+                    message: closeError
+                      ? "backend.printer.com_close_error"
+                      : "backend.printer.label_sent_successfully",
+                    rawError: closeError?.message,
                   });
                 });
               });

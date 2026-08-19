@@ -149,7 +149,17 @@ export function LabelEditView(): React.JSX.Element {
             </div>
 
             <div className="flex-1 p-8 flex items-center justify-center overflow-auto custom-scrollbar">
-              {data.previewImage ? (
+              {data.previewError ? (
+                <div
+                  role="alert"
+                  className="max-w-lg rounded-xl border border-red-300 bg-red-50 p-5 text-center text-red-800 shadow-sm dark:border-red-800 dark:bg-red-950/50 dark:text-red-200"
+                >
+                  <p className="font-bold">{t("label_editor.preview_error")}</p>
+                  <p className="mt-2 break-words text-sm">
+                    {data.previewError}
+                  </p>
+                </div>
+              ) : data.previewImage ? (
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
                   <div className="relative bg-white dark:bg-slate-800 p-6 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-700 max-w-full overflow-hidden transition-transform duration-300 hover:scale-[1.01]">

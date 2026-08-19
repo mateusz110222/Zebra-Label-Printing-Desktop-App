@@ -56,6 +56,10 @@ export const selectStyles: StylesConfig<PartOption, false> = {
     boxShadow:
       "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
   }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 50,
+  }),
   input: (base) => ({
     ...base,
     color: isDarkMode() ? "#f1f5f9" : "#1e293b",

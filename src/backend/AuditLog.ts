@@ -1,8 +1,17 @@
 import { app } from "electron";
-import { appendFile, mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir, open, readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
+import { getAuditActor } from "./AuditSession";
+
+export {
+  AUDIT_SESSION_TTL_MS,
+  canViewAuditLogs,
+  clearAuditSession,
+  getAuditActor,
+  setAuditSession,
+} from "./AuditSession";
 
 export type AuditCategory = "print" | "auth" | "config" | "template" | "system";
 export type AuditStatus = "success" | "failure";
@@ -38,13 +47,9 @@ interface AuditLogInput {
   details?: Record<string, unknown>;
 }
 
-interface UserSession {
-  actor: string;
-  canViewAudit: boolean;
-}
-
-let currentSession: UserSession | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
+let lastWriteError: string | null = null;
+let lastWriteFailureAt: string | null = null;
 
 const sanitizeDetails = (
   details: Record<string, unknown> = {},
@@ -81,21 +86,15 @@ const getCurrentLogPath = (category: AuditCategory): string => {
   return path.join(getLogsDirectory(), `${prefix}-${day}.jsonl`);
 };
 
-export const setAuditSession = (actor: string, canViewAudit: boolean): void => {
-  currentSession = { actor, canViewAudit };
+const rememberWriteFailure = (error: unknown): void => {
+  lastWriteError = error instanceof Error ? error.message : String(error);
+  lastWriteFailureAt = new Date().toISOString();
+  console.error("Unable to persist audit log:", error);
 };
 
-export const clearAuditSession = (): void => {
-  currentSession = null;
-};
-
-export const getAuditActor = (): string =>
-  currentSession?.actor || os.userInfo().username || "anonymous";
-
-export const canViewAuditLogs = (): boolean =>
-  currentSession?.canViewAudit === true;
-
-export const appendAuditLog = async (input: AuditLogInput): Promise<void> => {
+export const appendAuditLog = async (
+  input: AuditLogInput,
+): Promise<boolean> => {
   const entry: AuditLogEntry = {
     id: randomUUID(),
     timestamp: new Date().toISOString(),
@@ -108,23 +107,96 @@ export const appendAuditLog = async (input: AuditLogInput): Promise<void> => {
     details: sanitizeDetails(input.details),
   };
 
-  writeQueue = writeQueue
-    .then(async () => {
+  let persisted = false;
+  writeQueue = writeQueue.then(async () => {
+    try {
       await mkdir(getLogsDirectory(), { recursive: true });
-      await appendFile(
-        getCurrentLogPath(entry.category),
-        `${JSON.stringify(entry)}\n`,
-        "utf8",
-      );
-    })
-    .catch((error) => {
-      console.error("Unable to persist audit log:", error);
-    });
+      const file = await open(getCurrentLogPath(entry.category), "a");
+      try {
+        await file.appendFile(`${JSON.stringify(entry)}\n`, "utf8");
+        await file.sync();
+      } finally {
+        await file.close();
+      }
+      persisted = true;
+      lastWriteError = null;
+      lastWriteFailureAt = null;
+    } catch (error) {
+      rememberWriteFailure(error);
+    }
+  });
 
   await writeQueue;
+  return persisted;
 };
 
+export interface AuditStorageStatus {
+  status: boolean;
+  path: string;
+  message: string;
+  lastFailureAt: string | null;
+  rawError?: string;
+}
+
+export const checkAuditLogWritable = async (): Promise<AuditStorageStatus> => {
+  await writeQueue;
+  const logsPath = getLogsDirectory();
+  const probePath = path.join(
+    logsPath,
+    `.audit-write-probe-${process.pid}-${randomUUID()}`,
+  );
+
+  try {
+    await mkdir(logsPath, { recursive: true });
+    const probe = await open(probePath, "wx");
+    try {
+      await probe.writeFile(new Date().toISOString(), "utf8");
+      await probe.sync();
+    } finally {
+      await probe.close();
+    }
+    await unlink(probePath);
+    lastWriteError = null;
+    lastWriteFailureAt = null;
+    return {
+      status: true,
+      path: logsPath,
+      message: "backend.audit.storage_ready",
+      lastFailureAt: null,
+    };
+  } catch (error) {
+    rememberWriteFailure(error);
+    await unlink(probePath).catch(() => undefined);
+    return {
+      status: false,
+      path: logsPath,
+      message: "backend.audit.storage_unavailable",
+      lastFailureAt: lastWriteFailureAt,
+      rawError: lastWriteError || undefined,
+    };
+  }
+};
+
+export const getAuditStorageStatus = (): AuditStorageStatus => ({
+  status: lastWriteError === null,
+  path: getLogsDirectory(),
+  message:
+    lastWriteError === null
+      ? "backend.audit.storage_ready"
+      : "backend.audit.storage_unavailable",
+  lastFailureAt: lastWriteFailureAt,
+  rawError: lastWriteError || undefined,
+});
+
+const INTERNAL_ACTIONS = new Set([
+  "LABEL_DATA_PREPARED",
+  "TEST_LABEL_DATA_PREPARED",
+]);
+
 const matchesQuery = (entry: AuditLogEntry, query: AuditLogQuery): boolean => {
+  // Preparation records are retained in JSONL for crash recovery, but they are
+  // implementation details rather than completed print-history entries.
+  if (INTERNAL_ACTIONS.has(entry.action)) return false;
   if (query.scope === "print" && entry.category !== "print") return false;
   if (query.scope === "audit" && entry.category === "print") return false;
   if (

@@ -1,4 +1,4 @@
-import React, { FormEvent, useCallback, useEffect, useState } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiDownload, FiPrinter, FiRefreshCw, FiSearch, FiShield } from "react-icons/fi";
 import { useAuth } from "@renderer/context/AuthContext";
@@ -42,24 +42,35 @@ export function AuditLogsView(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [message, setMessage] = useState("");
+  const loadRequestId = useRef(0);
 
-  const query: AuditLogQuery = {
-    scope: activeView,
-    category: activeView === "print" ? "print" : category,
-    status: statusFilter,
-    search,
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-    page,
-    pageSize: PAGE_SIZE,
-  };
+  const query = useMemo<AuditLogQuery>(
+    () => ({
+      scope: activeView,
+      category: activeView === "print" ? "print" : category,
+      status: statusFilter,
+      search,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    [activeView, category, dateFrom, dateTo, page, search, statusFilter],
+  );
 
   const loadLogs = useCallback(async (): Promise<void> => {
-    if (!isLoggedIn || !CanEdit) return;
+    if (!isLoggedIn || !CanEdit) {
+      loadRequestId.current += 1;
+      return;
+    }
+    const requestId = ++loadRequestId.current;
     setIsLoading(true);
     setMessage("");
+    setEntries([]);
+    setTotal(0);
     try {
       const response = await window.api.GetAuditLogs(query);
+      if (requestId !== loadRequestId.current) return;
       if (!response.status || !response.data) {
         setMessage(t(response.message || "backend.audit.read_error"));
         return;
@@ -67,28 +78,21 @@ export function AuditLogsView(): React.JSX.Element {
       setEntries(response.data.entries);
       setTotal(response.data.total);
     } catch (error) {
+      if (requestId !== loadRequestId.current) return;
       setMessage(
         error instanceof Error ? error.message : t("backend.audit.read_error"),
       );
     } finally {
-      setIsLoading(false);
+      if (requestId === loadRequestId.current) setIsLoading(false);
     }
-  }, [
-    CanEdit,
-    activeView,
-    category,
-    dateFrom,
-    dateTo,
-    isLoggedIn,
-    page,
-    search,
-    statusFilter,
-    t,
-  ]);
+  }, [CanEdit, isLoggedIn, query, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadLogs(), 0);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      loadRequestId.current += 1;
+    };
   }, [loadLogs]);
 
   const changeView = (view: HistoryView): void => {
@@ -362,6 +366,24 @@ interface HistoryTableProps {
   t: ReturnType<typeof useTranslation>["t"];
 }
 
+const translateAuditDetailValue = (
+  key: string,
+  value: unknown,
+  t: HistoryTableProps["t"],
+): unknown => {
+  if (typeof value !== "string") return value;
+
+  if (value.startsWith("backend.")) {
+    return t(value, { defaultValue: value });
+  }
+
+  if (key === "reason" && value.startsWith("AUTH_")) {
+    return t(`backend.auth.${value}`, { defaultValue: value });
+  }
+
+  return value;
+};
+
 const EmptyRow = ({
   isLoading,
   columns,
@@ -527,7 +549,7 @@ function AuditHistoryTable({
                     <Detail
                       key={key}
                       label={t(`audit.fields.${key}`, key)}
-                      value={value}
+                      value={translateAuditDetailValue(key, value, t)}
                     />
                   ))}
               </div>

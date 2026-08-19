@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import React, { useEffect, useState } from "react";
 import { SettingsMenuView } from "@renderer/views/SettingsMenuView";
 import { BsPrinter } from "react-icons/bs";
+import { extractError } from "@renderer/utils/errorUtils";
 
 export function HeaderView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -12,6 +13,7 @@ export function HeaderView(): React.JSX.Element {
   const [isOnline, SetisOnline] = useState<boolean>(false);
   const [message, Setmessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [rawError, setRawError] = useState<string>("");
 
   useEffect(() => {
     let isMounted = true;
@@ -19,19 +21,30 @@ export function HeaderView(): React.JSX.Element {
     const GetPrinterStatus = async (): Promise<void> => {
       try {
         const response = await window.api.GetPrinterStatus();
-        if (isMounted) {
-          SetisOnline(response.status);
-          Setmessage(
-            response.message ||
-              (response.status ? "header.connected" : "header.disconnected"),
-          );
-          setIsLoading(false);
-        }
+
+        if (!isMounted) return;
+
+        SetisOnline(response.status);
+
+        Setmessage(
+          response.message ||
+            (response.status ? "header.connected" : "header.disconnected"),
+        );
+
+        setRawError(response.rawError ?? "");
       } catch (error) {
-        console.error(error);
+        const extractedError = extractError(error);
+
+        if (!isMounted) return;
+
+        SetisOnline(false);
+        Setmessage("backend.printer.status_error");
+
+        setRawError(extractedError.message);
+
+        console.error("[HeaderView] GetPrinterStatus failed:", error);
+      } finally {
         if (isMounted) {
-          SetisOnline(false);
-          Setmessage(t("header.status_error"));
           setIsLoading(false);
         }
       }
@@ -39,7 +52,7 @@ export function HeaderView(): React.JSX.Element {
 
     GetPrinterStatus();
 
-    const intervalId = setInterval(GetPrinterStatus, 5000);
+    const intervalId = setInterval(GetPrinterStatus, 300000);
     return () => {
       isMounted = false;
       clearInterval(intervalId);
@@ -71,10 +84,17 @@ export function HeaderView(): React.JSX.Element {
                   : t("header.printer_offline")}
             </span>
             {message && (
-              <div className="absolute left-0 top-full mt-2 hidden group-hover:block w-max max-w-xs z-50">
-                <div className="bg-slate-800 dark:bg-slate-700 text-white text-xs rounded py-1 px-2 shadow-lg relative">
-                  <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-slate-800 dark:border-b-slate-700 absolute -top-1.5 left-2"></div>
-                  {t(message)}
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 hidden group-hover:block w-max max-w-md z-50">
+                <div className="relative bg-slate-800 dark:bg-slate-700 text-white text-xs rounded-md py-2 px-3 shadow-lg">
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-slate-800 dark:border-b-slate-700" />
+
+                  <div>{t(message)}</div>
+
+                  {rawError && (
+                    <div className="mt-1 pt-1 border-t border-slate-600 text-slate-300 font-mono break-all">
+                      {rawError}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

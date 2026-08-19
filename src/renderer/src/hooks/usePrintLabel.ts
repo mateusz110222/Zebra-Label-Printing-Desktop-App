@@ -3,6 +3,16 @@ import { useTranslation } from "react-i18next";
 import { Part, PartOption, UiMessage } from "../types";
 import { extractError } from "../utils/errorUtils";
 
+const PREVIEW_DEBOUNCE_MS = 300;
+
+const getPartOptionValue = (part: Part): string =>
+  JSON.stringify([
+    (part.Operation || "").trim().toLocaleLowerCase(),
+    part.Part_Number.trim().toLocaleUpperCase(),
+    part.Serial_Prefix.trim().toLocaleUpperCase(),
+    part.Label_Format.trim().toLocaleLowerCase(),
+  ]);
+
 interface UsePrintLabelStatus {
   isLoading: boolean;
   isPrinting: boolean;
@@ -14,6 +24,7 @@ interface UsePrintLabelStatus {
 interface UsePrintLabelData {
   parts: Part[];
   selectedPart: Part | null;
+  selectedOption: PartOption | null;
   labelQuantity: number | "";
   date: string;
   serialNumber: string;
@@ -51,6 +62,8 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const [lastPrintSummary, setLastPrintSummary] =
     useState<PrintLabelResult | null>(null);
   const previewCache = useRef<Record<string, string>>({});
+  const previewRequestId = useRef(0);
+  const previewDebounceTimer = useRef<number | null>(null);
   const printInProgress = useRef(false);
 
   const [status, setStatus] = useState<UsePrintLabelStatus>({
@@ -95,14 +108,38 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
               first.Part_Description.localeCompare(second.Part_Description),
           );
 
-        setParts(filteredParts);
+        const seenOptionValues = new Set<string>();
+        const duplicateOptionValues = new Set<string>();
+        const uniqueParts = filteredParts.filter((part) => {
+          const optionValue = getPartOptionValue(part);
+          if (seenOptionValues.has(optionValue)) {
+            duplicateOptionValues.add(optionValue);
+            return false;
+          }
+          seenOptionValues.add(optionValue);
+          return true;
+        });
+
+        setParts(uniqueParts);
         setOptions(
-          filteredParts.map((part) => ({
-            value: part.Serial_Prefix,
+          uniqueParts.map((part) => ({
+            value: getPartOptionValue(part),
             label: `${part.Part_Description} (${part.Serial_Prefix})`,
           })),
         );
-        setStatus((prev) => ({ ...prev, isLoading: false }));
+        setStatus((prev) => ({
+          ...prev,
+          isLoading: false,
+          uiMessage:
+            duplicateOptionValues.size > 0
+              ? {
+                  type: "error",
+                  text: t("print_view.duplicate_part_options", {
+                    count: duplicateOptionValues.size,
+                  }),
+                }
+              : prev.uiMessage,
+        }));
       } catch (err) {
         if (!isMounted) return;
         const { message } = extractError(err);
@@ -120,23 +157,41 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     };
   }, [t]);
 
+  useEffect(
+    () => () => {
+      previewRequestId.current += 1;
+      if (previewDebounceTimer.current !== null) {
+        window.clearTimeout(previewDebounceTimer.current);
+      }
+    },
+    [],
+  );
+
   async function generateLabelPreview(
     part: Part,
     date: string | "",
     serialNumber: string | "",
   ): Promise<void> {
+    const requestId = ++previewRequestId.current;
     try {
       const cacheKey = [
         mode,
+        part.Operation || "",
         part.Part_Number,
+        part.Part_Description,
         part.Serial_Prefix,
         part.Label_Format,
         date,
         serialNumber,
       ].join("|");
       if (previewCache.current[cacheKey]) {
+        if (requestId !== previewRequestId.current) return;
         setPreviewImage(previewCache.current[cacheKey]);
-        setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+        setStatus((prev) => ({
+          ...prev,
+          isPreviewLoading: false,
+          uiMessage: null,
+        }));
         return;
       }
       const response = await window.api.GetPrintPreview({
@@ -145,10 +200,14 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         serialNumber,
       });
 
+      if (requestId !== previewRequestId.current) return;
+
       if (response.status && response.data) {
         previewCache.current[cacheKey] = response.data;
         setPreviewImage(response.data);
+        setStatus((prev) => ({ ...prev, uiMessage: null }));
       } else {
+        setPreviewImage(null);
         setStatus((prev) => ({
           ...prev,
           uiMessage: {
@@ -161,7 +220,9 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         }));
       }
     } catch (err: unknown) {
+      if (requestId !== previewRequestId.current) return;
       const { message, details } = extractError(err);
+      setPreviewImage(null);
       setStatus((prev) => ({
         ...prev,
         uiMessage: {
@@ -171,22 +232,58 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         },
       }));
     } finally {
-      setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+      if (requestId === previewRequestId.current) {
+        setStatus((prev) => ({ ...prev, isPreviewLoading: false }));
+      }
     }
   }
+
+  const scheduleLabelPreview = (
+    part: Part,
+    nextDate: string,
+    nextSerialNumber: string,
+  ): void => {
+    previewRequestId.current += 1;
+    if (previewDebounceTimer.current !== null) {
+      window.clearTimeout(previewDebounceTimer.current);
+    }
+    setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
+    previewDebounceTimer.current = window.setTimeout(() => {
+      previewDebounceTimer.current = null;
+      void generateLabelPreview(part, nextDate, nextSerialNumber);
+    }, PREVIEW_DEBOUNCE_MS);
+  };
 
   const handleSelectChange = async (
     option: PartOption | null,
   ): Promise<void> => {
     setPreviewImage(null);
-    setLastPrintSummary(null);
+    setLastPrintSummary((current) =>
+      current &&
+      (!current.status || !current.printerReady || !current.auditPersisted)
+        ? current
+        : null,
+    );
+    previewRequestId.current += 1;
+    if (previewDebounceTimer.current !== null) {
+      window.clearTimeout(previewDebounceTimer.current);
+      previewDebounceTimer.current = null;
+    }
+    setStatus((prev) => ({
+      ...prev,
+      isPreviewLoading: false,
+      uiMessage: null,
+    }));
 
     if (!option) {
       setSelectedPart(null);
       return;
     }
 
-    const part = parts.find((p) => p.Serial_Prefix === option.value) || null;
+    const part =
+      parts.find(
+        (candidate) => getPartOptionValue(candidate) === option.value,
+      ) || null;
     setSelectedPart(part);
 
     if (part) {
@@ -200,29 +297,17 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   };
 
-  const handleDateChange = async (date: string): Promise<void> => {
-    setDate(date);
-    if (selectedPart) {
-      if (mode === "reprint") {
-        setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
-        await generateLabelPreview(selectedPart, date, serialNumber);
-      } else {
-        await generateLabelPreview(selectedPart, date, serialNumber);
-      }
+  const handleDateChange = (nextDate: string): void => {
+    setDate(nextDate);
+    if (selectedPart && mode === "reprint") {
+      scheduleLabelPreview(selectedPart, nextDate, serialNumber);
     }
   };
 
-  const handleSerialNumberChange = async (
-    serialNumber: string,
-  ): Promise<void> => {
-    setSerialNumber(serialNumber);
-    if (selectedPart) {
-      if (mode === "reprint") {
-        setStatus((prev) => ({ ...prev, isPreviewLoading: true }));
-        await generateLabelPreview(selectedPart, date, serialNumber);
-      } else {
-        await generateLabelPreview(selectedPart, date, serialNumber);
-      }
+  const handleSerialNumberChange = (nextSerialNumber: string): void => {
+    setSerialNumber(nextSerialNumber);
+    if (selectedPart && mode === "reprint") {
+      scheduleLabelPreview(selectedPart, date, nextSerialNumber);
     }
   };
 
@@ -282,6 +367,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
             });
 
       if (!response || !response.status) {
+        if (response) setLastPrintSummary(response);
         setStatus((prev) => ({
           ...prev,
           uiMessage: {
@@ -336,6 +422,12 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     data: {
       parts,
       selectedPart,
+      selectedOption: selectedPart
+        ? {
+            value: getPartOptionValue(selectedPart),
+            label: `${selectedPart.Part_Description} (${selectedPart.Serial_Prefix})`,
+          }
+        : null,
       labelQuantity,
       options,
       previewImage,

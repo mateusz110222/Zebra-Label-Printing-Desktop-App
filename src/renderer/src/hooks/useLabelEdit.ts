@@ -9,6 +9,7 @@ interface useLabelEditResponse {
     cleanName: string;
     isNewTemplate: boolean;
     previewImage: string;
+    previewError: string | null;
     criticalError: string | null;
     message: string | null;
     isOnline: boolean;
@@ -48,6 +49,7 @@ export function useLabelEdit(): useLabelEditResponse {
   const [criticalError, setCriticalError] = useState<string | null>(null);
   const { t } = useTranslation();
   const [previewImage, setPreviewImage] = useState<string>("");
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [isOnline, SetisOnline] = useState<boolean>(false);
   const [message, Setmessage] = useState<string>("");
   const [isOnlineLoading, setisOnlineLoading] = useState<boolean>(true);
@@ -64,7 +66,7 @@ export function useLabelEdit(): useLabelEditResponse {
       .trim()
       .toLocaleLowerCase();
 
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -222,14 +224,15 @@ export function useLabelEdit(): useLabelEditResponse {
 
           if (isMounted) {
             if (!response.status) {
-              setCriticalError(
+              setPreviewImage("");
+              setPreviewError(
                 t("label_editor.example_part_preview_error", {
                   part: examplePart.Part_Number,
                 }),
               );
             } else if (response.data) {
               setPreviewImage(response.data);
-              setCriticalError(null);
+              setPreviewError(null);
             }
           }
           return;
@@ -239,14 +242,25 @@ export function useLabelEdit(): useLabelEditResponse {
 
         if (isMounted) {
           if (!response.status) {
-            setCriticalError(response.message || "Preview error");
+            setPreviewImage("");
+            setPreviewError(
+              t(response.message || "backend.print.generate_error"),
+            );
           } else if (response.data) {
             setPreviewImage(response.data);
-            setCriticalError(null);
+            setPreviewError(null);
           }
         }
       } catch (error) {
-        if (isMounted) console.error("Preview failed:", error);
+        if (isMounted) {
+          console.error("Preview failed:", error);
+          setPreviewImage("");
+          setPreviewError(
+            error instanceof Error
+              ? error.message
+              : t("backend.print.generate_error"),
+          );
+        }
       }
     };
 
@@ -256,7 +270,7 @@ export function useLabelEdit(): useLabelEditResponse {
       const resetTimer = window.setTimeout(() => {
         if (isMounted) {
           setPreviewImage("");
-          setCriticalError(null);
+          setPreviewError(null);
         }
       }, 0);
 
@@ -322,6 +336,7 @@ export function useLabelEdit(): useLabelEditResponse {
       cleanName,
       isNewTemplate,
       previewImage,
+      previewError,
       criticalError,
       message,
       isOnline,

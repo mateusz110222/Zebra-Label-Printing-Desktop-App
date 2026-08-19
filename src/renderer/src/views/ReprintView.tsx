@@ -62,14 +62,7 @@ export function ReprintView(): React.JSX.Element {
                     onChange={actions.handleSelectChange}
                     placeholder={t("print_view.select_part")}
                     isClearable
-                    value={
-                      data.selectedPart
-                        ? {
-                            value: data.selectedPart.Serial_Prefix,
-                            label: `${data.selectedPart.Part_Description} (${data.selectedPart.Serial_Prefix})`,
-                          }
-                        : null
-                    }
+                    value={data.selectedOption}
                     classNamePrefix="react-select"
                     styles={selectStyles}
                   />

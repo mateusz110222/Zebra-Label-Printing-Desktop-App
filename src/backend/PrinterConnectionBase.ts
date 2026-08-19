@@ -10,11 +10,12 @@ export interface ConnectionResult {
 }
 
 export interface PrinterConfig {
-  type: "IP" | "COM";
+  type: "IP" | "COM" | "USB";
   ip?: string;
   port?: number;
   comPort?: string;
   baudRate?: number;
+  usbPrinterName?: string;
 }
 
 /**
