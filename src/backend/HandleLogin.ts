@@ -254,6 +254,7 @@ export default function HandleLogin(): void {
           error instanceof Error ? error.message : "backend.auth.AUTH_UNKNOWN";
         const errorMsg = redactSecret(unsafeErrorMsg, password);
         const userMessage = getAuthenticationErrorMessage(errorMsg);
+        const isKnownAuthError = userMessage !== "backend.auth.AUTH_ERROR";
 
         await appendAuditLog({
           category: "auth",
@@ -266,7 +267,7 @@ export default function HandleLogin(): void {
         return {
           status: false,
           message: userMessage,
-          rawError: errorMsg,
+          rawError: isKnownAuthError ? undefined : errorMsg,
         };
       } finally {
         await safeUnbind(client);

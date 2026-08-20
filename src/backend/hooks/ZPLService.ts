@@ -56,9 +56,12 @@ const isValidIsoDate = (value: string): boolean => {
   );
 };
 
-const invalidDataResult = (rawError: string): GenerateZPLResult => ({
+const invalidDataResult = (
+  message: string,
+  rawError?: string,
+): GenerateZPLResult => ({
   status: false,
-  message: "backend.print.invalid_data",
+  message,
   rawError,
 });
 
@@ -238,8 +241,6 @@ export async function generatePrintZPL(
         });
       }
 
-      // The counter is allowed to grow one character past maxId. That value is
-      // never printed; it is a durable exhausted-range marker for the next request.
       const nextValueForDb = calculateSerialCounter(
         currentNext,
         quantity,
@@ -321,31 +322,47 @@ async function generateReprintZPLInternal(
       typeof part.Label_Format !== "string" ||
       typeof part.Part_Description !== "string"
     ) {
-      return invalidDataResult("Invalid part data");
+      return invalidDataResult(
+        "backend.print.invalid_part_data",
+      );
     }
 
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
-      return invalidDataResult(`Invalid quantity: ${quantity}`);
+      return invalidDataResult(
+        "backend.print.invalid_quantity",
+        `Invalid quantity: ${quantity}`,
+      );
     }
 
     if (typeof date !== "string") {
-      return invalidDataResult("Date is required");
+      return invalidDataResult(
+        "backend.print.date_required",
+      );
     }
     const normalizedDate = date.trim();
     if (!isValidIsoDate(normalizedDate)) {
-      return invalidDataResult(`Invalid date: ${date}`);
+      return invalidDataResult(
+        "backend.print.invalid_date",
+        `Invalid date: ${date}`,
+      );
     }
 
     if (typeof serialNumber !== "string") {
-      return invalidDataResult("Serial number is required");
+      return invalidDataResult(
+        "backend.print.serial_required",
+      );
     }
+
     const requestedSerial = serialNumber.trim().toUpperCase();
     if (!requestedSerial) {
-      return invalidDataResult("Serial number is required");
+      return invalidDataResult(
+        "backend.print.serial_required",
+      );
     }
+
     if (requestedSerial === "0" && !allowCurrentNextForPreview) {
       return invalidDataResult(
-        "Serial number 0 is reserved for label preview and cannot be reprinted",
+        "backend.print.serial_zero_reprint_not_allowed",
       );
     }
 
@@ -397,7 +414,8 @@ async function generateReprintZPLInternal(
 
     if (!baseSerial || baseSerial.length !== maxSerial.length) {
       return invalidDataResult(
-        `Serial number must contain exactly ${maxSerial.length} characters`,
+        "backend.print.invalid_serial_length",
+        `Expected length: ${maxSerial.length}`,
       );
     }
 
@@ -414,7 +432,7 @@ async function generateReprintZPLInternal(
       numericBase + BigInt(quantity) - 1n >= numericNext
     ) {
       return invalidDataResult(
-        "A reprint can only use serial numbers reserved by an earlier print",
+        "backend.print.reprint_serial_not_reserved",
       );
     }
 

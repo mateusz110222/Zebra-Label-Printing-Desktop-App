@@ -36,6 +36,7 @@ interface UsePrintLabelData {
 interface UsePrintLabelActions {
   handleSelectChange: (option: PartOption | null) => Promise<void>;
   handleQuantityChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  handleQuantityBlur: (e: ChangeEvent<HTMLInputElement>) => void;
   handlePrint: () => Promise<void>;
   clearUiMessage: () => void;
   handleSerialNumberChange: (SerialNumber: string) => void;
@@ -312,14 +313,23 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   };
 
   const handleQuantityChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const val = e.target.value;
-    if (val === "") {
-      setLabelQuantity(1);
+    const value = e.target.value;
+
+    if (value === "") {
+      setLabelQuantity("");
       return;
     }
-    const num = parseInt(val);
-    if (!isNaN(num)) {
-      setLabelQuantity(Math.min(100, Math.max(1, num)));
+
+    const parsed = Number(value);
+
+    if (parsed >= 1 && parsed <= 100) {
+      setLabelQuantity(parsed);
+    }
+  };
+
+  const handleQuantityBlur = (): void => {
+    if (labelQuantity === "") {
+      setLabelQuantity(1);
     }
   };
 
@@ -441,6 +451,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       handleSerialNumberChange,
       handleDateChange,
       handleQuantityChange,
+      handleQuantityBlur,
       handlePrint,
       clearUiMessage,
     },

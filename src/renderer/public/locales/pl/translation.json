@@ -284,7 +284,15 @@
       "unsupported_type": "Nieobsługiwany typ numeracji",
       "preview_success": "Podgląd etykiety wygenerowany pomyślnie",
       "print_success": "Etykieta wygenerowana do druku",
-      "unexpected_error": "Wystąpił nieoczekiwany błąd"
+      "unexpected_error": "Wystąpił nieoczekiwany błąd",
+      "invalid_part_data": "Nieprawidłowe dane części",
+      "invalid_quantity": "Nieprawidłowa liczba etykiet",
+      "date_required": "Data jest wymagana",
+      "invalid_date": "Nieprawidłowa data",
+      "serial_required": "Numer seryjny jest wymagany",
+      "serial_zero_reprint_not_allowed": "Numer seryjny 0 jest zarezerwowany dla podglądu etykiety i nie może zostać użyty do ponownego wydruku",
+      "invalid_serial_length": "Numer seryjny musi mieć prawidłową liczbę znaków",
+      "reprint_serial_not_reserved": "Można ponownie wydrukować tylko wcześniej wykorzystany numer seryjny"
     },
     "audit": {
       "unauthorized": "Brak uprawnień do historii audytu.",

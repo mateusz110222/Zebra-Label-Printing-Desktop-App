@@ -317,6 +317,7 @@ export function PrintView(): React.JSX.Element {
                     part={data.selectedPart}
                     quantity={data.labelQuantity}
                     onQuantityChange={actions.handleQuantityChange}
+                    onQuantityBlur={actions.handleQuantityBlur}
                   />
                 )}
 

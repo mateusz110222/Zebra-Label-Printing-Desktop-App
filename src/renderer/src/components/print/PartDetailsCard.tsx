@@ -13,12 +13,14 @@ interface PartDetailsCardProps {
   part: Part;
   quantity: number | "";
   onQuantityChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onQuantityBlur: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
 const PartDetailsCard = React.memo(function PartDetailsCard({
   part,
   quantity,
   onQuantityChange,
+  onQuantityBlur
 }: PartDetailsCardProps): React.JSX.Element {
   const { t } = useTranslation();
 
@@ -67,6 +69,8 @@ const PartDetailsCard = React.memo(function PartDetailsCard({
             type="number"
             value={quantity}
             onChange={onQuantityChange}
+            onBlur={onQuantityBlur}
+            onFocus={(e) => e.target.select()}
             min={1}
             max={100}
             className="w-full max-w-20 rounded-lg border-0 py-1.5 px-3 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 dark:ring-slate-600 focus:ring-2 focus:ring-inset focus:ring-indigo-600 text-sm font-semibold"
