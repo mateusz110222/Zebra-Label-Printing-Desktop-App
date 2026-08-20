@@ -64,6 +64,8 @@ export function ReprintView(): React.JSX.Element {
                     isClearable
                     value={data.selectedOption}
                     classNamePrefix="react-select"
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
                     styles={selectStyles}
                   />
                 </div>
@@ -74,6 +76,7 @@ export function ReprintView(): React.JSX.Element {
                     part={data.selectedPart}
                     quantity={data.labelQuantity}
                     onQuantityChange={actions.handleQuantityChange}
+                    onQuantityBlur={actions.handleQuantityBlur}
                   />
                 )}
 

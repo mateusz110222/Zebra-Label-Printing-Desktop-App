@@ -249,7 +249,7 @@ describe("HandleLogin LDAP hardening", () => {
 
     expect(response.status).toBe(false);
     expect(response.message).toBe("backend.auth.AUTH_INVALID_CREDENTIALS");
-    expect(response.rawError).not.toContain(password);
+    expect(response.rawError ?? "").not.toContain(password);
     expect(JSON.stringify(mocks.appendAuditLog.mock.calls)).not.toContain(
       password,
     );

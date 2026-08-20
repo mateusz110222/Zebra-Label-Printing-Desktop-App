@@ -247,7 +247,7 @@ describe("generateReprintZPL validation", () => {
 
     expect(result).toMatchObject({
       status: false,
-      message: "backend.print.invalid_data",
+      message: "backend.print.serial_zero_reprint_not_allowed",
     });
     expect(databaseMocks.pool.query).not.toHaveBeenCalled();
   });
@@ -292,7 +292,7 @@ describe("generateReprintZPL validation", () => {
 
     expect(result).toMatchObject({
       status: false,
-      message: "backend.print.invalid_data",
+      message: "backend.print.reprint_serial_not_reserved",
     });
   });
 

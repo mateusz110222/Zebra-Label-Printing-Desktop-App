@@ -284,7 +284,15 @@
       "unsupported_type": "Unsupported numbering type",
       "preview_success": "Label preview generated successfully",
       "print_success": "Label generated for printing",
-      "unexpected_error": "An unexpected error occurred"
+      "unexpected_error": "An unexpected error occurred",
+      "invalid_part_data": "Invalid part data",
+      "invalid_quantity": "Invalid quantity",
+      "date_required": "Date is required",
+      "invalid_date": "Invalid date",
+      "serial_required": "Serial number is required",
+      "serial_zero_reprint_not_allowed": "Serial number 0 is reserved for label preview and cannot be reprinted",
+      "invalid_serial_length": "Serial number has an invalid length",
+      "reprint_serial_not_reserved": "A reprint can only use serial numbers reserved by an earlier print"
     },
     "audit": {
       "unauthorized": "You are not authorized to view audit history.",
