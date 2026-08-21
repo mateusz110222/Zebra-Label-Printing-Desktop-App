@@ -68,7 +68,7 @@ export default function useSettingsMenu(
     });
 
     const cleanupProgress = window.api.OnDownloadProgress((data) => {
-      setProgressPercent(Number(data.percent));
+      setProgressPercent(data.percent);
     });
 
     const cleanupDownloaded = window.api.OnUpdateDownloaded(() => {
@@ -111,9 +111,10 @@ export default function useSettingsMenu(
 
       try {
         const ghVer = await window.api.GetGithubVersion();
+
         if (isMounted) {
-          if (ghVer && ghVer !== "Error") {
-            setGithubVersion(ghVer);
+          if (ghVer.status && ghVer.data) {
+            setGithubVersion(ghVer.data);
           } else {
             setGithubVersion("-");
           }

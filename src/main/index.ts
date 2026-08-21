@@ -29,6 +29,7 @@ import {
   isAllowedPreviewUrl,
   isRendererDocumentUrl
 } from "../backend/preview/PreviewWindowPolicy";
+import { installExtension, REACT_DEVELOPER_TOOLS } from "electron-devtools-installer";
 
 app.enableSandbox();
 
@@ -169,7 +170,7 @@ SavePrinterConfig();
 GetPrinterConfig();
 GetSerialPorts();
 GetUsbPrinters();
-IsOnline();
+void IsOnline();
 GetGithubVersions();
 HandleLogin();
 GetLabelPreview();
@@ -181,6 +182,7 @@ SaveDatabaseConfig();
 SystemHealthHandler();
 
 app.whenReady().then(() => {
+  void installExtension(REACT_DEVELOPER_TOOLS)
   electronApp.setAppUserModelId("com.electron");
 
   session.defaultSession.setPermissionCheckHandler(() => {

@@ -1,13 +1,20 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-interface PrinterPayload {
-  type: "IP" | "COM" | "USB";
-  ip?: string;
+type PrinterPayload =
+  | {
+  type: "IP";
+  ip: string;
   port?: number;
-  comPort?: string;
-  baudRate?: number;
-  usbPrinterName?: string;
 }
+  | {
+  type: "COM";
+  comPort: string;
+  baudRate?: number;
+}
+  | {
+  type: "USB";
+  usbPrinterName: string;
+};
 
 interface PartPayload {
   Part_Number: string;
