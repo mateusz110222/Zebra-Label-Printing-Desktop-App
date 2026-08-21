@@ -174,12 +174,21 @@ export function useConfigView(): UseConfigViewReturn {
           const cfg = configResponse.data;
 
           const printerDraft: PrinterDraft = {
-            connectionType: cfg.type || "IP",
-            ipAddress: cfg.ip || "",
-            port: (cfg.port || 9100).toString(),
-            selectedCom: cfg.comPort || "",
-            baudRate: cfg.baudRate || 9600,
-            selectedUsbPrinter: cfg.usbPrinterName || "",
+            connectionType: cfg.type,
+            ipAddress: cfg.type === "IP" ? cfg.ip : "",
+            port:
+              cfg.type === "IP"
+                ? (cfg.port ?? 9100).toString()
+                : "9100",
+            selectedCom: cfg.type === "COM" ? cfg.comPort : "",
+            baudRate:
+              cfg.type === "COM"
+                ? (cfg.baudRate ?? 9600)
+                : 9600,
+            selectedUsbPrinter:
+              cfg.type === "USB"
+                ? cfg.usbPrinterName
+                : "",
           };
           savedPrinterDraft.current = printerDraft;
           applyPrinterDraft(printerDraft);
@@ -233,15 +242,23 @@ export function useConfigView(): UseConfigViewReturn {
     setUiMessage(null);
 
     try {
-      const payload = {
-        type: connectionType,
-        ip: connectionType === "IP" ? ipAddress : undefined,
-        port: connectionType === "IP" ? parseInt(port) : undefined,
-        comPort: connectionType === "COM" ? selectedCom : undefined,
-        baudRate: connectionType === "COM" ? baudRate : undefined,
-        usbPrinterName:
-          connectionType === "USB" ? selectedUsbPrinter : undefined,
-      };
+      const payload: PrinterPayload =
+        connectionType === "IP"
+          ? {
+            type: "IP",
+            ip: ipAddress,
+            port: parseInt(port, 10),
+          }
+          : connectionType === "COM"
+            ? {
+              type: "COM",
+              comPort: selectedCom,
+              baudRate,
+            }
+            : {
+              type: "USB",
+              usbPrinterName: selectedUsbPrinter,
+            };
 
       const resp =
         action === "SAVE"

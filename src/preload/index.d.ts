@@ -8,21 +8,28 @@ declare global {
     Label_Format: string;
   }
 
-  interface PrinterPayload {
-    type: "IP" | "COM" | "USB";
-    ip?: string;
+  type PrinterPayload =
+    | {
+    type: "IP";
+    ip: string;
     port?: number;
-    comPort?: string;
-    baudRate?: number;
-    usbPrinterName?: string;
   }
+    | {
+    type: "COM";
+    comPort: string;
+    baudRate?: number;
+  }
+    | {
+    type: "USB";
+    usbPrinterName: string;
+  };
 
   interface Window {
     api: {
       // Parts and ZPL
       GetParts: (Label_Format?: string) => Promise<{
         status: boolean;
-        data?: unknown;
+        data?: PartPayload[];
         message?: string;
         rawError?: string;
       }>;
@@ -65,17 +72,17 @@ declare global {
         message?: string;
       }>;
       GetLabelZPL: (
-        name: string,
+        name: string
       ) => Promise<{ status: boolean; data?: string; message?: string }>;
       GetLabelPreview: (
-        nameOrZpl: string,
+        nameOrZpl: string
       ) => Promise<{ status: boolean; data?: string; message?: string }>;
       SaveLabelFormat: (
         name: string,
-        data: string,
+        data: string
       ) => Promise<{ status: boolean; message?: string }>;
       DeleteLabelFormat: (
-        name: string,
+        name: string
       ) => Promise<{ status: boolean; message?: string }>;
       GetTemplateEditAccess: () => Promise<{ status: boolean }>;
 
@@ -127,7 +134,7 @@ declare global {
         data?: PrinterPayload;
       }>;
       SavePrinterConfig: (
-        payload: PrinterPayload,
+        payload: PrinterPayload
       ) => Promise<{ status: boolean; message?: string }>;
       TestPrinterConnection: (payload?: PrinterPayload) => Promise<{
         status: boolean;
@@ -137,9 +144,13 @@ declare global {
         auditStatusMessage?: string;
       }>;
 
-      // App/Settings
       GetAppVersion: () => Promise<string>;
-      GetGithubVersion: () => Promise<string>;
+      GetGithubVersion: () => Promise<{
+        status: boolean;
+        message: string;
+        rawError?: string;
+        data?: string;
+      }>;
       CheckForUpdates: () => Promise<{
         status?: boolean;
         updateAvailable?: boolean;
@@ -149,7 +160,7 @@ declare global {
       RestartApp: () => void;
       GetAutoUpdateSetting: () => Promise<boolean>;
       SetAutoUpdateSetting: (
-        enabled: boolean,
+        enabled: boolean
       ) => Promise<{ status: boolean; enabled?: boolean; message?: string }>;
       GetDatabaseConfig: () => Promise<{
         status: boolean;
@@ -157,7 +168,7 @@ declare global {
         message?: string;
       }>;
       SaveDatabaseConfig: (
-        payload: DatabasePayload,
+        payload: DatabasePayload
       ) => Promise<{ status: boolean; message?: string; rawError?: string }>;
 
       // Auth
@@ -197,7 +208,7 @@ declare global {
       // Events
       OnUpdateAvailable: (callback: () => void) => () => void;
       OnDownloadProgress: (
-        callback: (data: { percent: string }) => void,
+        callback: (data: { percent: number }) => void
       ) => () => void;
       OnUpdateDownloaded: (callback: () => void) => () => void;
       RemoveAllListeners: (channel: string) => void;
@@ -276,7 +287,7 @@ declare global {
       message: string;
       rawError?: string;
       data?: PrinterStatusDetails;
-      type: "IP" | "COM";
+      type: "IP" | "COM" | "USB";
       target: string;
     };
     templates: {
