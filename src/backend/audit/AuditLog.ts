@@ -194,8 +194,6 @@ const INTERNAL_ACTIONS = new Set([
 ]);
 
 const matchesQuery = (entry: AuditLogEntry, query: AuditLogQuery): boolean => {
-  // Preparation records are retained in JSONL for crash recovery, but they are
-  // implementation details rather than completed print-history entries.
   if (INTERNAL_ACTIONS.has(entry.action)) return false;
   if (query.scope === "print" && entry.category !== "print") return false;
   if (query.scope === "audit" && entry.category === "print") return false;
@@ -245,7 +243,6 @@ export const readAuditLogs = async (
       if (!filePattern.test(name)) return false;
       if (query.scope === "audit") return name.startsWith("audit-");
       if (query.scope === "print") {
-        // Audit files are also checked for compatibility with the earlier combined format.
         return name.startsWith("print-") || name.startsWith("audit-");
       }
       return true;

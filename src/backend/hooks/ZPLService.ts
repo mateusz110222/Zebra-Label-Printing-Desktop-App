@@ -1,13 +1,13 @@
 import GetJulianDate from "./GetJulianDate";
 import GetCmcJulianDate from "./GetCmcJulianDate";
 import { calculateSerial, calculateSerialCounter, fillZplTemplate, parseSerialValue } from "./LabelProcessor";
-import { getDatabase } from "../DatabaseConfig";
-import { Pool, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import path from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import GetBmsDate from "./GetBmsDate";
-import { getTemplatesPath, normalizeTemplateFileName } from "../TemplatePaths";
 import { createHash } from "node:crypto";
+import { getTemplatesPath, normalizeTemplateFileName } from "../system/TemplatePaths";
+import { getDatabase } from "../config/DatabaseConfig";
 
 interface Part {
   Part_Number: string;
@@ -91,14 +91,6 @@ export async function getZplTemplate(
   return { status: true, message: "OK", data: rawTemplate };
 }
 
-function getDbPool(): Pool {
-  const pool = getDatabase();
-  if (!pool) {
-    throw new Error("backend.db.not_initialized");
-  }
-  return pool;
-}
-
 export async function SaveZplTemplate(
   formatName: string,
   data: string,
@@ -144,7 +136,7 @@ export async function generatePrintZPL(
       return templateResult;
     }
     const rawTemplate = templateResult.data!;
-    const pool = getDbPool();
+    const pool = getDatabase();
     const connection = await pool.getConnection();
 
     try {
@@ -162,7 +154,7 @@ export async function generatePrintZPL(
         return {
           status: false,
           message: "backend.db.error",
-          rawError: "The family table must use the InnoDB engine",
+          rawError: "backend.db.wrong_engine",
         };
       }
 
@@ -186,11 +178,7 @@ export async function generatePrintZPL(
 
       if (rows.length !== 1) {
         await connection.rollback();
-        return {
-          status: false,
-          message: "backend.db.error",
-          rawError: `Multiple family rows found for ${part.Part_Number}`,
-        };
+        throw new Error(`Multiple family rows found for ${part.Part_Number}`)
       }
 
       const { pk, maxId, next, type_name } = rows[0];
@@ -322,9 +310,7 @@ async function generateReprintZPLInternal(
       typeof part.Label_Format !== "string" ||
       typeof part.Part_Description !== "string"
     ) {
-      return invalidDataResult(
-        "backend.print.invalid_part_data",
-      );
+      return invalidDataResult("backend.print.invalid_part_data");
     }
 
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
@@ -335,9 +321,7 @@ async function generateReprintZPLInternal(
     }
 
     if (typeof date !== "string") {
-      return invalidDataResult(
-        "backend.print.date_required",
-      );
+      return invalidDataResult("backend.print.date_required");
     }
     const normalizedDate = date.trim();
     if (!isValidIsoDate(normalizedDate)) {
@@ -348,25 +332,19 @@ async function generateReprintZPLInternal(
     }
 
     if (typeof serialNumber !== "string") {
-      return invalidDataResult(
-        "backend.print.serial_required",
-      );
+      return invalidDataResult("backend.print.serial_required");
     }
 
     const requestedSerial = serialNumber.trim().toUpperCase();
     if (!requestedSerial) {
-      return invalidDataResult(
-        "backend.print.serial_required",
-      );
+      return invalidDataResult("backend.print.serial_required");
     }
 
     if (requestedSerial === "0" && !allowCurrentNextForPreview) {
-      return invalidDataResult(
-        "backend.print.serial_zero_reprint_not_allowed",
-      );
+      return invalidDataResult("backend.print.serial_zero_reprint_not_allowed");
     }
 
-    const pool = getDbPool();
+    const pool = getDatabase();
 
     const [rows] = await pool.query<FamilyRow[]>(
       `SELECT f.pk, f.maxId, f.next, st.name as type_name
@@ -431,9 +409,7 @@ async function generateReprintZPLInternal(
       !allowCurrentNextForPreview &&
       numericBase + BigInt(quantity) - 1n >= numericNext
     ) {
-      return invalidDataResult(
-        "backend.print.reprint_serial_not_reserved",
-      );
+      return invalidDataResult("backend.print.reprint_serial_not_reserved");
     }
 
     const templateResult = await getZplTemplate(part.Label_Format);
@@ -472,7 +448,7 @@ async function generateReprintZPLInternal(
 
     return {
       status: true,
-      message: "backend.print.reprint_success",
+      message: "backend.reprint.success",
       data: fullBatchZpl,
       labels,
     };
@@ -500,7 +476,7 @@ export async function generatePreviewZPL(
       }
       rawTemplate = templateResult.data!;
     }
-    const pool = getDbPool();
+    const pool = getDatabase();
 
     const [rows] = await pool.query<FamilyRow[]>(
       `SELECT f.pk, f.next, f.maxId, st.name AS type_name

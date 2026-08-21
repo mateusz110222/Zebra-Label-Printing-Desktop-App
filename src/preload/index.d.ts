@@ -265,7 +265,7 @@ declare global {
       engineOk: boolean;
       duplicateFamilies: Array<{ name: string; count: number }>;
       timeDriftMs: number | null;
-      message: string;
+      message: string[];
       rawError?: string;
     };
     printer: {

@@ -1,7 +1,6 @@
-import type { PrinterConfig } from "./store";
-import { store } from "./store";
 import { ipcMain } from "electron";
-import { queryPrinterStatus } from "./PrinterStatus";
+import { PrinterConfig, store } from "../utils/store";
+import { queryPrinterStatus } from "../printer/PrinterStatus";
 
 export default async function IsOnline(): Promise<void> {
   ipcMain.handle("Get-PrinterStatus", async () => {

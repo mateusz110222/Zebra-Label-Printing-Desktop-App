@@ -1,34 +1,36 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, session, shell } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 
-import GetParts from "../backend/GetParts";
-import PrintLabel from "../backend/PrintLabel";
-import GetSerialPorts from "../backend/GetSerialPorts";
-import GetUsbPrinters from "../backend/GetUsbPrinters";
-import TestPrinterConnection from "../backend/TestPrinterConnection";
-import SavePrinterConfig from "../backend/SavePrinterConfig";
-import GetPrinterConfig from "../backend/GetPrinterConfig";
-import HandleLogin from "../backend/HandleLogin";
-import IsOnline from "../backend/IsOnline";
-import GetLabelPreview from "../backend/GetLabelPreview";
-import { closeDatabase } from "../backend/DatabaseConfig";
-import GetLabelsFormats from "../backend/GetLabelsFormats";
-import GetGithubVersions from "../backend/GetGithubVersions";
-import UpdatesHandler from "../backend/UpdatesHandler";
-import SettingsHandler from "../backend/SettingsHandler";
-import ChildWindowHandlers from "../backend/ChildWindow";
-import PartsConfigHandler from "../backend/PartsConfig";
-import AuditLogHandlers from "../backend/AuditLogHandlers";
-import SaveDatabaseConfig from "../backend/SaveDatabaseConfig";
-import SystemHealthHandler from "../backend/SystemHealth";
-import { clearAuditSession } from "../backend/AuditLog";
+import GetParts from "../backend/parts/GetParts";
+import PrintLabel from "../backend/printer/PrintLabel";
+import GetSerialPorts from "../backend/printer/GetSerialPorts";
+import GetUsbPrinters from "../backend/printer/GetUsbPrinters";
+import TestPrinterConnection from "../backend/printer/TestPrinterConnection";
+import SavePrinterConfig from "../backend/config/SavePrinterConfig";
+import GetPrinterConfig from "../backend/config/GetPrinterConfig";
+import HandleLogin from "../backend/auth/HandleLogin";
+import IsOnline from "../backend/system/IsOnline";
+import GetLabelPreview from "../backend/preview/GetLabelPreview";
+import { closeDatabase } from "../backend/config/DatabaseConfig";
+import GetLabelsFormats from "../backend/parts/GetLabelsFormats";
+import GetGithubVersions from "../backend/system/GetGithubVersions";
+import UpdatesHandler from "../backend/handlers/UpdatesHandler";
+import SettingsHandler from "../backend/config/SettingsHandler";
+import ChildWindowHandlers from "../backend/preview/ChildWindow";
+import PartsConfigHandler from "../backend/config/PartsConfig";
+import AuditLogHandlers from "../backend/audit/AuditLogHandlers";
+import SaveDatabaseConfig from "../backend/config/SaveDatabaseConfig";
+import SystemHealthHandler from "../backend/system/SystemHealth";
+import { clearAuditSession } from "../backend/audit/AuditLog";
 import {
   getRendererEntryUrl,
   isAllowedExternalUrl,
   isAllowedPreviewUrl,
   isRendererDocumentUrl
-} from "../backend/PreviewWindowPolicy";
+} from "../backend/preview/PreviewWindowPolicy";
+
+app.enableSandbox();
 
 let mainWindow: BrowserWindow;
 
@@ -54,10 +56,20 @@ function createWindow(): void {
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
+
       sandbox: true,
       contextIsolation: true,
+
       nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      nodeIntegrationInSubFrames: false,
+
       webSecurity: true,
+      allowRunningInsecureContent: false,
+
+      webviewTag: false,
+      navigateOnDragDrop: false,
+
       devTools: !app.isPackaged,
     },
   });
@@ -75,13 +87,21 @@ function createWindow(): void {
         overrideBrowserWindowOptions: {
           frame: true,
           autoHideMenuBar: true,
-          sandbox: true,
-          contextIsolation: true,
-          nodeIntegration: false,
-          webSecurity: true,
           fullscreenable: false,
+
           webPreferences: {
             preload: join(__dirname, "../preload/label-format.js"),
+
+            sandbox: true,
+            contextIsolation: true,
+            nodeIntegration: false,
+            nodeIntegrationInWorker: false,
+            nodeIntegrationInSubFrames: false,
+
+            webSecurity: true,
+            allowRunningInsecureContent: false,
+            webviewTag: false,
+
             devTools: !app.isPackaged,
           },
         },
@@ -162,6 +182,16 @@ SystemHealthHandler();
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.electron");
+
+  session.defaultSession.setPermissionCheckHandler(() => {
+    return false;
+  });
+
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => {
+      callback(false);
+    },
+  );
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);

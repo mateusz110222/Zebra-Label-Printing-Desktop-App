@@ -1,12 +1,13 @@
 import { ipcMain } from "electron";
-import { PrinterConfig, store } from "./store";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import { PrinterConfig, store } from "../utils/store";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 export default function SavePrinterConfig(): void {
   ipcMain.handle(
     "save-printer-config",
-    async (_event, config: PrinterConfig) => {
-      if (!canViewAuditLogs()) {
+    async (event, config: PrinterConfig) => {
+      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
         return { status: false, message: "backend.audit.unauthorized" };
       }
       try {

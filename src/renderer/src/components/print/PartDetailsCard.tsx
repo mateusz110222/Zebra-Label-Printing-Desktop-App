@@ -20,7 +20,7 @@ const PartDetailsCard = React.memo(function PartDetailsCard({
   part,
   quantity,
   onQuantityChange,
-  onQuantityBlur
+  onQuantityBlur,
 }: PartDetailsCardProps): React.JSX.Element {
   const { t } = useTranslation();
 

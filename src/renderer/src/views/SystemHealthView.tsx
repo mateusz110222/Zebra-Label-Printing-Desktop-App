@@ -114,10 +114,13 @@ export function SystemHealthView(): React.JSX.Element {
                     {!health.database.status && (
                       <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
                         <dt className="font-semibold">
-                          {t(health.database.message)}
+                          {health.database.message.map((message) => (
+                            <div key={message}>{t(message)}</div>
+                          ))}
                         </dt>
+
                         {health.database.rawError && (
-                          <dd className="mt-1 break-all font-mono text-xs">
+                          <dd className="mt-2 whitespace-pre-line break-all font-mono text-xs opacity-80">
                             {health.database.rawError}
                           </dd>
                         )}

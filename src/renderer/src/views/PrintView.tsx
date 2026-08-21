@@ -106,6 +106,24 @@ export function PrintView(): React.JSX.Element {
     };
   }, [data.lastPrintSummary, postPrintWarning, refreshHealth]);
 
+  useEffect(() => {
+    const printerRecovered =
+      status.uiMessage !== null &&
+      data.lastPrintSummary?.printerReady === false &&
+      verifiedPostPrintSummary === data.lastPrintSummary &&
+      health?.printer.ready === true;
+
+    if (printerRecovered) {
+      actions.clearUiMessage();
+    }
+  }, [
+    status.uiMessage,
+    data.lastPrintSummary,
+    verifiedPostPrintSummary,
+    health?.printer.ready,
+    actions.clearUiMessage,
+  ]);
+
   const effectiveHealthIsStale = healthIsStale || postPrintVerificationPending;
 
   const systemAllowsPrint =
@@ -164,6 +182,7 @@ export function PrintView(): React.JSX.Element {
     .flat()
     .filter((reason): reason is string => Boolean(reason));
   const uniqueBlockingReasons = [...new Set(blockingReasons)];
+  const hasSystemBlockingReason = uniqueBlockingReasons.length > 0;
   const receiptHasWarning =
     data.lastPrintSummary?.printerReady === false ||
     data.lastPrintSummary?.auditPersisted === false;
@@ -206,16 +225,18 @@ export function PrintView(): React.JSX.Element {
           )}
 
           {/* Status Banner */}
-          {status.uiMessage && !data.lastPrintSummary?.status && (
-            <div className="mb-6">
-              <StatusBanner
-                type={status.uiMessage.type}
-                message={status.uiMessage.text}
-                details={status.uiMessage.details}
-                onClose={actions.clearUiMessage}
-              />
-            </div>
-          )}
+          {status.uiMessage &&
+            !hasSystemBlockingReason &&
+            !data.lastPrintSummary?.status && (
+              <div className="mb-6">
+                <StatusBanner
+                  type={status.uiMessage.type}
+                  message={status.uiMessage.text}
+                  details={status.uiMessage.details}
+                  onClose={actions.clearUiMessage}
+                />
+              </div>
+            )}
 
           {data.lastPrintSummary?.status && (
             <div
@@ -331,9 +352,11 @@ export function PrintView(): React.JSX.Element {
               {/* Footer */}
               <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
-                  {data.selectedPart
-                    ? t("print_view.ready_to_print")
-                    : t("print_view.select_part_first")}
+                  {!systemAllowsPrint
+                    ? t("print_view.print_blocked_title")
+                    : data.selectedPart
+                      ? t("print_view.ready_to_print")
+                      : t("print_view.select_part_first")}
                 </p>
                 <SubmitButton
                   isLoading={status.isPrinting}

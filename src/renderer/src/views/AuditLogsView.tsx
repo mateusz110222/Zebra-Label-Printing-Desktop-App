@@ -420,7 +420,7 @@ function PrintHistoryTable({
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-        {entries.map((entry) => (
+        {entries.map((entry: AuditLogEntry) => (
           <tr
             key={entry.id}
             className="align-top hover:bg-slate-50/70 dark:hover:bg-slate-700/30"
@@ -438,6 +438,13 @@ function PrintHistoryTable({
               <div className="mt-2 text-xs font-medium">
                 {t(`audit.actions.${entry.action}`, entry.action)}
               </div>
+              {entry.status === "failure" && entry.details.message && (
+                <div className="mt-2 text-xs text-red-600 dark:text-red-400">
+                  {t(String(entry.details.message), {
+                    defaultValue: String(entry.details.message),
+                  })}
+                </div>
+              )}
             </td>
             <td className="px-4 py-3 font-medium">{entry.actor}</td>
             <td className="px-4 py-3">

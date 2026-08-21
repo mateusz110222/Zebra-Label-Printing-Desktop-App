@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { PrinterConfig, store } from "./store";
+import { PrinterConfig, store } from "../utils/store";
 
 interface GetPrinterConfigResponse {
   status: boolean;

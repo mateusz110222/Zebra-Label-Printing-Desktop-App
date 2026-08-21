@@ -1,8 +1,10 @@
-import { app, ipcMain, IpcMainInvokeEvent } from "electron";
+import { ipcMain, IpcMainInvokeEvent } from "electron";
 import sharp from "sharp";
-import { getZplTemplate, SaveZplTemplate } from "../hooks/ZPLService";
-import { appendAuditLog, canViewAuditLogs } from "../AuditLog";
-import { getRendererEntryUrl, isAllowedPreviewUrl } from "../PreviewWindowPolicy";
+import { getZplTemplate, SaveZplTemplate } from "../../hooks/ZPLService";
+import { isPreviewAuthorized } from "../../auth/IsAutorized";
+import { appendAuditLog, canViewAuditLogs } from "../../audit/AuditLog";
+
+const MAX_ZPL_SIZE = 1024 * 1024; // 1 MB
 
 const renderZpl = async (zpl: string): Promise<string> => {
   const { ready } = await import("zpl-renderer-js");
@@ -15,22 +17,6 @@ const renderZpl = async (zpl: string): Promise<string> => {
   const finalBase64 = trimmedBuffer.toString("base64");
 
   return `data:image/png;base64,${finalBase64}`;
-};
-
-const isAuthorized = (event: IpcMainInvokeEvent): boolean => {
-  const rendererEntryUrl = getRendererEntryUrl(
-    app.isPackaged,
-    process.env["ELECTRON_RENDERER_URL"],
-    __dirname,
-  );
-  const senderUrl = event.sender.getURL();
-  const frameUrl = event.senderFrame?.url;
-
-  return (
-    isAllowedPreviewUrl(senderUrl, rendererEntryUrl) &&
-    typeof frameUrl === "string" &&
-    isAllowedPreviewUrl(frameUrl, rendererEntryUrl)
-  );
 };
 
 export default function ChildWindowHandlers(): void {
@@ -52,10 +38,10 @@ export default function ChildWindowHandlers(): void {
   ipcMain.handle(
     "get-labelFormat-preview",
     async (event: IpcMainInvokeEvent, input: string | { zpl: string }) => {
-      if (!isAuthorized(event)) {
+      if (!isPreviewAuthorized(event)) {
         return {
           status: false,
-          message: "Unauthorized: Access restricted to child window.",
+          message: "backend.audit.unauthorized",
         };
       }
       try {
@@ -69,7 +55,6 @@ export default function ChildWindowHandlers(): void {
               status: false,
               message: "backend.child.formatName_empty",
               data: null,
-              rawError: "ZPL content missing",
             };
           }
 
@@ -86,7 +71,6 @@ export default function ChildWindowHandlers(): void {
             status: false,
             message: "backend.child.formatName_empty",
             data: null,
-            rawError: "formatName missing",
           };
         }
 
@@ -121,16 +105,31 @@ export default function ChildWindowHandlers(): void {
   ipcMain.handle(
     "save-labelformat",
     async (event: IpcMainInvokeEvent, formatName, data) => {
-      if (!isAuthorized(event) || !canViewAuditLogs()) {
+      if (!isPreviewAuthorized(event) || !canViewAuditLogs()) {
         return {
           status: false,
           message: "backend.audit.unauthorized",
         };
       }
+
+      if (typeof formatName !== "string" || typeof data !== "string") {
+        return {
+          status: false,
+          message: "backend.labeledit.saved_failed",
+        };
+      }
+
       if (formatName.trim().length === 0 || data.trim().length === 0) {
         return {
           status: false,
           message: "backend.labeledit.saved_failed",
+        };
+      }
+
+      if (Buffer.byteLength(data, "utf8") > MAX_ZPL_SIZE) {
+        return {
+          status: false,
+          message: "backend.labeledit.template_too_large",
         };
       }
 

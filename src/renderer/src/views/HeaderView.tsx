@@ -52,7 +52,7 @@ export function HeaderView(): React.JSX.Element {
 
     GetPrinterStatus();
 
-    const intervalId = setInterval(GetPrinterStatus, 300000);
+    const intervalId = setInterval(GetPrinterStatus, 30 * 1000);
     return () => {
       isMounted = false;
       clearInterval(intervalId);
