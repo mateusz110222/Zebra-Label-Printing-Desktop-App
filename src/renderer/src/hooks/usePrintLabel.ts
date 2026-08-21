@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Part, PartOption, UiMessage } from "../types";
 import { extractError } from "../utils/errorUtils";
@@ -418,9 +418,18 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     }
   };
 
-  const clearUiMessage = (): void => {
-    setStatus((prev) => ({ ...prev, uiMessage: null }));
-  };
+  const clearUiMessage = useCallback((): void => {
+    setStatus((prev) => {
+      if (prev.uiMessage === null) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        uiMessage: null,
+      };
+    });
+  }, []);
 
   const isValid =
     selectedPart !== null &&

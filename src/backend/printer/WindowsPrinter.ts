@@ -16,6 +16,60 @@ interface PowerShellResult {
   stderr: string;
 }
 
+const getUsbPrinterErrorMessage = (rawError: string): string => {
+  const error = rawError.toLowerCase();
+
+  if (error.includes("requires windows")) {
+    return "backend.printer.usb_windows_required";
+  }
+
+  if (
+    error.includes("timed out") ||
+    error.includes("operation timed out")
+  ) {
+    return "backend.printer.usb_timeout";
+  }
+
+  if (
+    error.includes("usb printer name is missing") ||
+    error.includes("printer name is missing")
+  ) {
+    return "backend.printer.no_usb_config";
+  }
+
+  if (error.includes("zpl payload is empty")) {
+    return "backend.print.template_empty";
+  }
+
+  if (
+    error.includes("unable to open the windows printer queue") ||
+    error.includes("openprinter")
+  ) {
+    return "backend.printer.usb_open_error";
+  }
+
+  if (error.includes("unable to start a raw print job")) {
+    return "backend.printer.usb_start_job_error";
+  }
+
+  if (error.includes("unable to start a printer page")) {
+    return "backend.printer.usb_start_page_error";
+  }
+
+  if (
+    error.includes("complete zpl payload was not written") ||
+    error.includes("writeprinter")
+  ) {
+    return "backend.printer.usb_write_error";
+  }
+
+  if (error.includes("powershell exited with code")) {
+    return "backend.printer.usb_powershell_error";
+  }
+
+  return "backend.printer.usb_send_error";
+};
+
 const runPowerShell = (
   script: string,
   options: { stdin?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number } = {},
@@ -241,11 +295,19 @@ export const sendRawZplToUsbPrinter = async (
   zpl: string,
 ): Promise<ConnectionResult> => {
   const normalizedName = printerName.trim();
+
   if (!normalizedName) {
-    return { status: false, message: "backend.printer.no_usb_config" };
+    return {
+      status: false,
+      message: "backend.printer.no_usb_config",
+    };
   }
+
   if (!zpl) {
-    return { status: false, message: "backend.print.template_empty" };
+    return {
+      status: false,
+      message: "backend.print.template_empty",
+    };
   }
 
   try {
@@ -256,15 +318,19 @@ export const sendRawZplToUsbPrinter = async (
         LABEL_USB_PRINTER_NAME: normalizedName,
       },
     });
+
     return {
       status: true,
       message: "backend.printer.label_sent_successfully",
     };
   } catch (error) {
+    const rawError =
+      error instanceof Error ? error.message : String(error);
+
     return {
       status: false,
-      message: "backend.printer.usb_send_error",
-      rawError: error instanceof Error ? error.message : String(error),
+      message: getUsbPrinterErrorMessage(rawError),
+      rawError,
     };
   }
 };

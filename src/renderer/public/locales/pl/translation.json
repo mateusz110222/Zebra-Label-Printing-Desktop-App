@@ -206,7 +206,18 @@
       "AUTH_CONFIG_MISSING": "Brak konfiguracji logowania LDAP.",
       "AUTH_LDAPS_REQUIRED": "Serwer logowania musi używać bezpiecznego połączenia LDAPS."
     },
+    "child": {
+      "formatName_empty": "Nazwa formatu etykiety nie może być pusta."
+    },
+    "github": {
+      "url_not_configured": "Adres do sprawdzania najnowszej wersji aplikacji nie jest skonfigurowany.",
+      "fetch_error": "Nie udało się pobrać informacji o najnowszej wersji aplikacji.",
+      "invalid_response": "Serwer zwrócił nieprawidłowe informacje o wersji aplikacji.",
+      "fetch_success": "Informacje o najnowszej wersji aplikacji zostały pobrane."
+    },
     "printer": {
+      "com_no_response": "Brak odpowiedzi drukarki przez port COM. Sprawdź baud rate i ustawienia transmisji.",
+      "com_close_error": "Nie udało się zamknąć portu COM.",
       "GET_SERIAL_PORTS_SUCCESS": "Pomyślnie pobrano porty szeregowe",
       "GET_USB_PRINTERS_SUCCESS": "Pomyślnie pobrano drukarki USB",
       "GET_USB_PRINTERS_FAILED": "Nie udało się pobrać drukarek USB",
@@ -222,6 +233,7 @@
       "no_usb_config": "Brak skonfigurowanej drukarki USB",
       "usb_not_found": "Skonfigurowana drukarka USB nie jest dostępna w Windows",
       "connected_usb": "Drukarka USB jest dostępna",
+      "connected_com": "Port COM jest dostępny",
       "usb_offline": "Drukarka USB jest w trybie offline",
       "usb_status_error": "Nie można sprawdzić stanu drukarki USB",
       "usb_send_error": "Nie udało się wysłać etykiety do drukarki USB",
@@ -248,17 +260,39 @@
       "over_temperature": "Temperatura głowicy jest za wysoka",
       "under_temperature": "Temperatura głowicy jest za niska",
       "status_unavailable": "Połączono, ale drukarka nie zwróciła pełnego statusu",
-      "connected_com": "Port COM jest dostępny"
+      "usb_windows_required": "Drukowanie przez USB jest dostępne tylko w systemie Windows.",
+      "usb_timeout": "Przekroczono czas oczekiwania na operację drukarki USB.",
+      "usb_open_error": "Nie udało się otworzyć kolejki drukarki Windows.",
+      "usb_start_job_error": "Nie udało się rozpocząć zadania drukowania.",
+      "usb_start_page_error": "Nie udało się rozpocząć strony wydruku.",
+      "usb_write_error": "Nie udało się przesłać całych danych etykiety do kolejki drukarki.",
+      "usb_powershell_error": "Wystąpił błąd podczas wykonywania operacji drukarki przez PowerShell.",
+      "template_empty": "Szablon etykiety jest pusty."
     },
     "parts": {
-      "PARTS_FETCH_SUCCESS": "Pomyślnie pobrano listę części",
-      "GET_PARTS_FAIL": "Błąd podczas pobierania części",
-      "PARTS_CONFIG_MISSING": "Brak konfiguracji źródła listy części."
+      "INVALID_SOURCE_CONFIG": "Konfiguracja źródła listy części jest nieprawidłowa.",
+      "INVALID_DATA_FORMAT": "Lista części ma nieprawidłowy format.",
+      "INVALID_PART": "Lista części zawiera nieprawidłowy wpis.",
+      "INVALID_PART_FIELD": "Jeden z wpisów na liście części zawiera nieprawidłowe lub puste pole.",
+      "INVALID_LOOKUP_DATA": "Dane części mają nieprawidłowy format.",
+      "PART_NUMBER_REQUIRED": "Numer części jest wymagany.",
+      "LABEL_FORMAT_REQUIRED": "Format etykiety jest wymagany.",
+      "INVALID_OPERATION": "Operacja ma nieprawidłowy format.",
+      "INVALID_SERIAL_PREFIX": "Prefiks numeru seryjnego ma nieprawidłowy format.",
+      "PARTS_CONFIG_MISSING": "Adres serwera listy części nie jest skonfigurowany.",
+      "REQUEST_TIMEOUT": "Przekroczono czas oczekiwania na odpowiedź serwera listy części.",
+      "SERVER_HTTP_ERROR": "Serwer listy części zwrócił błąd.",
+      "SERVER_REJECTED": "Serwer listy części odrzucił żądanie.",
+      "PART_NOT_FOUND": "Nie znaleziono części pasującej do podanych danych.",
+      "PART_AMBIGUOUS": "Podane dane pasują do więcej niż jednej części.",
+      "GET_PARTS_FAIL": "Nie udało się pobrać listy części.",
+      "PARTS_FETCH_SUCCESS": "Lista części została pobrana pomyślnie."
     },
     "db": {
       "not_initialized": "Połączenie z bazą danych nie zostało zainicjowane",
       "part_not_found": "Nie znaleziono części w bazie danych",
-      "error": "Błąd bazy danych"
+      "error": "Błąd bazy danych",
+      "wrong_engine": "Tabela family musi używać silnika InnoDB."
     },
     "config": {
       "invalid_ip_port": "Błędny adres IP lub port.",
@@ -268,7 +302,9 @@
       "save_fail": "Błąd zapisu konfiguracji",
       "invalid_database": "Uzupełnij wszystkie pola konfiguracji bazy danych.",
       "database_save_success": "Konfiguracja bazy została sprawdzona i zapisana.",
-      "database_connection_failed": "Nie można połączyć się z bazą przy użyciu podanych danych."
+      "database_connection_failed": "Nie można połączyć się z bazą przy użyciu podanych danych.",
+      "database_missing_config": "Brakuje wymaganej konfiguracji bazy danych.",
+      "database_initialization_failed": "Nie udało się zainicjalizować połączenia z bazą danych."
     },
     "print": {
       "generate_error": "Błąd generowania etykiety",
@@ -295,14 +331,38 @@
       "reprint_serial_not_reserved": "Można ponownie wydrukować tylko wcześniej wykorzystany numer seryjny"
     },
     "audit": {
-      "unauthorized": "Brak uprawnień do historii audytu.",
+      "unauthorized": "Brak uprawnień do wykonania tej operacji.",
       "read_error": "Nie udało się wczytać historii audytu.",
       "export_error": "Nie udało się wyeksportować historii audytu.",
       "storage_ready": "Folder historii wydruków jest dostępny do zapisu.",
       "storage_unavailable": "Nie można zapisać historii wydruku. Kolejne wydruki są zablokowane."
     },
     "labels": {
-      "INVALID_TEMPLATE_NAME": "Nazwa szablonu jest nieprawidłowa. Dozwolone są bezpieczne nazwy plików .zpl lub .txt."
+      "INVALID_TEMPLATE_NAME": "Nazwa szablonu jest nieprawidłowa. Dozwolone są bezpieczne nazwy plików .zpl lub .txt.",
+      "TEMPLATE_DELETED": "Szablon został usunięty.",
+      "ERROR_DELETING_TEMPLATE": "Nie udało się usunąć szablonu."
+    },
+    "labeledit": {
+      "saved": "Zapisano",
+      "saved_failed": "Nie udało się zapisać",
+      "template_too_large": "Szablon etykiety jest zbyt duży."
+    },
+    "update": {
+      "invalid_setting": "Nieprawidłowe ustawienie automatycznej aktualizacji."
+    },
+    "health": {
+      "templates_ok": "Szablony etykiet są dostępne.",
+      "templates_error": "Nie udało się odczytać katalogu szablonów etykiet.",
+      "write_error_details": "Szczegóły błędu zapisu",
+      "database_ok": "Baza danych działa prawidłowo.",
+      "database_error": "Nie udało się sprawdzić bazy danych.",
+      "database_engine_invalid": "Tabela family używa nieprawidłowego silnika bazy danych. Wymagany jest InnoDB.",
+      "database_duplicates": "W tabeli family wykryto zduplikowane nazwy rodzin.",
+      "database_time_unavailable": "Nie udało się odczytać lub porównać czasu serwera bazy danych.",
+      "database_time_drift": "Czas serwera bazy danych różni się od czasu komputera o więcej niż 30 sekund."
+    },
+    "reprint": {
+      "success": "The label was reprinted successfully."
     }
   },
   "reprint": {
@@ -342,8 +402,7 @@
     "template_count": "Liczba szablonów",
     "path": "Folder",
     "storage_status": "Możliwość zapisu",
-    "last_failure": "Ostatni błąd zapisu",
-    "write_error_details": "Szczegóły błędu zapisu"
+    "last_failure": "Ostatni błąd zapisu"
   },
   "audit": {
     "title": "Historia wydruków i audyt",

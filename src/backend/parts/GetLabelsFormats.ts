@@ -1,8 +1,9 @@
 import { ipcMain } from "electron";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
-import { getTemplatesPath, normalizeTemplateFileName } from "./TemplatePaths";
-import { appendAuditLog, canViewAuditLogs } from "./AuditLog";
+import { getTemplatesPath, normalizeTemplateFileName } from "../system/TemplatePaths";
+import { appendAuditLog, canViewAuditLogs } from "../audit/AuditLog";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 export default function GetLabelsFormats(): void {
   ipcMain.handle("get-labels-formats", async () => {
@@ -45,10 +46,21 @@ export default function GetLabelsFormats(): void {
     }
   });
 
-  ipcMain.handle("delete-label-format", async (_event, name: string) => {
-    if (!canViewAuditLogs()) {
-      return { status: false, message: "backend.audit.unauthorized" };
+  ipcMain.handle("delete-label-format", async (event, name: string) => {
+    if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+      return {
+        status: false,
+        message: "backend.audit.unauthorized",
+      };
     }
+
+    if (typeof name !== "string") {
+      return {
+        status: false,
+        message: "backend.labels.INVALID_TEMPLATE_NAME",
+      };
+    }
+
     const filename = normalizeTemplateFileName(name);
     if (!filename) {
       await appendAuditLog({

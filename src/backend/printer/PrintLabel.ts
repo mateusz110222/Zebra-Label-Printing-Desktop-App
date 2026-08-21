@@ -1,15 +1,16 @@
 import { ipcMain } from "electron";
-import { store } from "./store";
-import IpConnection from "./PrinterConnections/IpConnection";
-import COMConnection from "./PrinterConnections/COMConnection";
-import USBConnection from "./PrinterConnections/USBConnection";
+import { store } from "../utils/store";
+import IpConnection from "../PrinterConnections/IpConnection";
+import COMConnection from "../PrinterConnections/COMConnection";
+import USBConnection from "../PrinterConnections/USBConnection";
 
-import type { GeneratedLabelMetadata } from "./hooks/ZPLService";
-import { generatePrintZPL, generateReprintZPL } from "./hooks/ZPLService";
+import type { GeneratedLabelMetadata } from "../hooks/ZPLService";
+import { generatePrintZPL, generateReprintZPL } from "../hooks/ZPLService";
 import { ConnectionResult } from "./PrinterConnectionBase";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable, getAuditActor } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable, getAuditActor } from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
-import { resolveAuthoritativePart } from "./PartsResolver";
+import { resolveAuthoritativePart } from "../parts/PartsResolver";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 interface PrinterConfig {
   type: "IP" | "COM" | "USB";
@@ -57,6 +58,12 @@ const logPrintFailure = async (
     },
   });
 };
+
+const isValidQuantity = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= 1 &&
+  value <= 100;
 
 const logPrintStart = async ({
   mode,
@@ -237,9 +244,24 @@ const getPrinterStatusAfterSend = async (
 };
 
 export default function SetupLabelHandlers(): void {
-  ipcMain.handle("print-label", async (_event, payload) => {
+  ipcMain.handle("print-label", async (event, payload) => {
+    if (!isMainRendererAuthorized(event)) {
+      return {
+        status: false,
+        message: "backend.audit.unauthorized",
+      };
+    }
+
     const part = payload?.part as PartPayload;
-    const quantity = payload?.quantity as number;
+    const quantity = payload?.quantity;
+
+    if (!isValidQuantity(quantity)) {
+      return {
+        status: false,
+        message: "backend.print.invalid_quantity",
+      };
+    }
+
     try {
       const auditStorage = await checkAuditLogWritable();
       if (!auditStorage.status) {
@@ -415,25 +437,16 @@ export default function SetupLabelHandlers(): void {
     }
   });
 
-  ipcMain.handle("reprint-label", async (_event, payload) => {
+  ipcMain.handle("reprint-label", async (event, payload) => {
+    if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+      return { status: false, message: "backend.audit.unauthorized" };
+    }
+
     const part = payload?.part as PartPayload;
     const quantity = payload?.quantity as number;
     const serialNumber = payload?.serialNumber as string;
     const date = payload?.date as string;
     try {
-      if (!canViewAuditLogs()) {
-        await logPrintFailure(
-          "reprint",
-          part,
-          quantity,
-          "backend.audit.unauthorized",
-        );
-        return {
-          status: false,
-          message: "backend.audit.unauthorized",
-        };
-      }
-
       const auditStorage = await checkAuditLogWritable();
       if (!auditStorage.status) {
         return {

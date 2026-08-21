@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
-import { LocalPart, PartsConfig, store } from "./store";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import { LocalPart, PartsConfig, store } from "../utils/store";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const isValidPart = (part: unknown): part is LocalPart => {
   if (!part || typeof part !== "object") return false;
@@ -20,8 +21,8 @@ const isValidPart = (part: unknown): part is LocalPart => {
 export default function PartsConfigHandler(): void {
   ipcMain.handle("get-parts-config", (): PartsConfig => store.get("parts"));
 
-  ipcMain.handle("save-parts-config", async (_event, config: PartsConfig) => {
-    if (!canViewAuditLogs()) {
+  ipcMain.handle("save-parts-config", async (event, config: PartsConfig) => {
+    if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
       return { status: false, message: "backend.audit.unauthorized" };
     }
     if (

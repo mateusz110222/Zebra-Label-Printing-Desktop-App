@@ -1,9 +1,9 @@
 import { Socket } from "node:net";
 import { SerialPort } from "serialport";
-import type { PrinterConfig } from "./store";
+import type { PrinterConfig } from "../utils/store";
 import { listUsbPrinters } from "./WindowsPrinter";
-import { isAccessDenied, sleep } from "./SystemHealth";
-import { parseHostStatus } from "./parseHostStatus";
+import { isAccessDenied, sleep } from "../system/SystemHealth";
+import { parseHostStatus } from "../utils/parseHostStatus";
 
 export interface PrinterStatusDetails {
   paperOut: boolean;
@@ -99,14 +99,49 @@ const queryComPrinterStatus = (
       });
       return;
     }
+
     const port = new SerialPort({
       path: config.comPort,
       baudRate: config.baudRate || 9600,
+      dataBits: 8,
+      stopBits: 1,
+      parity: "none",
       autoOpen: false,
     });
+
+    let response = "";
+    let settled = false;
+
+    const finish = (result: PrinterStatusResult): void => {
+      if (settled) return;
+      settled = true;
+
+      if (port.isOpen) {
+        port.close(() => resolve(result));
+      } else {
+        resolve(result);
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      finish(
+        response
+          ? parseHostStatus(response)
+          : {
+              status: false,
+              reachable: true,
+              ready: false,
+              detailsAvailable: false,
+              message: "backend.printer.com_no_response",
+            },
+      );
+    }, 2500);
+
     port.open((error) => {
       if (error) {
-        resolve({
+        clearTimeout(timeout);
+
+        finish({
           status: false,
           reachable: false,
           ready: false,
@@ -114,17 +149,63 @@ const queryComPrinterStatus = (
           message: "backend.printer.com_open_error",
           rawError: error.message,
         });
+
         return;
       }
-      port.close(() =>
-        resolve({
-          status: true,
-          reachable: true,
-          ready: true,
-          detailsAvailable: false,
-          message: "backend.printer.connected_com",
-        }),
-      );
+
+      port.write("~HS", "ascii", (writeError) => {
+        if (writeError) {
+          clearTimeout(timeout);
+
+          finish({
+            status: false,
+            reachable: true,
+            ready: false,
+            detailsAvailable: false,
+            message: "backend.printer.com_write_error",
+            rawError: writeError.message,
+          });
+
+          return;
+        }
+
+        port.drain((drainError) => {
+          if (drainError) {
+            clearTimeout(timeout);
+
+            finish({
+              status: false,
+              reachable: true,
+              ready: false,
+              detailsAvailable: false,
+              message: "backend.printer.com_write_error",
+              rawError: drainError.message,
+            });
+          }
+        });
+      });
+    });
+
+    port.on("data", (chunk) => {
+      response += chunk.toString("ascii");
+
+      if (response.split("\x03").length - 1 >= 3) {
+        clearTimeout(timeout);
+        finish(parseHostStatus(response));
+      }
+    });
+
+    port.on("error", (error) => {
+      clearTimeout(timeout);
+
+      finish({
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.printer.connection_error",
+        rawError: error.message,
+      });
     });
   });
 

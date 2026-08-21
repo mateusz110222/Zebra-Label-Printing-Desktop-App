@@ -2,11 +2,11 @@ import { ipcMain } from "electron";
 import { readdir } from "node:fs/promises";
 import type { RowDataPacket } from "mysql2/promise";
 
-import { checkAuditLogWritable } from "./AuditLog";
-import { getDatabase } from "./DatabaseConfig";
-import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
-import { type PrinterConfig, store } from "./store";
 import { getTemplatesPath } from "./TemplatePaths";
+import { PrinterConfig, store } from "../utils/store";
+import { PrinterStatusResult, queryPrinterStatus } from "../printer/PrinterStatus";
+import { getDatabase } from "../config/DatabaseConfig";
+import { checkAuditLogWritable } from "../audit/AuditLog";
 
 interface ServerInfoRow extends RowDataPacket {
   serverHostname: string;
@@ -134,11 +134,40 @@ export default function SystemHealthHandler(): void {
 
           const engineOk = engineName?.toUpperCase() === "INNODB";
 
-          const databaseStatus =
-            engineOk &&
-            duplicateFamilies.length === 0 &&
-            timeDriftMs !== null &&
-            timeDriftMs <= 30_000;
+          const messages: string[] = [];
+          const rawErrors: string[] = [];
+
+          if (!engineOk) {
+            messages.push("backend.health.database_engine_invalid");
+
+            rawErrors.push(
+              `Invalid storage engine for table "family": ${engineName ?? "UNKNOWN"}. Expected: InnoDB.`,
+            );
+          }
+
+          if (duplicateFamilies.length > 0) {
+            messages.push("backend.health.database_duplicates");
+
+            rawErrors.push(
+              `Duplicate family names: ${duplicateFamilies
+                .map((item) => `${item.name} (${item.count})`)
+                .join(", ")}`,
+            );
+          }
+
+          if (timeDriftMs === null) {
+            messages.push("backend.health.database_time_unavailable");
+
+            rawErrors.push("Unable to calculate database server time drift.");
+          } else if (timeDriftMs > 30_000) {
+            messages.push("backend.health.database_time_drift");
+
+            rawErrors.push(
+              `Database server time drift: ${Math.round(timeDriftMs / 1000)} seconds.`,
+            );
+          }
+
+          const databaseStatus = messages.length === 0;
 
           return {
             status: databaseStatus,
@@ -151,9 +180,15 @@ export default function SystemHealthHandler(): void {
             engineOk,
             duplicateFamilies,
             timeDriftMs,
-            message: "backend.health.database_checked",
+
+            message: databaseStatus ? ["backend.health.database_ok"] : messages,
+
+            rawError: rawErrors.length > 0 ? rawErrors.join("\n") : undefined,
           };
         } catch (error) {
+          const rawError =
+            error instanceof Error ? error.message : String(error);
+
           return {
             status: false,
             reachable: false,
@@ -165,8 +200,8 @@ export default function SystemHealthHandler(): void {
             engineOk: false,
             duplicateFamilies: [],
             timeDriftMs: null,
-            message: "backend.health.database_error",
-            rawError: error instanceof Error ? error.message : String(error),
+            message: ["backend.health.database_error"],
+            rawError,
           };
         }
       })(),

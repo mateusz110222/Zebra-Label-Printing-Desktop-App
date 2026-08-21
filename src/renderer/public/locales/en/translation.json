@@ -206,7 +206,18 @@
       "AUTH_CONFIG_MISSING": "LDAP login configuration is missing.",
       "AUTH_LDAPS_REQUIRED": "The login server must use a secure LDAPS connection."
     },
+    "child": {
+      "formatName_empty": "The label format name cannot be empty."
+    },
+    "github": {
+      "url_not_configured": "The URL used to check the latest application version is not configured.",
+      "fetch_error": "Failed to retrieve information about the latest application version.",
+      "invalid_response": "The server returned invalid application version information.",
+      "fetch_success": "The latest application version information was retrieved successfully."
+    },
     "printer": {
+      "com_no_response": "No response from the printer via the COM port. Check the baud rate and transmission settings.",
+      "com_close_error": "Failed to close the COM port.",
       "GET_SERIAL_PORTS_SUCCESS": "Serial ports retrieved successfully",
       "GET_USB_PRINTERS_SUCCESS": "USB printers retrieved successfully",
       "GET_USB_PRINTERS_FAILED": "Could not retrieve USB printers",
@@ -248,17 +259,40 @@
       "over_temperature": "Printhead temperature is too high",
       "under_temperature": "Printhead temperature is too low",
       "status_unavailable": "Connected, but the printer did not return full status",
-      "connected_com": "COM port is available"
+      "connected_com": "COM port is available",
+      "usb_windows_required": "USB printing is available only on Windows.",
+      "usb_timeout": "The USB printer operation timed out.",
+      "usb_open_error": "Failed to open the Windows printer queue.",
+      "usb_start_job_error": "Failed to start the print job.",
+      "usb_start_page_error": "Failed to start the printer page.",
+      "usb_write_error": "Failed to write the complete label data to the printer queue.",
+      "usb_powershell_error": "An error occurred while executing the printer operation through PowerShell.",
+      "template_empty": "The label template is empty."
     },
     "parts": {
-      "PARTS_FETCH_SUCCESS": "Parts list retrieved successfully",
-      "GET_PARTS_FAIL": "Error while fetching parts",
-      "PARTS_CONFIG_MISSING": "Parts list source configuration is missing."
+      "INVALID_SOURCE_CONFIG": "The parts source configuration is invalid.",
+      "INVALID_DATA_FORMAT": "The parts list has an invalid format.",
+      "INVALID_PART": "The parts list contains an invalid entry.",
+      "INVALID_PART_FIELD": "One of the parts list entries contains an invalid or empty field.",
+      "INVALID_LOOKUP_DATA": "The part data has an invalid format.",
+      "PART_NUMBER_REQUIRED": "Part number is required.",
+      "LABEL_FORMAT_REQUIRED": "Label format is required.",
+      "INVALID_OPERATION": "Operation has an invalid format.",
+      "INVALID_SERIAL_PREFIX": "Serial number prefix has an invalid format.",
+      "PARTS_CONFIG_MISSING": "The parts server URL is not configured.",
+      "REQUEST_TIMEOUT": "The request to the parts server timed out.",
+      "SERVER_HTTP_ERROR": "The parts server returned an error.",
+      "SERVER_REJECTED": "The parts server rejected the request.",
+      "PART_NOT_FOUND": "No part matching the provided data was found.",
+      "PART_AMBIGUOUS": "The provided data matches more than one part.",
+      "GET_PARTS_FAIL": "Failed to retrieve the parts list.",
+      "PARTS_FETCH_SUCCESS": "The parts list was retrieved successfully."
     },
     "db": {
       "not_initialized": "Database connection not initialized",
       "part_not_found": "Part not found in database",
-      "error": "Database error"
+      "error": "Database error",
+      "wrong_engine": "The family table must use the InnoDB engine."
     },
     "config": {
       "invalid_ip_port": "Invalid IP address or port.",
@@ -268,7 +302,14 @@
       "save_fail": "Error saving configuration",
       "invalid_database": "Complete all database configuration fields.",
       "database_save_success": "Database configuration was tested and saved.",
-      "database_connection_failed": "Could not connect to the database with the supplied settings."
+      "database_connection_failed": "Could not connect to the database with the supplied settings.",
+      "database_missing_config": "Required database configuration is missing.",
+      "database_initialization_failed": "Failed to initialize the database connection."
+    },
+    "labeledit": {
+      "saved": "Saved",
+      "saved_failed": "Saved Failed",
+      "template_too_large": "The label template is too large."
     },
     "print": {
       "generate_error": "Error generating label",
@@ -295,14 +336,33 @@
       "reprint_serial_not_reserved": "A reprint can only use serial numbers reserved by an earlier print"
     },
     "audit": {
-      "unauthorized": "You are not authorized to view audit history.",
+      "unauthorized": "You are not authorized to perform this operation.",
       "read_error": "Could not load audit history.",
       "export_error": "Could not export audit history.",
       "storage_ready": "The print history folder is writable.",
       "storage_unavailable": "Print history cannot be saved. Further printing is blocked."
     },
     "labels": {
-      "INVALID_TEMPLATE_NAME": "The template name is invalid. Use a safe .zpl or .txt file name."
+      "INVALID_TEMPLATE_NAME": "The template name is invalid. Use a safe .zpl or .txt file name.",
+      "TEMPLATE_DELETED": "Template deleted successfully.",
+      "ERROR_DELETING_TEMPLATE": "Failed to delete the template."
+    },
+    "update": {
+      "invalid_setting": "Invalid automatic update setting."
+    },
+    "health": {
+      "templates_ok": "Label templates are available.",
+      "templates_error": "Unable to read the label templates directory.",
+      "write_error_details": "Write error details",
+      "database_ok": "The database is working correctly.",
+      "database_error": "Unable to check the database.",
+      "database_engine_invalid": "The family table is using an invalid database engine. InnoDB is required.",
+      "database_duplicates": "Duplicate family names were detected in the family table.",
+      "database_time_unavailable": "Unable to retrieve or compare the database server time.",
+      "database_time_drift": "The database server time differs from the computer time by more than 30 seconds."
+    },
+    "reprint": {
+      "success": "The label was reprinted successfully."
     }
   },
   "reprint": {
@@ -342,8 +402,7 @@
     "template_count": "Template count",
     "path": "Folder",
     "storage_status": "Write access",
-    "last_failure": "Last write failure",
-    "write_error_details": "Write error details"
+    "last_failure": "Last write failure"
   },
   "audit": {
     "title": "Print history and audit",

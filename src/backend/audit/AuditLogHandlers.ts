@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { writeFile } from "node:fs/promises";
 import { AuditLogEntry, AuditLogQuery, canViewAuditLogs, readAuditLogs } from "./AuditLog";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const csvCell = (value: unknown): string =>
   `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -58,8 +59,8 @@ const toCsv = (entries: AuditLogEntry[]): string => {
 export default function AuditLogHandlers(): void {
   ipcMain.handle(
     "get-audit-logs",
-    async (_event, query: AuditLogQuery = {}) => {
-      if (!canViewAuditLogs()) {
+    async (event, query: AuditLogQuery = {}) => {
+      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
         return { status: false, message: "backend.audit.unauthorized" };
       }
       try {
@@ -77,7 +78,7 @@ export default function AuditLogHandlers(): void {
   ipcMain.handle(
     "export-audit-logs",
     async (event, query: AuditLogQuery = {}) => {
-      if (!canViewAuditLogs()) {
+      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
         return { status: false, message: "backend.audit.unauthorized" };
       }
       try {

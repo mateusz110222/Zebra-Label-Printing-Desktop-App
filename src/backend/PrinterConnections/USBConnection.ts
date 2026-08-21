@@ -1,5 +1,6 @@
-import type { ConnectionResult, PrinterConfig } from "../PrinterConnectionBase";
-import { sendRawZplToUsbPrinter } from "../WindowsPrinter";
+import { sendRawZplToUsbPrinter } from "../printer/WindowsPrinter";
+import { PrinterConfig } from "../utils/store";
+import { ConnectionResult } from "../printer/PrinterConnectionBase";
 
 export default function USBConnection(
   config: PrinterConfig,

@@ -1,4 +1,4 @@
-import { type LocalPart, type PartsConfig, store } from "./store";
+import { type LocalPart, type PartsConfig, store } from "../utils/store";
 
 const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 const PART_FIELDS = [
@@ -43,7 +43,10 @@ export type PartResolution =
       rawError?: string;
     };
 
-const failure = (message: string, rawError: string): PartsResponse => ({
+const failure = (
+  message: string,
+  rawError?: string,
+): PartsResponse => ({
   status: false,
   message,
   rawError,
@@ -53,21 +56,29 @@ const failure = (message: string, rawError: string): PartsResponse => ({
 const normalizeParts = (
   value: unknown,
 ):
-  { status: true; data: LocalPart[] } | { status: false; rawError: string } => {
+  | { status: true; data: LocalPart[] }
+  | { status: false; message: string; rawError?: string } => {
   if (!Array.isArray(value)) {
-    return { status: false, rawError: "Parts data must be an array." };
+    return {
+      status: false,
+      message: "backend.parts.INVALID_DATA_FORMAT",
+      rawError: `Expected parts data to be an array, received ${typeof value}.`,
+    };
   }
 
   const parts: LocalPart[] = [];
+
   for (const [index, valuePart] of value.entries()) {
     if (!valuePart || typeof valuePart !== "object") {
       return {
         status: false,
+        message: "backend.parts.INVALID_PART",
         rawError: `Part at index ${index} must be an object.`,
       };
     }
 
     const candidate = valuePart as Record<string, unknown>;
+
     for (const field of PART_FIELDS) {
       if (
         typeof candidate[field] !== "string" ||
@@ -75,6 +86,7 @@ const normalizeParts = (
       ) {
         return {
           status: false,
+          message: "backend.parts.INVALID_PART_FIELD",
           rawError: `Part at index ${index} has an invalid ${field}.`,
         };
       }
@@ -98,49 +110,76 @@ const parseLookup = (
   value: unknown,
 ):
   | {
-      status: true;
-      partNumber: string;
-      operation?: string;
-      serialPrefix?: string;
-      labelFormat: string;
-    }
-  | { status: false; rawError: string } => {
+  status: true;
+  partNumber: string;
+  operation?: string;
+  serialPrefix?: string;
+  labelFormat: string;
+}
+  | {
+  status: false;
+  message: string;
+  rawError?: string;
+} => {
   if (!value || typeof value !== "object") {
-    return { status: false, rawError: "Part payload must be an object." };
+    return {
+      status: false,
+      message: "backend.parts.INVALID_LOOKUP_DATA",
+      rawError: "Part payload must be an object.",
+    };
   }
 
   const candidate = value as PartLookup;
+
   if (
     typeof candidate.Part_Number !== "string" ||
     candidate.Part_Number.trim().length === 0
   ) {
-    return { status: false, rawError: "Part_Number is required." };
+    return {
+      status: false,
+      message: "backend.parts.PART_NUMBER_REQUIRED",
+    };
   }
+
   if (
     typeof candidate.Label_Format !== "string" ||
     candidate.Label_Format.trim().length === 0
   ) {
-    return { status: false, rawError: "Label_Format is required." };
+    return {
+      status: false,
+      message: "backend.parts.LABEL_FORMAT_REQUIRED",
+    };
   }
+
   if (
     candidate.Operation !== undefined &&
     candidate.Operation !== null &&
     typeof candidate.Operation !== "string"
   ) {
-    return { status: false, rawError: "Operation must be a string." };
+    return {
+      status: false,
+      message: "backend.parts.INVALID_OPERATION",
+      rawError: `Operation has invalid type: ${typeof candidate.Operation}.`,
+    };
   }
+
   if (
     candidate.Serial_Prefix !== undefined &&
     candidate.Serial_Prefix !== null &&
     typeof candidate.Serial_Prefix !== "string"
   ) {
-    return { status: false, rawError: "Serial_Prefix must be a string." };
+    return {
+      status: false,
+      message: "backend.parts.INVALID_SERIAL_PREFIX",
+      rawError: `Serial_Prefix has invalid type: ${typeof candidate.Serial_Prefix}.`,
+    };
   }
 
   const operation =
     typeof candidate.Operation === "string" && candidate.Operation.trim()
       ? normalizeKey(candidate.Operation)
       : undefined;
+
   const serialPrefix =
     typeof candidate.Serial_Prefix === "string" &&
     candidate.Serial_Prefix.trim()
@@ -169,25 +208,30 @@ export async function loadAuthoritativeParts(
       !["local", "server"].includes(partsConfig.source || "")
     ) {
       return failure(
-        "backend.parts.GET_PARTS_FAIL",
-        "Parts source configuration is invalid.",
+        "backend.parts.INVALID_SOURCE_CONFIG",
+        `Invalid parts source: ${String(partsConfig?.source)}`,
       );
     }
 
     if (partsConfig.source === "local") {
       const validated = normalizeParts(partsConfig.localParts);
+
       return validated.status
         ? {
-            status: true,
-            message: "backend.parts.PARTS_FETCH_SUCCESS",
-            data: validated.data,
-          }
-        : failure("backend.parts.GET_PARTS_FAIL", validated.rawError);
+          status: true,
+          message: "backend.parts.PARTS_FETCH_SUCCESS",
+          data: validated.data,
+        }
+        : failure(validated.message, validated.rawError);
     }
 
-    const configUrl = dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
+    const configUrl =
+      dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
+
     const configFile =
-      dependencies.configFile ?? process.env.PARTS_CONFIG_FILE ?? "lps.json";
+      dependencies.configFile ??
+      process.env.PARTS_CONFIG_FILE;
+
     if (!configUrl?.trim()) {
       return failure(
         "backend.parts.PARTS_CONFIG_MISSING",
@@ -200,28 +244,36 @@ export async function loadAuthoritativeParts(
       Number(dependencies.timeoutMs) > 0
         ? Number(dependencies.timeoutMs)
         : DEFAULT_FETCH_TIMEOUT_MS;
+
     const controller = new AbortController();
     let timedOut = false;
+
     const timeout = setTimeout(() => {
       timedOut = true;
       controller.abort();
     }, timeoutMs);
 
     let response: Response;
+
     try {
       response = await (dependencies.fetchImpl ?? fetch)(configUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ file: configFile }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          file: configFile,
+        }),
         signal: controller.signal,
       });
     } catch (error) {
       if (timedOut) {
         return failure(
-          "backend.parts.GET_PARTS_FAIL",
+          "backend.parts.REQUEST_TIMEOUT",
           `Parts request timed out after ${timeoutMs} ms.`,
         );
       }
+
       throw error;
     } finally {
       clearTimeout(timeout);
@@ -229,8 +281,8 @@ export async function loadAuthoritativeParts(
 
     if (!response.ok) {
       return failure(
-        "backend.parts.GET_PARTS_FAIL",
-        `Parts server returned HTTP ${response.status}.`,
+        "backend.parts.SERVER_HTTP_ERROR",
+        `Parts server returned HTTP ${response.status} ${response.statusText}.`,
       );
     }
 
@@ -239,23 +291,25 @@ export async function loadAuthoritativeParts(
       data?: unknown;
       message?: unknown;
     };
+
     if (body.status !== true) {
       return failure(
-        "backend.parts.GET_PARTS_FAIL",
+        "backend.parts.SERVER_REJECTED",
         typeof body.message === "string"
           ? body.message
-          : "Parts server rejected the request.",
+          : "Parts server rejected the request without an error message.",
       );
     }
 
     const validated = normalizeParts(body.data);
+
     return validated.status
       ? {
-          status: true,
-          message: "backend.parts.PARTS_FETCH_SUCCESS",
-          data: validated.data,
-        }
-      : failure("backend.parts.GET_PARTS_FAIL", validated.rawError);
+        status: true,
+        message: "backend.parts.PARTS_FETCH_SUCCESS",
+        data: validated.data,
+      }
+      : failure(validated.message, validated.rawError);
   } catch (error) {
     return failure(
       "backend.parts.GET_PARTS_FAIL",
@@ -271,15 +325,17 @@ export async function resolveAuthoritativePart(
   dependencies: PartsLoaderDependencies = {},
 ): Promise<PartResolution> {
   const parsed = parseLookup(lookup);
+
   if (!parsed.status) {
     return {
       status: false,
-      message: "backend.print.invalid_data",
+      message: parsed.message,
       rawError: parsed.rawError,
     };
   }
 
   const loaded = await loadAuthoritativeParts(dependencies);
+
   if (!loaded.status) {
     return {
       status: false,
@@ -294,17 +350,24 @@ export async function resolveAuthoritativePart(
       normalizeKey(part.Label_Format) === parsed.labelFormat &&
       (!parsed.serialPrefix ||
         normalizeKey(part.Serial_Prefix) === parsed.serialPrefix) &&
-      (!parsed.operation || normalizeKey(part.Operation) === parsed.operation),
+      (!parsed.operation ||
+        normalizeKey(part.Operation) === parsed.operation),
   );
 
-  if (matches.length !== 1) {
+  if (matches.length === 0) {
     return {
       status: false,
-      message: "backend.print.invalid_data",
+      message: "backend.parts.PART_NOT_FOUND",
       rawError:
-        matches.length === 0
-          ? "No authoritative part matches Part_Number, Operation, Serial_Prefix and Label_Format."
-          : "The part payload is ambiguous; Operation and Serial_Prefix are required to select exactly one authoritative part.",
+        "No authoritative part matches Part_Number, Operation, Serial_Prefix and Label_Format.",
+    };
+  }
+
+  if (matches.length > 1) {
+    return {
+      status: false,
+      message: "backend.parts.PART_AMBIGUOUS",
+      rawError: `Found ${matches.length} matching authoritative parts. Operation and Serial_Prefix are required to select exactly one part.`,
     };
   }
 

@@ -1,8 +1,9 @@
 import { ipcMain } from "electron";
 import mysql from "mysql2/promise";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
 import { closeDatabase } from "./DatabaseConfig";
-import { DatabaseConfig, store } from "./store";
+import { DatabaseConfig, store } from "../utils/store";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const normalizeConfig = (input: DatabaseConfig): DatabaseConfig => ({
   host: input.host?.trim(),
@@ -10,6 +11,29 @@ const normalizeConfig = (input: DatabaseConfig): DatabaseConfig => ({
   password: input.password || "",
   database: input.database?.trim(),
 });
+
+const isValidDatabaseInput = (input: unknown): input is DatabaseConfig => {
+  if (!input || typeof input !== "object") {
+    return false;
+  }
+
+  const config = input as Record<string, unknown>;
+
+  return (
+    typeof config.host === "string" &&
+    typeof config.user === "string" &&
+    typeof config.password === "string" &&
+    typeof config.database === "string" &&
+    config.host.trim().length > 0 &&
+    config.host.length <= 255 &&
+    config.user.trim().length > 0 &&
+    config.user.length <= 128 &&
+    config.password.length > 0 &&
+    config.password.length <= 1024 &&
+    config.database.trim().length > 0 &&
+    config.database.length <= 128
+  );
+};
 
 const validateConfig = (config: DatabaseConfig): boolean =>
   Boolean(config.host && config.user && config.password && config.database);
@@ -32,9 +56,19 @@ export default function SaveDatabaseConfig(): void {
 
   ipcMain.handle(
     "save-database-config",
-    async (_event, input: DatabaseConfig) => {
-      if (!canViewAuditLogs()) {
-        return { status: false, message: "backend.audit.unauthorized" };
+    async (event, input: DatabaseConfig) => {
+      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+        return {
+          status: false,
+          message: "backend.audit.unauthorized",
+        };
+      }
+
+      if (!isValidDatabaseInput(input)) {
+        return {
+          status: false,
+          message: "backend.config.invalid_database",
+        };
       }
 
       const config = normalizeConfig(input || {});

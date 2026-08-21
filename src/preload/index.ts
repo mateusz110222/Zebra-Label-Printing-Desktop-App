@@ -129,17 +129,10 @@ const api = {
     ipcRenderer.on("update_downloaded", sub);
     return () => ipcRenderer.removeListener("update_downloaded", sub);
   },
-  RemoveAllListeners: (channel: string) =>
-    ipcRenderer.removeAllListeners(channel),
 };
 
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld("api", api);
-  } catch (error) {
-    console.error(error);
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.api = api;
+if (!process.contextIsolated) {
+  throw new Error("Context isolation must be enabled");
 }
+
+contextBridge.exposeInMainWorld("api", api);

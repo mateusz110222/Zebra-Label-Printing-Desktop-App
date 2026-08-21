@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { generatePreviewZPL, generateReprintPreviewZPL } from "./hooks/ZPLService";
+import { generatePreviewZPL, generateReprintPreviewZPL } from "../hooks/ZPLService";
 import sharp from "sharp";
 
 interface LabelPreviewResponse {
@@ -22,7 +22,7 @@ export default function GetLabelPreview(): void {
             status: false,
             message: "backend.print.invalid_data",
             data: null,
-            rawError: "Part or Label_Format missing",
+            rawError: `Part: ${part} or Label_Format: ${part.Label_Format} missing`,
           };
         }
         const useReprint =

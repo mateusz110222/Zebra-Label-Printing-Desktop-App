@@ -3,7 +3,7 @@ import { constants } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client, type ClientOptions } from "ldapts";
-import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "./AuditLog";
+import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "../audit/AuditLog";
 import {
   buildBindUser,
   buildUserSearchFilter,
@@ -15,6 +15,7 @@ import {
   redactSecret
 } from "./LdapAuth";
 import { t } from "i18next";
+import { isMainRendererAuthorized } from "./IsAutorized";
 
 interface LoginRequest {
   login?: unknown;
@@ -133,7 +134,11 @@ const safeUnbind = async (client: Client | null): Promise<void> => {
 export default function HandleLogin(): void {
   ipcMain.handle(
     "handle-login",
-    async (_event, request?: LoginRequest): Promise<LoginResponse> => {
+    async (event, request?: LoginRequest): Promise<LoginResponse> => {
+      if (!isMainRendererAuthorized(event)) {
+        return { status: false, message: "backend.audit.unauthorized" };
+      }
+
       clearAuditSession();
       const login =
         typeof request?.login === "string" ? request.login.trim() : "";

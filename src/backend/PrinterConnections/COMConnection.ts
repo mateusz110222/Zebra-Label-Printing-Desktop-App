@@ -1,5 +1,6 @@
 import { SerialPort } from "serialport";
-import { ConnectionResult, PrinterConfig, PrinterConnectionBase } from "../PrinterConnectionBase";
+import { ConnectionResult, PrinterConnectionBase } from "../printer/PrinterConnectionBase";
+import { PrinterConfig } from "../utils/store";
 
 class COMConnectionImpl extends PrinterConnectionBase {
   constructor(config: PrinterConfig, label: string) {

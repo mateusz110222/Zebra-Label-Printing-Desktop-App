@@ -1,12 +1,13 @@
 import { ipcMain } from "electron";
-import { PrinterConfig, store } from "./store";
-import IpConnection from "./PrinterConnections/IpConnection";
-import COMConnection from "./PrinterConnections/COMConnection";
-import USBConnection from "./PrinterConnections/USBConnection";
+import { PrinterConfig, store } from "../utils/store";
+import IpConnection from "../PrinterConnections/IpConnection";
+import COMConnection from "../PrinterConnections/COMConnection";
+import USBConnection from "../PrinterConnections/USBConnection";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
-import { getTemplatesPath } from "./TemplatePaths";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "./AuditLog";
+import { getTemplatesPath } from "../system/TemplatePaths";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const getPrinterTarget = (config: PrinterConfig): string =>
   config.type === "IP"
@@ -18,10 +19,10 @@ const getPrinterTarget = (config: PrinterConfig): string =>
 export default function TestPrinterConnection(): void {
   ipcMain.handle(
     "test-printer-connection",
-    async (_event, candidate?: PrinterConfig) => {
+    async (event, candidate?: PrinterConfig) => {
       const config: PrinterConfig = candidate || store.get("printer");
       try {
-        if (!canViewAuditLogs()) {
+        if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
           return { status: false, message: "backend.audit.unauthorized" };
         }
 
@@ -111,13 +112,13 @@ export default function TestPrinterConnection(): void {
             labelFormat: "Test_Print_label.zpl",
             printerType: config.type,
             printerTarget: getPrinterTarget(config),
-            printerMessage: "backend.printer.test_error",
+            printerMessage: "backend.config_view.test_error",
             printerError: rawError,
           },
         });
         return {
           status: false,
-          message: "backend.printer.test_error",
+          message: "backend.config_view.test_error",
           rawError,
         };
       }

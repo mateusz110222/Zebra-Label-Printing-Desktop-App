@@ -2,20 +2,12 @@
  * Abstract base class for printer connections
  * Provides common interface for IP and COM connections
  */
+import { PrinterConfig } from "../utils/store";
 
 export interface ConnectionResult {
   status: boolean;
   message: string;
   rawError?: string;
-}
-
-export interface PrinterConfig {
-  type: "IP" | "COM" | "USB";
-  ip?: string;
-  port?: number;
-  comPort?: string;
-  baudRate?: number;
-  usbPrinterName?: string;
 }
 
 /**
