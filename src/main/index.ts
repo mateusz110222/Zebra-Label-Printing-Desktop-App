@@ -3,7 +3,7 @@ import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 
 import GetParts from "../backend/parts/GetParts";
-import PrintLabel from "../backend/printer/PrintLabel";
+import PrintLabel from "../backend/printer/SetupLabelHandlers";
 import GetSerialPorts from "../backend/printer/GetSerialPorts";
 import GetUsbPrinters from "../backend/printer/GetUsbPrinters";
 import TestPrinterConnection from "../backend/printer/TestPrinterConnection";
@@ -27,9 +27,12 @@ import {
   getRendererEntryUrl,
   isAllowedExternalUrl,
   isAllowedPreviewUrl,
-  isRendererDocumentUrl
+  isRendererDocumentUrl,
 } from "../backend/preview/PreviewWindowPolicy";
-import { installExtension, REACT_DEVELOPER_TOOLS } from "electron-devtools-installer";
+import {
+  installExtension,
+  REACT_DEVELOPER_TOOLS,
+} from "electron-devtools-installer";
 
 app.enableSandbox();
 
@@ -182,7 +185,7 @@ SaveDatabaseConfig();
 SystemHealthHandler();
 
 app.whenReady().then(() => {
-  void installExtension(REACT_DEVELOPER_TOOLS)
+  void installExtension(REACT_DEVELOPER_TOOLS);
   electronApp.setAppUserModelId("com.electron");
 
   session.defaultSession.setPermissionCheckHandler(() => {

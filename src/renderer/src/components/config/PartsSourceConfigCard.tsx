@@ -1,19 +1,24 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiEdit2, FiPlus, FiServer, FiTrash2 } from "react-icons/fi";
-import { LocalPart } from "@renderer/types";
+import type { LocalPart } from "@renderer/types";
+
+type PartsSource = "server" | "local";
 
 interface Props {
-  source: "server" | "local";
+  source: PartsSource;
   operation: string;
   parts: LocalPart[];
+
   isProcessing: boolean;
   canEdit: boolean;
+
   onSave: (
-    source: "server" | "local",
+    source: PartsSource,
     operation: string,
     parts: LocalPart[],
   ) => Promise<void>;
+
   onCancel: () => void;
 }
 
@@ -23,6 +28,18 @@ const emptyPart = (): LocalPart => ({
   Part_Description: "",
   Serial_Prefix: "",
   Label_Format: "",
+});
+
+const normalizePart = (part: LocalPart): LocalPart => ({
+  Operation: part.Operation.trim(),
+
+  Part_Number: part.Part_Number.trim(),
+
+  Part_Description: part.Part_Description.trim(),
+
+  Serial_Prefix: part.Serial_Prefix.trim(),
+
+  Label_Format: part.Label_Format.trim(),
 });
 
 export default function PartsSourceConfigCard({
@@ -35,44 +52,127 @@ export default function PartsSourceConfigCard({
   onCancel,
 }: Props): React.JSX.Element {
   const { t } = useTranslation();
-  const [selectedSource, setSelectedSource] = useState(source);
+
+  const [selectedSource, setSelectedSource] = useState<PartsSource>(source);
+
   const [selectedOperation, setSelectedOperation] = useState(operation);
-  const [items, setItems] = useState(parts);
+
+  const [items, setItems] = useState<LocalPart[]>(parts);
+
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
   const [draft, setDraft] = useState<LocalPart>(emptyPart());
+
   const [query, setQuery] = useState("");
+
+  const normalizedQuery = query.trim().toLowerCase();
 
   const visibleItems = useMemo(
     () =>
       items
-        .map((part, index) => ({ part, index }))
-        .filter(({ part }) =>
-          Object.values(part).some((value) =>
-            value.toLowerCase().includes(query.toLowerCase()),
-          ),
-        ),
-    [items, query],
+        .map((part, index) => ({
+          part,
+          index,
+        }))
+        .filter(({ part }) => {
+          if (!normalizedQuery) {
+            return true;
+          }
+
+          return Object.values(part).some((value) =>
+            value.toLowerCase().includes(normalizedQuery),
+          );
+        }),
+    [items, normalizedQuery],
   );
 
-  const updateDraft = (key: keyof LocalPart, value: string): void =>
-    setDraft((current) => ({ ...current, [key]: value }));
+  const updateDraft = (key: keyof LocalPart, value: string): void => {
+    setDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
   const resetEditor = (): void => {
     setEditingIndex(null);
+
     setDraft(emptyPart());
+
     setIsEditorOpen(false);
   };
+
   const canSaveRecord = Object.values(draft).every(
     (value) => value.trim().length > 0,
   );
+
+  const canSaveConfig =
+    selectedOperation.trim().length > 0 &&
+    (selectedSource === "server" || items.length > 0);
+
+  const openNewRecord = (): void => {
+    if (!canEdit) {
+      return;
+    }
+
+    setEditingIndex(null);
+
+    setDraft(emptyPart());
+
+    setIsEditorOpen(true);
+  };
+
+  const openEditRecord = (part: LocalPart, index: number): void => {
+    if (!canEdit) {
+      return;
+    }
+
+    setEditingIndex(index);
+
+    setDraft({
+      ...part,
+    });
+
+    setIsEditorOpen(true);
+  };
+
   const saveRecord = (): void => {
-    if (!canEdit || !canSaveRecord) return;
-    setItems((current) =>
-      editingIndex === null
-        ? [...current, draft]
-        : current.map((item, index) => (index === editingIndex ? draft : item)),
-    );
+    if (!canEdit || !canSaveRecord) {
+      return;
+    }
+
+    const normalized = normalizePart(draft);
+
+    setItems((current) => {
+      if (editingIndex === null) {
+        return [...current, normalized];
+      }
+
+      return current.map((item, index) =>
+        index === editingIndex ? normalized : item,
+      );
+    });
+
     resetEditor();
+  };
+
+  const deleteRecord = (index: number): void => {
+    if (!canEdit) {
+      return;
+    }
+
+    setItems((current) =>
+      current.filter((_, itemIndex) => itemIndex !== index),
+    );
+  };
+
+  const handleSave = async (): Promise<void> => {
+    if (!canEdit || isProcessing || !canSaveConfig) {
+      return;
+    }
+
+    await onSave(selectedSource, selectedOperation.trim(), items);
   };
 
   return (
@@ -81,16 +181,20 @@ export default function PartsSourceConfigCard({
         <div>
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-3">
             <FiServer className="text-indigo-500" />
+
             {t("parts_config.title")}
           </h3>
+
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             {t("parts_config.subtitle")}
           </p>
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
             {t("parts_config.operation")}
           </label>
+
           <input
             value={selectedOperation}
             onChange={(event) => setSelectedOperation(event.target.value)}
@@ -98,10 +202,12 @@ export default function PartsSourceConfigCard({
             placeholder={t("parts_config.operation_placeholder")}
             className="w-full sm:max-w-md px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900"
           />
+
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             {t("parts_config.operation_hint")}
           </p>
         </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(["server", "local"] as const).map((value) => (
             <button
@@ -109,11 +215,16 @@ export default function PartsSourceConfigCard({
               key={value}
               onClick={() => setSelectedSource(value)}
               disabled={!canEdit}
-              className={`rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-80 ${selectedSource === value ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" : "border-slate-200 dark:border-slate-600"}`}
+              className={`rounded-xl border p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-80 ${
+                selectedSource === value
+                  ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                  : "border-slate-200 dark:border-slate-600"
+              }`}
             >
               <div className="font-semibold text-slate-900 dark:text-slate-100">
                 {t(`parts_config.source_${value}_title`)}
               </div>
+
               <div className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 {value === "server"
                   ? t("parts_config.source_server_description")
@@ -132,91 +243,93 @@ export default function PartsSourceConfigCard({
                 placeholder={t("parts_config.search_placeholder")}
                 className="w-full sm:max-w-md px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
               />
+
               <button
                 type="button"
-                onClick={() => {
-                  if (!canEdit) return;
-                  setEditingIndex(null);
-                  setDraft(emptyPart());
-                  setIsEditorOpen(true);
-                }}
+                onClick={openNewRecord}
                 disabled={!canEdit}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-400 text-white font-semibold"
               >
                 <FiPlus />
+
                 {t("parts_config.add_record")}
               </button>
             </div>
+
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-700 text-left">
                   <tr>
-                    {[
-                      t("parts_config.operation"),
-                      t("parts_config.part_number"),
-                      t("parts_config.description"),
-                      t("parts_config.serial_prefix"),
-                      t("parts_config.label_format"),
-                      "",
-                    ].map((heading) => (
-                      <th
-                        key={heading}
-                        className="px-3 py-3 font-semibold whitespace-nowrap"
-                      >
-                        {heading}
-                      </th>
-                    ))}
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">
+                      {t("parts_config.operation")}
+                    </th>
+
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">
+                      {t("parts_config.part_number")}
+                    </th>
+
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">
+                      {t("parts_config.description")}
+                    </th>
+
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">
+                      {t("parts_config.serial_prefix")}
+                    </th>
+
+                    <th className="px-3 py-3 font-semibold whitespace-nowrap">
+                      {t("parts_config.label_format")}
+                    </th>
+
+                    <th className="px-3 py-3" />
                   </tr>
                 </thead>
+
                 <tbody>
                   {visibleItems.map(({ part, index }) => (
                     <tr
-                      key={`${part.Part_Number}-${index}`}
+                      key={`${part.Operation}-${part.Part_Number}-${index}`}
                       className="border-t border-slate-100 dark:border-slate-700"
                     >
                       <td className="px-3 py-3">{part.Operation}</td>
+
                       <td className="px-3 py-3 font-mono">
                         {part.Part_Number}
                       </td>
+
                       <td className="px-3 py-3">{part.Part_Description}</td>
+
                       <td className="px-3 py-3 font-mono">
                         {part.Serial_Prefix}
                       </td>
+
                       <td className="px-3 py-3">{part.Label_Format}</td>
-                      <td className="px-3 py-3 flex gap-2">
-                        <button
-                          type="button"
-                          aria-label={t("parts_config.edit_record")}
-                          onClick={() => {
-                            if (!canEdit) return;
-                            setEditingIndex(index);
-                            setDraft(part);
-                            setIsEditorOpen(true);
-                          }}
-                          disabled={!canEdit}
-                          className="rounded-md p-1.5 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                        >
-                          <FiEdit2 />
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={t("parts_config.delete_record")}
-                          onClick={() =>
-                            canEdit &&
-                            setItems((current) =>
-                              current.filter(
-                                (_, itemIndex) => itemIndex !== index,
-                              ),
-                            )
-                          }
-                          disabled={!canEdit}
-                          className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                        >
-                          <FiTrash2 />
-                        </button>
+
+                      <td className="px-3 py-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            aria-label={t("parts_config.edit_record")}
+                            onClick={() => openEditRecord(part, index)}
+                            disabled={!canEdit}
+                            className="rounded-md p-1.5 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                          >
+                            <FiEdit2 />
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label={t("parts_config.delete_record")}
+                            onClick={() => deleteRecord(index)}
+                            disabled={!canEdit}
+                            className="rounded-md p-1.5 text-red-600 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:scale-95 disabled:text-slate-400 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                          >
+                            <FiTrash2 />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
+
                   {visibleItems.length === 0 && (
                     <tr>
                       <td
@@ -233,24 +346,24 @@ export default function PartsSourceConfigCard({
           </>
         )}
       </div>
+
       <div className="p-8 pt-0">
         <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
           <button
             type="button"
             onClick={onCancel}
-            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            disabled={isProcessing}
+            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
           >
             {t("config_view.cancel")}
           </button>
 
           <button
             type="button"
-            onClick={() =>
-              void onSave(selectedSource, selectedOperation, items)
-            }
-            disabled={!canEdit || isProcessing}
+            onClick={() => void handleSave()}
+            disabled={!canEdit || isProcessing || !canSaveConfig}
             className={`inline-flex items-center justify-center rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all ${
-              canEdit && !isProcessing
+              canEdit && !isProcessing && canSaveConfig
                 ? "bg-indigo-600 hover:bg-indigo-500 active:scale-95"
                 : "bg-slate-300 dark:bg-slate-600 cursor-not-allowed"
             }`}
@@ -270,12 +383,14 @@ export default function PartsSourceConfigCard({
                     stroke="currentColor"
                     strokeWidth="4"
                   />
+
                   <path
                     className="opacity-75"
                     fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
+
                 {t("config_view.saving")}
               </>
             ) : (
@@ -284,6 +399,7 @@ export default function PartsSourceConfigCard({
           </button>
         </div>
       </div>
+
       {isEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-800">
@@ -292,10 +408,12 @@ export default function PartsSourceConfigCard({
                 ? t("parts_config.add_record")
                 : t("parts_config.edit_record")}
             </h4>
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {(Object.keys(draft) as Array<keyof LocalPart>).map((key) => (
                 <label key={key} className="text-sm font-medium">
                   {t(`parts_config.field_${key}`)}
+
                   <input
                     value={draft[key]}
                     onChange={(event) => updateDraft(key, event.target.value)}
@@ -305,6 +423,7 @@ export default function PartsSourceConfigCard({
                 </label>
               ))}
             </div>
+
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
@@ -313,6 +432,7 @@ export default function PartsSourceConfigCard({
               >
                 {t("common.cancel")}
               </button>
+
               <button
                 type="button"
                 onClick={saveRecord}

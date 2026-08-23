@@ -1,7 +1,10 @@
 import { ipcMain } from "electron";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
-import { getTemplatesPath, normalizeTemplateFileName } from "../system/TemplatePaths";
+import {
+  getTemplatesPath,
+  normalizeTemplateFileName,
+} from "../system/TemplatePaths";
 import { appendAuditLog, canViewAuditLogs } from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 

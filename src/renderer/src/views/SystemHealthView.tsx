@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LoadingWrapper, SystemHealthViewSkeleton } from "@renderer/components/common";
+import {
+  LoadingWrapper,
+  SystemHealthViewSkeleton,
+} from "@renderer/components/common";
 
 const statusColor = (ok: boolean): string =>
   ok

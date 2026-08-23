@@ -6,7 +6,7 @@ import USBConnection from "../PrinterConnections/USBConnection";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { getTemplatesPath } from "../system/TemplatePaths";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import { appendAuditLog, checkAuditLogWritable } from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const getPrinterTarget = (config: PrinterConfig): string =>
@@ -22,7 +22,7 @@ export default function TestPrinterConnection(): void {
     async (event, candidate?: PrinterConfig) => {
       const config: PrinterConfig = candidate || store.get("printer");
       try {
-        if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+        if (!isMainRendererAuthorized(event)) {
           return { status: false, message: "backend.audit.unauthorized" };
         }
 

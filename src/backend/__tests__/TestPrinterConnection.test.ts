@@ -27,9 +27,7 @@ const mocks = vi.hoisted(() => ({
   app: {
     isPackaged: false,
 
-    getAppPath: vi.fn(
-      () => "C:/workspace/application",
-    ),
+    getAppPath: vi.fn(() => "C:/workspace/application"),
 
     getPath: vi.fn((name: string) => {
       if (name === "exe") {
@@ -47,8 +45,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-const createEvent = (): IpcMainInvokeEvent =>
-  ({}) as IpcMainInvokeEvent;
+const createEvent = (): IpcMainInvokeEvent => ({}) as IpcMainInvokeEvent;
 
 vi.mock("electron", () => ({
   app: mocks.app,
@@ -65,55 +62,38 @@ vi.mock("../utils/store", () => ({
 }));
 
 vi.mock("../auth/IsAutorized", () => ({
-  isMainRendererAuthorized:
-  mocks.isMainRendererAuthorized,
+  isMainRendererAuthorized: mocks.isMainRendererAuthorized,
 }));
 
-vi.mock(
-  "node:fs/promises",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("node:fs/promises")
-      >();
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
 
-    return {
-      ...actual,
-      readFile: mocks.readFile,
-    };
-  },
-);
+  return {
+    ...actual,
+    readFile: mocks.readFile,
+  };
+});
 
 vi.mock("../system/TemplatePaths", () => ({
   getTemplatesPath: mocks.getTemplatesPath,
 }));
 
-vi.mock(
-  "../PrinterConnections/IpConnection",
-  () => ({
-    default: mocks.ipConnection,
-  }),
-);
+vi.mock("../PrinterConnections/IpConnection", () => ({
+  default: mocks.ipConnection,
+}));
 
-vi.mock(
-  "../PrinterConnections/COMConnection",
-  () => ({
-    default: mocks.comConnection,
-  }),
-);
+vi.mock("../PrinterConnections/COMConnection", () => ({
+  default: mocks.comConnection,
+}));
 
-vi.mock(
-  "../PrinterConnections/USBConnection",
-  () => ({
-    default: mocks.usbConnection,
-  }),
-);
+vi.mock("../PrinterConnections/USBConnection", () => ({
+  default: mocks.usbConnection,
+}));
 
 vi.mock("../audit/AuditLog", () => ({
   appendAuditLog: mocks.appendAuditLog,
   canViewAuditLogs: mocks.canViewAuditLogs,
-  checkAuditLogWritable:
-  mocks.checkAuditLogWritable,
+  checkAuditLogWritable: mocks.checkAuditLogWritable,
 }));
 
 type TestPrinterHandler = (
@@ -128,16 +108,12 @@ type TestPrinterHandler = (
 }>;
 
 const getHandler = (): TestPrinterHandler => {
-  const registration =
-    mocks.handle.mock.calls.find(
-      ([channel]) =>
-        channel === "test-printer-connection",
-    );
+  const registration = mocks.handle.mock.calls.find(
+    ([channel]) => channel === "test-printer-connection",
+  );
 
   if (!registration) {
-    throw new Error(
-      "test-printer-connection handler was not registered",
-    );
+    throw new Error("test-printer-connection handler was not registered");
   }
 
   return registration[1] as TestPrinterHandler;
@@ -153,21 +129,15 @@ describe("TestPrinterConnection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mocks.isMainRendererAuthorized.mockReturnValue(
-      true,
-    );
+    mocks.isMainRendererAuthorized.mockReturnValue(true);
 
     mocks.canViewAuditLogs.mockReturnValue(true);
 
     mocks.storeGet.mockReturnValue(ipCandidate);
 
-    mocks.getTemplatesPath.mockReturnValue(
-      "C:/templates",
-    );
+    mocks.getTemplatesPath.mockReturnValue("C:/templates");
 
-    mocks.readFile.mockResolvedValue(
-      "^XA^FDTEST^FS^XZ",
-    );
+    mocks.readFile.mockResolvedValue("^XA^FDTEST^FS^XZ");
 
     mocks.checkAuditLogWritable.mockResolvedValue({
       status: true,
@@ -185,41 +155,30 @@ describe("TestPrinterConnection", () => {
 
     mocks.comConnection.mockResolvedValue({
       status: true,
-      message:
-        "backend.printer.label_sent_successfully",
+      message: "backend.printer.label_sent_successfully",
     });
 
     mocks.usbConnection.mockResolvedValue({
       status: true,
-      message:
-        "backend.printer.label_sent_successfully",
+      message: "backend.printer.label_sent_successfully",
     });
 
     TestPrinterConnection();
   });
 
   it("rejects an unauthorized renderer before reading or sending", async () => {
-    mocks.isMainRendererAuthorized.mockReturnValue(
-      false,
-    );
+    mocks.isMainRendererAuthorized.mockReturnValue(false);
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
     expect(result).toEqual({
       status: false,
       message: "backend.audit.unauthorized",
     });
 
-    expect(
-      mocks.canViewAuditLogs,
-    ).not.toHaveBeenCalled();
+    expect(mocks.canViewAuditLogs).not.toHaveBeenCalled();
 
-    expect(
-      mocks.checkAuditLogWritable,
-    ).not.toHaveBeenCalled();
+    expect(mocks.checkAuditLogWritable).not.toHaveBeenCalled();
 
     expect(mocks.readFile).not.toHaveBeenCalled();
     expect(mocks.ipConnection).not.toHaveBeenCalled();
@@ -228,38 +187,29 @@ describe("TestPrinterConnection", () => {
     expect(mocks.appendAuditLog).not.toHaveBeenCalled();
   });
 
-  it("blocks a user without an IT audit session before reading or sending", async () => {
+  it("allows a user without audit access to test the printer connection", async () => {
     mocks.canViewAuditLogs.mockReturnValue(false);
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
-
-    expect(result).toEqual({
-      status: false,
-      message: "backend.audit.unauthorized",
+    mocks.ipConnection.mockResolvedValue({
+      status: true,
+      reachable: true,
+      message: "backend.printer.ready",
     });
 
-    expect(
-      mocks.checkAuditLogWritable,
-    ).not.toHaveBeenCalled();
+    const result = await getHandler()(createEvent(), ipCandidate);
 
-    expect(mocks.readFile).not.toHaveBeenCalled();
-    expect(mocks.ipConnection).not.toHaveBeenCalled();
+    expect(result.status).toBe(true);
+
+    expect(mocks.ipConnection).toHaveBeenCalled();
+
     expect(mocks.comConnection).not.toHaveBeenCalled();
     expect(mocks.usbConnection).not.toHaveBeenCalled();
-    expect(mocks.appendAuditLog).not.toHaveBeenCalled();
   });
 
   it("uses stored printer configuration when candidate is not provided", async () => {
-    const result = await getHandler()(
-      createEvent(),
-    );
+    const result = await getHandler()(createEvent());
 
-    expect(mocks.storeGet).toHaveBeenCalledWith(
-      "printer",
-    );
+    expect(mocks.storeGet).toHaveBeenCalledWith("printer");
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       ipCandidate,
@@ -278,9 +228,7 @@ describe("TestPrinterConnection", () => {
 
     await getHandler()(createEvent(), candidate);
 
-    expect(
-      mocks.storeGet,
-    ).not.toHaveBeenCalled();
+    expect(mocks.storeGet).not.toHaveBeenCalled();
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       candidate,
@@ -292,22 +240,16 @@ describe("TestPrinterConnection", () => {
     mocks.checkAuditLogWritable.mockResolvedValue({
       status: false,
       path: "C:/logs",
-      message:
-        "backend.audit.storage_unavailable",
-      lastFailureAt:
-        "2026-08-18T08:00:00.000Z",
+      message: "backend.audit.storage_unavailable",
+      lastFailureAt: "2026-08-18T08:00:00.000Z",
       rawError: "Access denied",
     });
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.audit.storage_unavailable",
+      message: "backend.audit.storage_unavailable",
       rawError: "Access denied",
       auditPersisted: false,
     });
@@ -320,51 +262,34 @@ describe("TestPrinterConnection", () => {
   });
 
   it("reads the dedicated test label template", async () => {
-    await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    await getHandler()(createEvent(), ipCandidate);
 
     expect(mocks.readFile).toHaveBeenCalledWith(
-      path.join(
-        "C:/templates",
-        "Test_Print_label.zpl",
-      ),
+      path.join("C:/templates", "Test_Print_label.zpl"),
       "utf-8",
     );
   });
 
   it("records TEST_LABEL_DATA_SENT after a successful IP test send", async () => {
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
-    const preparationCallIndex =
-      mocks.appendAuditLog.mock.calls.findIndex(
-        ([entry]) =>
-          (
-            entry as {
-              action?: string;
-            }
-          ).action ===
-          "TEST_LABEL_DATA_PREPARED",
-      );
+    const preparationCallIndex = mocks.appendAuditLog.mock.calls.findIndex(
+      ([entry]) =>
+        (
+          entry as {
+            action?: string;
+          }
+        ).action === "TEST_LABEL_DATA_PREPARED",
+    );
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       ipCandidate,
       "^XA^FDTEST^FS^XZ",
     );
 
-    expect(
-      preparationCallIndex,
-    ).toBeGreaterThanOrEqual(0);
+    expect(preparationCallIndex).toBeGreaterThanOrEqual(0);
 
-    expect(
-      mocks.appendAuditLog.mock.calls[
-        preparationCallIndex
-        ][0],
-    ).toEqual(
+    expect(mocks.appendAuditLog.mock.calls[preparationCallIndex][0]).toEqual(
       expect.objectContaining({
         category: "print",
         action: "TEST_LABEL_DATA_PREPARED",
@@ -381,12 +306,8 @@ describe("TestPrinterConnection", () => {
     );
 
     expect(
-      mocks.appendAuditLog.mock.invocationCallOrder[
-        preparationCallIndex
-        ],
-    ).toBeLessThan(
-      mocks.ipConnection.mock.invocationCallOrder[0],
-    );
+      mocks.appendAuditLog.mock.invocationCallOrder[preparationCallIndex],
+    ).toBeLessThan(mocks.ipConnection.mock.invocationCallOrder[0]);
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -398,8 +319,7 @@ describe("TestPrinterConnection", () => {
           printMode: "test",
           printerType: "IP",
           printerTarget: "10.20.30.40:9100",
-          printerMessage:
-            "backend.printer.print_success",
+          printerMessage: "backend.printer.print_success",
         }),
       }),
     );
@@ -407,24 +327,16 @@ describe("TestPrinterConnection", () => {
     expect(result).toMatchObject({
       status: true,
       auditPersisted: true,
-      auditStatusMessage:
-        "backend.audit.storage_ready",
+      auditStatusMessage: "backend.audit.storage_ready",
     });
   });
 
   it("does not send the test label when preparation audit cannot be persisted", async () => {
-    mocks.appendAuditLog.mockResolvedValueOnce(
-      false,
-    );
+    mocks.appendAuditLog.mockResolvedValueOnce(false);
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
-    expect(
-      mocks.appendAuditLog,
-    ).toHaveBeenCalledTimes(1);
+    expect(mocks.appendAuditLog).toHaveBeenCalledTimes(1);
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -440,11 +352,9 @@ describe("TestPrinterConnection", () => {
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.audit.storage_unavailable",
+      message: "backend.audit.storage_unavailable",
       auditPersisted: false,
-      auditStatusMessage:
-        "backend.audit.storage_unavailable",
+      auditStatusMessage: "backend.audit.storage_unavailable",
     });
   });
 
@@ -453,10 +363,7 @@ describe("TestPrinterConnection", () => {
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(false);
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
     expect(mocks.ipConnection).toHaveBeenCalledOnce();
 
@@ -464,8 +371,7 @@ describe("TestPrinterConnection", () => {
       status: true,
       message: "backend.printer.print_success",
       auditPersisted: false,
-      auditStatusMessage:
-        "backend.audit.storage_unavailable",
+      auditStatusMessage: "backend.audit.storage_unavailable",
     });
   });
 
@@ -478,15 +384,11 @@ describe("TestPrinterConnection", () => {
 
     mocks.comConnection.mockResolvedValue({
       status: false,
-      message:
-        "backend.printer.com_write_error",
+      message: "backend.printer.com_write_error",
       rawError: "Write failed",
     });
 
-    const result = await getHandler()(
-      createEvent(),
-      comCandidate,
-    );
+    const result = await getHandler()(createEvent(), comCandidate);
 
     expect(mocks.comConnection).toHaveBeenCalledWith(
       comCandidate,
@@ -502,8 +404,7 @@ describe("TestPrinterConnection", () => {
         details: expect.objectContaining({
           printerType: "COM",
           printerTarget: "COM7@115200",
-          printerMessage:
-            "backend.printer.com_write_error",
+          printerMessage: "backend.printer.com_write_error",
           printerError: "Write failed",
         }),
       }),
@@ -511,12 +412,10 @@ describe("TestPrinterConnection", () => {
 
     expect(result).toMatchObject({
       status: false,
-      message:
-        "backend.printer.com_write_error",
+      message: "backend.printer.com_write_error",
       rawError: "Write failed",
       auditPersisted: true,
-      auditStatusMessage:
-        "backend.audit.storage_ready",
+      auditStatusMessage: "backend.audit.storage_ready",
     });
   });
 
@@ -526,10 +425,7 @@ describe("TestPrinterConnection", () => {
       comPort: "COM4",
     } as PrinterConfig;
 
-    await getHandler()(
-      createEvent(),
-      comCandidate,
-    );
+    await getHandler()(createEvent(), comCandidate);
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -544,14 +440,10 @@ describe("TestPrinterConnection", () => {
   it("sends a test label through the selected Windows USB queue", async () => {
     const usbCandidate: PrinterConfig = {
       type: "USB",
-      usbPrinterName:
-        "ZDesigner ZD421-203dpi ZPL",
+      usbPrinterName: "ZDesigner ZD421-203dpi ZPL",
     };
 
-    const result = await getHandler()(
-      createEvent(),
-      usbCandidate,
-    );
+    const result = await getHandler()(createEvent(), usbCandidate);
 
     expect(mocks.usbConnection).toHaveBeenCalledWith(
       usbCandidate,
@@ -564,8 +456,7 @@ describe("TestPrinterConnection", () => {
 
         details: expect.objectContaining({
           printerType: "USB",
-          printerTarget:
-            "ZDesigner ZD421-203dpi ZPL",
+          printerTarget: "ZDesigner ZD421-203dpi ZPL",
         }),
       }),
     );
@@ -581,10 +472,7 @@ describe("TestPrinterConnection", () => {
       type: "UNKNOWN",
     } as unknown as PrinterConfig;
 
-    const result = await getHandler()(
-      createEvent(),
-      invalidCandidate,
-    );
+    const result = await getHandler()(createEvent(), invalidCandidate);
 
     expect(mocks.ipConnection).not.toHaveBeenCalled();
     expect(mocks.comConnection).not.toHaveBeenCalled();
@@ -592,8 +480,7 @@ describe("TestPrinterConnection", () => {
 
     expect(result).toMatchObject({
       status: false,
-      message:
-        "backend.printer.unknown_connection",
+      message: "backend.printer.unknown_connection",
       auditPersisted: true,
     });
 
@@ -606,19 +493,13 @@ describe("TestPrinterConnection", () => {
   });
 
   it("returns test_error and audits failure when template cannot be read", async () => {
-    mocks.readFile.mockRejectedValue(
-      new Error("ENOENT: template missing"),
-    );
+    mocks.readFile.mockRejectedValue(new Error("ENOENT: template missing"));
 
-    const result = await getHandler()(
-      createEvent(),
-      ipCandidate,
-    );
+    const result = await getHandler()(createEvent(), ipCandidate);
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.config_view.test_error",
+      message: "backend.config_view.test_error",
       rawError: "ENOENT: template missing",
     });
 
@@ -626,9 +507,7 @@ describe("TestPrinterConnection", () => {
     expect(mocks.comConnection).not.toHaveBeenCalled();
     expect(mocks.usbConnection).not.toHaveBeenCalled();
 
-    expect(
-      mocks.appendAuditLog,
-    ).toHaveBeenCalledOnce();
+    expect(mocks.appendAuditLog).toHaveBeenCalledOnce();
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -641,10 +520,8 @@ describe("TestPrinterConnection", () => {
           labelFormat: "Test_Print_label.zpl",
           printerType: "IP",
           printerTarget: "10.20.30.40:9100",
-          printerMessage:
-            "backend.config_view.test_error",
-          printerError:
-            "ENOENT: template missing",
+          printerMessage: "backend.config_view.test_error",
+          printerError: "ENOENT: template missing",
         }),
       }),
     );

@@ -1,6 +1,11 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import { writeFile } from "node:fs/promises";
-import { AuditLogEntry, AuditLogQuery, canViewAuditLogs, readAuditLogs } from "./AuditLog";
+import {
+  AuditLogEntry,
+  AuditLogQuery,
+  canViewAuditLogs,
+  readAuditLogs,
+} from "./AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 const csvCell = (value: unknown): string =>
@@ -57,23 +62,20 @@ const toCsv = (entries: AuditLogEntry[]): string => {
 };
 
 export default function AuditLogHandlers(): void {
-  ipcMain.handle(
-    "get-audit-logs",
-    async (event, query: AuditLogQuery = {}) => {
-      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
-        return { status: false, message: "backend.audit.unauthorized" };
-      }
-      try {
-        return { status: true, data: await readAuditLogs(query) };
-      } catch (error) {
-        return {
-          status: false,
-          message: "backend.audit.read_error",
-          rawError: error instanceof Error ? error.message : String(error),
-        };
-      }
-    },
-  );
+  ipcMain.handle("get-audit-logs", async (event, query: AuditLogQuery = {}) => {
+    if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+      return { status: false, message: "backend.audit.unauthorized" };
+    }
+    try {
+      return { status: true, data: await readAuditLogs(query) };
+    } catch (error) {
+      return {
+        status: false,
+        message: "backend.audit.read_error",
+        rawError: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
   ipcMain.handle(
     "export-audit-logs",

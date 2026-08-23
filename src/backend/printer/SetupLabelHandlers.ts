@@ -4,10 +4,14 @@ import IpConnection from "../PrinterConnections/IpConnection";
 import COMConnection from "../PrinterConnections/COMConnection";
 import USBConnection from "../PrinterConnections/USBConnection";
 
-import type { GeneratedLabelMetadata } from "../hooks/ZPLService";
+import type { GeneratedLabel } from "../hooks/ZPLService";
 import { generatePrintZPL, generateReprintZPL } from "../hooks/ZPLService";
-import { ConnectionResult } from "./PrinterConnectionBase";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable, getAuditActor } from "../audit/AuditLog";
+import type { ConnectionResult } from "./PrinterConnectionBase";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
@@ -29,6 +33,22 @@ interface PartPayload {
   Operation?: string;
 }
 
+type DeliveryState = "sent" | "failed";
+
+type BatchDeliveryResult = "success" | "partial" | "failure";
+
+interface AuditBatchLabel {
+  batchPosition: number;
+  serialNumber: string;
+  fullSerialNumber: string;
+  julianDate: string;
+  bmsDate: string;
+  zplSha256: string;
+  deliveryState: DeliveryState;
+  printerMessage: string | null;
+  printerError: string | null;
+}
+
 const getPrinterTarget = (printer: PrinterConfig): string =>
   printer.type === "IP"
     ? `${printer.ip || "?"}:${printer.port || "?"}`
@@ -36,20 +56,33 @@ const getPrinterTarget = (printer: PrinterConfig): string =>
       ? `${printer.comPort || "?"}@${printer.baudRate || "?"}`
       : printer.usbPrinterName || "?";
 
+const getPrintAction = (
+  mode: "print" | "reprint",
+  quantity: number,
+): string => {
+  if (quantity > 1) {
+    return "BATCH_PRINT";
+  }
+
+  return mode === "reprint" ? "REPRINT" : "PRINT";
+};
+
 const logPrintFailure = async (
   mode: "print" | "reprint",
-  part: PartPayload,
+  part: PartPayload | undefined,
   quantity: number,
   message: string,
   rawError?: string,
-): Promise<boolean> => {
-  return appendAuditLog({
+): Promise<boolean> =>
+  appendAuditLog({
     category: "print",
-    action: mode === "reprint" ? "REPRINT_REQUEST" : "PRINT_REQUEST",
+    action: getPrintAction(mode, quantity),
     status: "failure",
     details: {
+      printMode: mode,
       partNumber: part?.Part_Number || "",
       description: part?.Part_Description || "",
+      operation: part?.Operation || null,
       serialPrefix: part?.Serial_Prefix || "",
       labelFormat: part?.Label_Format || "",
       requestedQuantity: quantity,
@@ -57,7 +90,6 @@ const logPrintFailure = async (
       error: rawError || null,
     },
   });
-};
 
 const isValidQuantity = (value: unknown): value is number =>
   typeof value === "number" &&
@@ -65,135 +97,163 @@ const isValidQuantity = (value: unknown): value is number =>
   value >= 1 &&
   value <= 100;
 
-const logPrintStart = async ({
+const executeAndLogBatch = async ({
   mode,
-  part,
+  canonicalPart,
   quantity,
+  labels,
+  printer,
   selectedDate,
 }: {
   mode: "print" | "reprint";
-  part: PartPayload;
+  canonicalPart: PartPayload;
   quantity: number;
+  labels: GeneratedLabel[];
+  printer: PrinterConfig;
   selectedDate?: string;
-}): Promise<boolean> =>
-  appendAuditLog({
-    category: "system",
-    action: "LABEL_BATCH_REQUESTED",
-    status: "success",
-    details: {
-      printMode: mode,
-      requestedQuantity: quantity,
-      partNumber: part.Part_Number,
-      description: part.Part_Description,
-      operation: part.Operation || null,
-      serialPrefix: part.Serial_Prefix,
-      labelFormat: part.Label_Format,
-      selectedDate: selectedDate || null,
-    },
+}): Promise<{
+  status: boolean;
+  message: string;
+  deliveryStatus: string;
+  serialStart: string | undefined;
+  serialEnd: string | undefined;
+  julianDate: string | undefined;
+  bmsDate: string | undefined;
+  quantity: number;
+  sentCount: number;
+  failedCount: number;
+  auditPersisted: boolean;
+  auditStatusMessage: string;
+  printerReachable: boolean | undefined;
+  printerReady: boolean | undefined;
+  printerStatusMessage: string | undefined;
+}> => {
+  const labelResults: AuditBatchLabel[] = [];
+
+  let sentCount = 0;
+  let failedCount = 0;
+
+  let lastSuccessfulResponse: ConnectionResult | undefined;
+
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
+
+    let response: ConnectionResult;
+
+    try {
+      response = await sendToPrinter(label.zpl, printer);
+    } catch (error) {
+      response = {
+        status: false,
+        message: "backend.printer.error",
+        rawError: error instanceof Error ? error.message : String(error),
+      };
+    }
+
+    const deliveryState: DeliveryState = response.status ? "sent" : "failed";
+
+    if (deliveryState === "sent") {
+      sentCount++;
+      lastSuccessfulResponse = response;
+    } else {
+      failedCount++;
+    }
+
+    labelResults.push({
+      batchPosition: i + 1,
+      serialNumber: label.metadata.serialNumber,
+      fullSerialNumber:
+        `${canonicalPart.Serial_Prefix}` +
+        `${label.metadata.julianDate}` +
+        `${label.metadata.serialNumber}`,
+      julianDate: label.metadata.julianDate,
+      bmsDate: label.metadata.bmsDate,
+      zplSha256: label.metadata.zplSha256,
+      deliveryState,
+      printerMessage: response.message || null,
+      printerError: response.rawError || null,
+    });
+  }
+
+  const allSent = labels.length === quantity && sentCount === quantity;
+  const deliveryResult: BatchDeliveryResult = allSent
+    ? "success"
+    : sentCount === 0
+      ? "failure"
+      : "partial";
+
+  const overallStatus = allSent ? "success" : "failure";
+  const actionName = getPrintAction(mode, quantity);
+
+  const details: Record<string, unknown> = {
+    printMode: mode,
+    requestedQuantity: quantity,
+    partNumber: canonicalPart.Part_Number,
+    description: canonicalPart.Part_Description,
+    operation: canonicalPart.Operation || null,
+    serialPrefix: canonicalPart.Serial_Prefix,
+    labelFormat: canonicalPart.Label_Format,
+    selectedDate: selectedDate || null,
+    printerType: printer.type,
+    printerTarget: getPrinterTarget(printer),
+  };
+
+  if (quantity === 1) {
+    const single = labelResults[0];
+
+    if (single) {
+      details.serialNumber = single.serialNumber;
+      details.fullSerialNumber = single.fullSerialNumber;
+      details.julianDate = single.julianDate;
+      details.bmsDate = single.bmsDate;
+      details.zplSha256 = single.zplSha256;
+      details.deliveryState = single.deliveryState;
+      details.printerMessage = single.printerMessage;
+      details.printerError = single.printerError;
+    }
+  } else {
+    details.sentCount = sentCount;
+    details.failedCount = failedCount;
+    details.deliveryResult = deliveryResult;
+    details.labels = labelResults;
+  }
+
+  const auditPersisted = await appendAuditLog({
+    category: "print",
+    action: actionName,
+    status: overallStatus,
+    details,
   });
 
-const logLabelPreparation = async ({
-  mode,
-  part,
-  quantity,
-  labels,
-  printer,
-  selectedDate,
-}: {
-  mode: "print" | "reprint";
-  part: PartPayload;
-  quantity: number;
-  labels: GeneratedLabelMetadata[];
-  printer: PrinterConfig;
-  selectedDate?: string;
-}): Promise<boolean> => {
-  const actor = getAuditActor();
-  const persisted = await Promise.all(
-    labels.map((label, index) =>
-      appendAuditLog({
-        category: "print",
-        action: "LABEL_DATA_PREPARED",
-        status: "success",
-        actor,
-        details: {
-          batchPosition: index + 1,
-          printMode: mode,
-          requestedQuantity: quantity,
-          partNumber: part.Part_Number,
-          description: part.Part_Description,
-          operation: part.Operation || null,
-          serialPrefix: part.Serial_Prefix,
-          serialNumber: label.serialNumber,
-          fullSerialNumber: `${part.Serial_Prefix}${label.julianDate}${label.serialNumber}`,
-          labelFormat: part.Label_Format,
-          julianDate: label.julianDate,
-          bmsDate: label.bmsDate,
-          selectedDate: selectedDate || null,
-          zplSha256: label.zplSha256,
-          printerType: printer.type,
-          printerTarget: getPrinterTarget(printer),
-          deliveryState: "prepared",
-        },
-      }),
-    ),
-  );
-  return labels.length === quantity && persisted.every(Boolean);
-};
+  const printerStatus = lastSuccessfulResponse
+    ? await getPrinterStatusAfterSend(printer, lastSuccessfulResponse)
+    : undefined;
 
-const logLabelDelivery = async ({
-  mode,
-  part,
-  quantity,
-  labels,
-  printer,
-  response,
-  selectedDate,
-  printerStatus,
-}: {
-  mode: "print" | "reprint";
-  part: PartPayload;
-  quantity: number;
-  labels: GeneratedLabelMetadata[];
-  printer: PrinterConfig;
-  response: ConnectionResult;
-  selectedDate?: string;
-  printerStatus?: PrinterStatusResult;
-}): Promise<boolean> => {
-  const actor = getAuditActor();
-  const persisted = await Promise.all(
-    labels.map((label, index) =>
-      appendAuditLog({
-        category: "print",
-        action: response.status ? "LABEL_DATA_SENT" : "LABEL_SEND_FAILED",
-        status: response.status ? "success" : "failure",
-        actor,
-        details: {
-          batchPosition: index + 1,
-          printMode: mode,
-          requestedQuantity: quantity,
-          partNumber: part.Part_Number,
-          description: part.Part_Description,
-          operation: part.Operation || null,
-          serialPrefix: part.Serial_Prefix,
-          serialNumber: label.serialNumber,
-          fullSerialNumber: `${part.Serial_Prefix}${label.julianDate}${label.serialNumber}`,
-          labelFormat: part.Label_Format,
-          julianDate: label.julianDate,
-          bmsDate: label.bmsDate,
-          selectedDate: selectedDate || null,
-          zplSha256: label.zplSha256,
-          printerType: printer.type,
-          printerTarget: getPrinterTarget(printer),
-          printerMessage: response.message,
-          printerError: response.rawError || null,
-          printerReachableAfterSend: printerStatus?.reachable ?? null,
-          printerReadyAfterSend: printerStatus?.ready ?? null,
-          printerStatusAfterSend: printerStatus?.message || null,
-        },
-      }),
-    ),
-  );
-  return labels.length === quantity && persisted.every(Boolean);
+  return {
+    status: allSent,
+    message: allSent
+      ? mode === "reprint"
+        ? "backend.reprint.success"
+        : "backend.print.print_success"
+      : sentCount > 0
+        ? "backend.print.partial_failure"
+        : "backend.print.error",
+    deliveryStatus: allSent ? "sent" : sentCount > 0 ? "partial" : "failed",
+    serialStart: labels.at(0)?.metadata.serialNumber,
+    serialEnd: labels.at(-1)?.metadata.serialNumber,
+    julianDate: labels.at(0)?.metadata.julianDate,
+    bmsDate: labels.at(0)?.metadata.bmsDate,
+    quantity: labels.length,
+    sentCount,
+    failedCount,
+    auditPersisted,
+    auditStatusMessage: auditPersisted
+      ? "backend.audit.storage_ready"
+      : "backend.audit.storage_unavailable",
+    printerReachable: printerStatus?.reachable,
+    printerReady: printerStatus?.ready,
+    printerStatusMessage: printerStatus?.message,
+  };
 };
 
 async function sendToPrinter(
@@ -203,21 +263,39 @@ async function sendToPrinter(
   switch (printer.type) {
     case "IP":
       if (!printer.ip || !printer.port) {
-        return { status: false, message: "backend.printer.no_ip_config" };
+        return {
+          status: false,
+          message: "backend.printer.no_ip_config",
+        };
       }
+
       return IpConnection(printer, zpl);
+
     case "COM":
       if (!printer.comPort) {
-        return { status: false, message: "backend.printer.no_com_config" };
+        return {
+          status: false,
+          message: "backend.printer.no_com_config",
+        };
       }
+
       return COMConnection(printer, zpl);
+
     case "USB":
       if (!printer.usbPrinterName) {
-        return { status: false, message: "backend.printer.no_usb_config" };
+        return {
+          status: false,
+          message: "backend.printer.no_usb_config",
+        };
       }
+
       return USBConnection(printer, zpl);
+
     default:
-      return { status: false, message: "backend.printer.unknown_connection" };
+      return {
+        status: false,
+        message: "backend.printer.unknown_connection",
+      };
   }
 }
 
@@ -225,18 +303,17 @@ const getPrinterStatusAfterSend = async (
   printer: PrinterConfig,
   response: ConnectionResult,
 ): Promise<PrinterStatusResult | undefined> => {
-  if (!response.status) return undefined;
+  if (!response.status) {
+    return undefined;
+  }
 
-  if (printer.type === "COM" || printer.type === "USB") {
+  if (printer.type === "COM") {
     return {
       status: true,
       reachable: true,
       ready: true,
       detailsAvailable: false,
-      message:
-        printer.type === "COM"
-          ? "backend.printer.connected_com"
-          : "backend.printer.connected_usb",
+      message: "backend.printer.connected_com",
     };
   }
 
@@ -252,7 +329,7 @@ export default function SetupLabelHandlers(): void {
       };
     }
 
-    const part = payload?.part as PartPayload;
+    const part = payload?.part as PartPayload | undefined;
     const quantity = payload?.quantity;
 
     if (!isValidQuantity(quantity)) {
@@ -264,6 +341,7 @@ export default function SetupLabelHandlers(): void {
 
     try {
       const auditStorage = await checkAuditLogWritable();
+
       if (!auditStorage.status) {
         return {
           status: false,
@@ -275,6 +353,7 @@ export default function SetupLabelHandlers(): void {
       }
 
       const resolvedPart = await resolveAuthoritativePart(part);
+
       if (!resolvedPart.status) {
         const auditPersisted = await logPrintFailure(
           "print",
@@ -283,6 +362,7 @@ export default function SetupLabelHandlers(): void {
           resolvedPart.message,
           resolvedPart.rawError,
         );
+
         return {
           status: false,
           message: resolvedPart.message,
@@ -293,8 +373,8 @@ export default function SetupLabelHandlers(): void {
             : "backend.audit.storage_unavailable",
         };
       }
-      const canonicalPart = resolvedPart.data;
 
+      const canonicalPart = resolvedPart.data;
       const printer = store.get("printer") as PrinterConfig;
       const printerBeforeReservation = await queryPrinterStatus(printer).catch(
         (error) => ({
@@ -306,6 +386,7 @@ export default function SetupLabelHandlers(): void {
           rawError: error instanceof Error ? error.message : String(error),
         }),
       );
+
       if (!printerBeforeReservation.ready) {
         const auditPersisted = await logPrintFailure(
           "print",
@@ -314,6 +395,7 @@ export default function SetupLabelHandlers(): void {
           printerBeforeReservation.message,
           printerBeforeReservation.rawError,
         );
+
         return {
           status: false,
           message: printerBeforeReservation.message,
@@ -328,23 +410,9 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
-      const startAuditPersisted = await logPrintStart({
-        mode: "print",
-        part: canonicalPart,
-        quantity,
-      });
-      if (!startAuditPersisted) {
-        return {
-          status: false,
-          message: "backend.audit.storage_unavailable",
-          auditPersisted: false,
-          auditStatusMessage: "backend.audit.storage_unavailable",
-        };
-      }
-
       const result = await generatePrintZPL(canonicalPart, quantity);
 
-      if (!result.status || !result.data) {
+      if (!result.status || !result.labels) {
         const auditPersisted = await logPrintFailure(
           "print",
           canonicalPart,
@@ -352,6 +420,7 @@ export default function SetupLabelHandlers(): void {
           result.message,
           result.rawError,
         );
+
         return {
           status: false,
           message: result.message,
@@ -363,61 +432,17 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
-      const labels = result.labels || [];
-      const preparationPersisted = await logLabelPreparation({
+      return await executeAndLogBatch({
         mode: "print",
-        part: canonicalPart,
+        canonicalPart,
         quantity,
-        labels,
+        labels: result.labels,
         printer,
       });
-      if (!preparationPersisted) {
-        return {
-          status: false,
-          message: "backend.audit.storage_unavailable",
-          deliveryStatus: "failed",
-          serialStart: labels.at(0)?.serialNumber,
-          serialEnd: labels.at(-1)?.serialNumber,
-          julianDate: labels.at(0)?.julianDate,
-          bmsDate: labels.at(0)?.bmsDate,
-          quantity: labels.length,
-          auditPersisted: false,
-          auditStatusMessage: "backend.audit.storage_unavailable",
-        };
-      }
-
-      const response = await sendToPrinter(result.data, printer);
-      const printerStatus = await getPrinterStatusAfterSend(printer, response);
-      const auditPersisted = await logLabelDelivery({
-        mode: "print",
-        part: canonicalPart,
-        quantity,
-        labels: result.labels || [],
-        printer,
-        response,
-        printerStatus,
-      });
-      return {
-        status: response.status,
-        message: response.message,
-        rawError: response.rawError,
-        deliveryStatus: response.status ? "sent" : "failed",
-        serialStart: labels.at(0)?.serialNumber,
-        serialEnd: labels.at(-1)?.serialNumber,
-        julianDate: labels.at(0)?.julianDate,
-        bmsDate: labels.at(0)?.bmsDate,
-        quantity: labels.length,
-        auditPersisted,
-        auditStatusMessage: auditPersisted
-          ? "backend.audit.storage_ready"
-          : "backend.audit.storage_unavailable",
-        printerReachable: printerStatus?.reachable,
-        printerReady: printerStatus?.ready,
-        printerStatusMessage: printerStatus?.message,
-      };
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "backend.print.error";
+
       const auditPersisted = await logPrintFailure(
         "print",
         part,
@@ -425,6 +450,7 @@ export default function SetupLabelHandlers(): void {
         "backend.print.error",
         errorMsg,
       );
+
       return {
         status: false,
         message: "backend.print.error",
@@ -439,15 +465,27 @@ export default function SetupLabelHandlers(): void {
 
   ipcMain.handle("reprint-label", async (event, payload) => {
     if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
-      return { status: false, message: "backend.audit.unauthorized" };
+      return {
+        status: false,
+        message: "backend.audit.unauthorized",
+      };
     }
 
-    const part = payload?.part as PartPayload;
-    const quantity = payload?.quantity as number;
+    const part = payload?.part as PartPayload | undefined;
+    const quantity = payload?.quantity;
     const serialNumber = payload?.serialNumber as string;
     const date = payload?.date as string;
+
+    if (!isValidQuantity(quantity)) {
+      return {
+        status: false,
+        message: "backend.print.invalid_quantity",
+      };
+    }
+
     try {
       const auditStorage = await checkAuditLogWritable();
+
       if (!auditStorage.status) {
         return {
           status: false,
@@ -459,6 +497,7 @@ export default function SetupLabelHandlers(): void {
       }
 
       const resolvedPart = await resolveAuthoritativePart(part);
+
       if (!resolvedPart.status) {
         const auditPersisted = await logPrintFailure(
           "reprint",
@@ -467,6 +506,7 @@ export default function SetupLabelHandlers(): void {
           resolvedPart.message,
           resolvedPart.rawError,
         );
+
         return {
           status: false,
           message: resolvedPart.message,
@@ -477,8 +517,8 @@ export default function SetupLabelHandlers(): void {
             : "backend.audit.storage_unavailable",
         };
       }
-      const canonicalPart = resolvedPart.data;
 
+      const canonicalPart = resolvedPart.data;
       const printer = store.get("printer") as PrinterConfig;
       const printerBeforeSend = await queryPrinterStatus(printer).catch(
         (error) => ({
@@ -490,6 +530,7 @@ export default function SetupLabelHandlers(): void {
           rawError: error instanceof Error ? error.message : String(error),
         }),
       );
+
       if (!printerBeforeSend.ready) {
         const auditPersisted = await logPrintFailure(
           "reprint",
@@ -498,6 +539,7 @@ export default function SetupLabelHandlers(): void {
           printerBeforeSend.message,
           printerBeforeSend.rawError,
         );
+
         return {
           status: false,
           message: printerBeforeSend.message,
@@ -511,20 +553,7 @@ export default function SetupLabelHandlers(): void {
             : "backend.audit.storage_unavailable",
         };
       }
-      const startAuditPersisted = await logPrintStart({
-        mode: "reprint",
-        part: canonicalPart,
-        quantity,
-        selectedDate: date,
-      });
-      if (!startAuditPersisted) {
-        return {
-          status: false,
-          message: "backend.audit.storage_unavailable",
-          auditPersisted: false,
-          auditStatusMessage: "backend.audit.storage_unavailable",
-        };
-      }
+
       const result = await generateReprintZPL(
         canonicalPart,
         date,
@@ -532,7 +561,7 @@ export default function SetupLabelHandlers(): void {
         quantity,
       );
 
-      if (!result.status || !result.data) {
+      if (!result.status || !result.labels) {
         const auditPersisted = await logPrintFailure(
           "reprint",
           canonicalPart,
@@ -540,6 +569,7 @@ export default function SetupLabelHandlers(): void {
           result.message,
           result.rawError,
         );
+
         return {
           status: false,
           message: result.message,
@@ -551,63 +581,18 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
-      const labels = result.labels || [];
-      const preparationPersisted = await logLabelPreparation({
+      return await executeAndLogBatch({
         mode: "reprint",
-        part: canonicalPart,
+        canonicalPart,
         quantity,
-        labels,
+        labels: result.labels,
         printer,
         selectedDate: date,
       });
-      if (!preparationPersisted) {
-        return {
-          status: false,
-          message: "backend.audit.storage_unavailable",
-          deliveryStatus: "failed",
-          serialStart: labels.at(0)?.serialNumber,
-          serialEnd: labels.at(-1)?.serialNumber,
-          julianDate: labels.at(0)?.julianDate,
-          bmsDate: labels.at(0)?.bmsDate,
-          quantity: labels.length,
-          auditPersisted: false,
-          auditStatusMessage: "backend.audit.storage_unavailable",
-        };
-      }
-
-      const response = await sendToPrinter(result.data, printer);
-      const printerStatus = await getPrinterStatusAfterSend(printer, response);
-      const auditPersisted = await logLabelDelivery({
-        mode: "reprint",
-        part: canonicalPart,
-        quantity,
-        labels: result.labels || [],
-        printer,
-        response,
-        selectedDate: date,
-        printerStatus,
-      });
-      return {
-        status: response.status,
-        message: response.message,
-        rawError: response.rawError,
-        deliveryStatus: response.status ? "sent" : "failed",
-        serialStart: labels.at(0)?.serialNumber,
-        serialEnd: labels.at(-1)?.serialNumber,
-        julianDate: labels.at(0)?.julianDate,
-        bmsDate: labels.at(0)?.bmsDate,
-        quantity: labels.length,
-        auditPersisted,
-        auditStatusMessage: auditPersisted
-          ? "backend.audit.storage_ready"
-          : "backend.audit.storage_unavailable",
-        printerReachable: printerStatus?.reachable,
-        printerReady: printerStatus?.ready,
-        printerStatusMessage: printerStatus?.message,
-      };
     } catch (error) {
       const errorMsg =
         error instanceof Error ? error.message : "backend.print.error";
+
       const auditPersisted = await logPrintFailure(
         "reprint",
         part,
@@ -615,6 +600,7 @@ export default function SetupLabelHandlers(): void {
         "backend.print.error",
         errorMsg,
       );
+
       return {
         status: false,
         message: "backend.print.error",

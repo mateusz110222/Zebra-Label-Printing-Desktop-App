@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generatePrintZPL, generateReprintPreviewZPL, generateReprintZPL } from "../hooks/ZPLService";
+import {
+  generatePrintZPL,
+  generateReprintPreviewZPL,
+  generateReprintZPL,
+} from "../hooks/ZPLService";
 
 const databaseMocks = vi.hoisted(() => {
   const connection = {
@@ -29,21 +33,20 @@ vi.mock("../system/TemplatePaths", () => ({
   getTemplatesPath: () => "C:/templates",
 
   normalizeTemplateFileName: (name: string) =>
-    /\.(zpl|txt)$/i.test(name)
-      ? name
-      : `${name}.zpl`,
+    /\.(zpl|txt)$/i.test(name) ? name : `${name}.zpl`,
 }));
 
 vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("node:fs/promises")>();
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
 
   return {
     ...actual,
 
-    readFile: vi.fn().mockResolvedValue(
-      "^XA^FD*SERIALPREFIX**JDATE**SERIALNUM1*^FS^PQ*NUMCOPIES*^XZ",
-    ),
+    readFile: vi
+      .fn()
+      .mockResolvedValue(
+        "^XA^FD*SERIALPREFIX**JDATE**SERIALNUM1*^FS^PQ*NUMCOPIES*^XZ",
+      ),
 
     writeFile: vi.fn(),
   };
@@ -64,9 +67,7 @@ describe("generatePrintZPL serial transaction", () => {
       databaseMocks.connection,
     );
 
-    databaseMocks.connection.beginTransaction.mockResolvedValue(
-      undefined,
-    );
+    databaseMocks.connection.beginTransaction.mockResolvedValue(undefined);
 
     databaseMocks.connection.commit.mockResolvedValue(undefined);
 
@@ -74,45 +75,43 @@ describe("generatePrintZPL serial transaction", () => {
 
     databaseMocks.connection.release.mockReturnValue(undefined);
 
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "0200",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("UPDATE family")) {
-          return [
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
             {
-              affectedRows: 1,
+              ENGINE: "InnoDB",
             },
-            [],
-          ];
-        }
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "0200",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
+
+      if (sql.includes("UPDATE family")) {
+        return [
+          {
+            affectedRows: 1,
+          },
+          [],
+        ];
+      }
+
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
   });
 
   it("locks the family row and commits the next serial on one connection", async () => {
@@ -120,99 +119,82 @@ describe("generatePrintZPL serial transaction", () => {
 
     expect(result.status).toBe(true);
 
-    expect(
-      result.labels?.map((label) => label.serialNumber),
-    ).toEqual([
+    expect(result.labels?.map((label) => label.metadata.serialNumber)).toEqual([
       "0200",
       "0201",
     ]);
 
-    expect(
-      databaseMocks.connection.beginTransaction,
-    ).toHaveBeenCalledOnce();
+    expect(result.labels).toHaveLength(2);
+    expect(result.labels?.[0].zpl).toContain("0200");
+    expect(result.labels?.[1].zpl).toContain("0201");
+    expect(result.labels?.[0].metadata.zplSha256).toHaveLength(64);
+    expect(result.labels?.[1].metadata.zplSha256).toHaveLength(64);
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenNthCalledWith(
+    expect(databaseMocks.connection.beginTransaction).toHaveBeenCalledOnce();
+
+    expect(databaseMocks.connection.query).toHaveBeenNthCalledWith(
       1,
-      expect.stringContaining(
-        "information_schema.TABLES",
-      ),
+      expect.stringContaining("information_schema.TABLES"),
     );
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenNthCalledWith(
+    expect(databaseMocks.connection.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining("FOR UPDATE"),
       [part.Part_Number],
     );
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenNthCalledWith(
+    expect(databaseMocks.connection.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining(
-        "UPDATE family SET next = ? WHERE pk = ?",
-      ),
+      expect.stringContaining("UPDATE family"),
       ["0202", 7],
     );
 
-    expect(
-      databaseMocks.connection.commit,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.commit).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.rollback).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
 
     expect(
       databaseMocks.connection.commit.mock.invocationCallOrder[0],
     ).toBeLessThan(
-      databaseMocks.connection.release.mock
-        .invocationCallOrder[0],
+      databaseMocks.connection.release.mock.invocationCallOrder[0],
     );
   });
 
   it("rolls back and does not commit when the counter update fails", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "0200",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "0200",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (sql.includes("UPDATE family")) {
-          throw new Error("Database update failed");
-        }
+      if (sql.includes("UPDATE family")) {
+        throw new Error("Database update failed");
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
@@ -221,60 +203,50 @@ describe("generatePrintZPL serial transaction", () => {
       message: "backend.db.error",
     });
 
-    expect(result.rawError).toContain(
-      "Database update failed",
-    );
+    expect(result.rawError).toContain("Database update failed");
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("stops printing when more than one family counter exists", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "0200",
-                type_name: "decimal",
-              },
-              {
-                pk: 8,
-                maxId: "9999",
-                next: "0300",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "0200",
+              type_name: "decimal",
+            },
+            {
+              pk: 8,
+              maxId: "9999",
+              next: "0300",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
@@ -294,21 +266,13 @@ describe("generatePrintZPL serial transaction", () => {
      * Nie sprawdzamy więc dokładnie liczby wywołań,
      * tylko to, że rollback rzeczywiście nastąpił.
      */
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalled();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenCalledTimes(2);
+    expect(databaseMocks.connection.query).toHaveBeenCalledTimes(2);
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("refuses to reserve serials when family does not use InnoDB", async () => {
@@ -329,44 +293,34 @@ describe("generatePrintZPL serial transaction", () => {
       rawError: "backend.db.wrong_engine",
     });
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.query).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("stops when the family counter does not exist", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (sql.includes("SELECT f.pk")) {
-          return [[], []];
-        }
+      if (sql.includes("SELECT f.pk")) {
+        return [[], []];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
@@ -376,122 +330,100 @@ describe("generatePrintZPL serial transaction", () => {
       rawError: part.Part_Number,
     });
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("prints maxId once and stores an out-of-range exhausted counter", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "9999",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("UPDATE family")) {
-          return [
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
             {
-              affectedRows: 1,
+              ENGINE: "InnoDB",
             },
-            [],
-          ];
-        }
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "9999",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
+
+      if (sql.includes("UPDATE family")) {
+        return [
+          {
+            affectedRows: 1,
+          },
+          [],
+        ];
+      }
+
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
     expect(result.status).toBe(true);
 
-    expect(
-      result.labels?.[0].serialNumber,
-    ).toBe("9999");
+    expect(result.labels?.[0].metadata.serialNumber).toBe("9999");
 
-    expect(
-      databaseMocks.connection.query,
-    ).toHaveBeenNthCalledWith(
+    expect(databaseMocks.connection.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining(
-        "UPDATE family SET next = ? WHERE pk = ?",
-      ),
+      expect.stringContaining("UPDATE family"),
       ["10000", 7],
     );
 
-    expect(
-      databaseMocks.connection.commit,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.commit).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.rollback).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("does not reuse a serial after the counter has been exhausted", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "10000",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "10000",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
@@ -500,59 +432,51 @@ describe("generatePrintZPL serial transaction", () => {
       message: "backend.print.serial_range_exceeded",
     });
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 
   it("rolls back when UPDATE does not affect exactly one row", async () => {
-    databaseMocks.connection.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("information_schema.TABLES")) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("SELECT f.pk")) {
-          return [
-            [
-              {
-                pk: 7,
-                maxId: "9999",
-                next: "0200",
-                type_name: "decimal",
-              },
-            ],
-            [],
-          ];
-        }
-
-        if (sql.includes("UPDATE family")) {
-          return [
+    databaseMocks.connection.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
             {
-              affectedRows: 0,
+              ENGINE: "InnoDB",
             },
-            [],
-          ];
-        }
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    );
+      if (sql.includes("SELECT f.pk")) {
+        return [
+          [
+            {
+              pk: 7,
+              maxId: "9999",
+              next: "0200",
+              type_name: "decimal",
+            },
+          ],
+          [],
+        ];
+      }
+
+      if (sql.includes("UPDATE family")) {
+        return [
+          {
+            affectedRows: 0,
+          },
+          [],
+        ];
+      }
+
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const result = await generatePrintZPL(part, 1);
 
@@ -561,21 +485,13 @@ describe("generatePrintZPL serial transaction", () => {
       message: "backend.db.error",
     });
 
-    expect(result.rawError).toContain(
-      "Serial counter update affected 0 rows",
-    );
+    expect(result.rawError).toContain("Serial counter update affected 0 rows");
 
-    expect(
-      databaseMocks.connection.rollback,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.rollback).toHaveBeenCalledOnce();
 
-    expect(
-      databaseMocks.connection.commit,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.connection.commit).not.toHaveBeenCalled();
 
-    expect(
-      databaseMocks.connection.release,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.connection.release).toHaveBeenCalledOnce();
   });
 });
 
@@ -597,54 +513,32 @@ describe("generateReprintZPL validation", () => {
   });
 
   it("rejects serial 0 for a real reprint before querying the database", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0", 1);
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.print.serial_zero_reprint_not_allowed",
+      message: "backend.print.serial_zero_reprint_not_allowed",
       rawError: undefined,
     });
 
-    expect(
-      databaseMocks.pool.query,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.pool.query).not.toHaveBeenCalled();
   });
 
   it("allows serial 0 only through the preview path and resolves family.next", async () => {
-    const result = await generateReprintPreviewZPL(
-      part,
-      "2026-08-13",
-      "0",
-    );
+    const result = await generateReprintPreviewZPL(part, "2026-08-13", "0");
 
     expect(result.status).toBe(true);
 
-    expect(result.message).toBe(
-      "backend.reprint.success",
-    );
+    expect(result.message).toBe("backend.reprint.success");
 
-    expect(
-      result.labels?.[0].serialNumber,
-    ).toBe("0200");
+    expect(result.data).toContain("0200");
+    expect(result.labels).toBeUndefined();
 
-    expect(
-      databaseMocks.pool.query,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.pool.query).toHaveBeenCalledOnce();
   });
 
   it("rejects invalid quantity", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0200",
-      0,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0200", 0);
 
     expect(result).toEqual({
       status: false,
@@ -652,18 +546,11 @@ describe("generateReprintZPL validation", () => {
       rawError: "Invalid quantity: 0",
     });
 
-    expect(
-      databaseMocks.pool.query,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.pool.query).not.toHaveBeenCalled();
   });
 
   it("rejects invalid date", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-02-30",
-      "0200",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-02-30", "0200", 1);
 
     expect(result).toEqual({
       status: false,
@@ -671,18 +558,11 @@ describe("generateReprintZPL validation", () => {
       rawError: "Invalid date: 2026-02-30",
     });
 
-    expect(
-      databaseMocks.pool.query,
-    ).not.toHaveBeenCalled();
+    expect(databaseMocks.pool.query).not.toHaveBeenCalled();
   });
 
   it("rejects invalid serial width", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "200",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "200", 1);
 
     expect(result).toEqual({
       status: false,
@@ -690,40 +570,23 @@ describe("generateReprintZPL validation", () => {
       rawError: "Expected length: 4",
     });
 
-    expect(
-      databaseMocks.pool.query,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.pool.query).toHaveBeenCalledOnce();
   });
 
   it("rejects an invalid decimal serial", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "ABCD",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "ABCD", 1);
 
     expect(result.status).toBe(false);
 
     expect(result.message).toBe("backend.print.invalid_decimal");
 
-    expect(
-      databaseMocks.pool.query,
-    ).toHaveBeenCalledOnce();
+    expect(databaseMocks.pool.query).toHaveBeenCalledOnce();
   });
 
   it("stops when the family row does not exist", async () => {
-    databaseMocks.pool.query.mockResolvedValue([
-      [],
-      [],
-    ]);
+    databaseMocks.pool.query.mockResolvedValue([[], []]);
 
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0199",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0199", 1);
 
     expect(result).toEqual({
       status: false,
@@ -751,70 +614,43 @@ describe("generateReprintZPL validation", () => {
       [],
     ]);
 
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0199",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0199", 1);
 
     expect(result).toEqual({
       status: false,
       message: "backend.db.error",
-      rawError:
-        `Multiple family rows found for ${part.Part_Number}`,
+      rawError: `Multiple family rows found for ${part.Part_Number}`,
     });
   });
 
   it("rejects a serial equal to family.next because it has not been reserved yet", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0200",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0200", 1);
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.print.reprint_serial_not_reserved",
+      message: "backend.print.reprint_serial_not_reserved",
       rawError: undefined,
     });
   });
 
   it("rejects a serial above family.next because it has not been reserved yet", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0201",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0201", 1);
 
     expect(result).toEqual({
       status: false,
-      message:
-        "backend.print.reprint_serial_not_reserved",
+      message: "backend.print.reprint_serial_not_reserved",
       rawError: undefined,
     });
   });
 
   it("allows reprinting a serial below family.next", async () => {
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "0199",
-      1,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0199", 1);
 
     expect(result.status).toBe(true);
 
-    expect(result.message).toBe(
-      "backend.reprint.success",
-    );
+    expect(result.message).toBe("backend.reprint.success");
 
-    expect(
-      result.labels?.[0].serialNumber,
-    ).toBe("0199");
+    expect(result.labels?.[0].metadata.serialNumber).toBe("0199");
   });
 
   it("rejects preview when family.next is already above maxId", async () => {
@@ -830,11 +666,7 @@ describe("generateReprintZPL validation", () => {
       [],
     ]);
 
-    const result = await generateReprintPreviewZPL(
-      part,
-      "2026-08-13",
-      "0",
-    );
+    const result = await generateReprintPreviewZPL(part, "2026-08-13", "0");
 
     expect(result).toEqual({
       status: false,
@@ -856,18 +688,12 @@ describe("generateReprintZPL validation", () => {
       [],
     ]);
 
-    const result = await generateReprintZPL(
-      part,
-      "2026-08-13",
-      "9999",
-      2,
-    );
+    const result = await generateReprintZPL(part, "2026-08-13", "9999", 2);
 
     expect(result).toEqual({
       status: false,
       message: "backend.print.serial_range_exceeded",
-      rawError:
-        "The requested serial range is outside family.maxId",
+      rawError: "The requested serial range is outside family.maxId",
     });
   });
 });

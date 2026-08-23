@@ -92,10 +92,22 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           return;
         }
 
-        const partsConfig = await window.api.GetPartsConfig();
-        const selectedOperation = (partsConfig.operation || "")
+        const partsConfigResponse = await window.api.GetPartsConfig();
+
+        if (!partsConfigResponse.status || !partsConfigResponse.data) {
+          setStatus((prev) => ({
+            ...prev,
+            isLoading: false,
+            criticalError: `${t("print_view.error_fetching_parts")}: ${t(partsConfigResponse.message)}`,
+          }));
+          return;
+        }
+
+        const partsConfig = partsConfigResponse.data;
+        const selectedOperation = partsConfig.operation
           .trim()
           .toLocaleLowerCase();
+
         const filteredParts = (response.data as Part[])
           .filter(
             (part) =>

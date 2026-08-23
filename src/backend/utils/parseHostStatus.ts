@@ -1,4 +1,7 @@
-import { PrinterStatusDetails, PrinterStatusResult } from "../printer/PrinterStatus";
+import {
+  PrinterStatusDetails,
+  PrinterStatusResult,
+} from "../printer/PrinterStatus";
 
 const parseFlag = (value: string | undefined): boolean => value?.trim() === "1";
 

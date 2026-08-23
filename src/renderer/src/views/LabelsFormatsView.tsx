@@ -1,8 +1,16 @@
 import React, { useState } from "react";
-import { CriticalErrorState, LoadingWrapper, StatusBanner } from "@renderer/components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+} from "@renderer/components/common";
 import { useTranslation } from "react-i18next";
 import { MdOutlinePrint } from "react-icons/md";
-import { BsExclamationTriangle, BsFileEarmarkX, BsPlusLg } from "react-icons/bs";
+import {
+  BsExclamationTriangle,
+  BsFileEarmarkX,
+  BsPlusLg,
+} from "react-icons/bs";
 import { useLabelsFormats } from "@renderer/hooks";
 import { LabelCard } from "@renderer/components/Labels/LabelCard";
 

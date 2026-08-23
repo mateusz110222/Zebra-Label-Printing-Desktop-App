@@ -2,7 +2,11 @@ import { app, ipcMain } from "electron";
 import { autoUpdater, UpdateCheckResult } from "electron-updater";
 import log from "electron-log";
 import { clean, gt } from "semver";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 

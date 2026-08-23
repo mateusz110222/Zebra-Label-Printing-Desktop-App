@@ -56,9 +56,7 @@ interface HealthResponse {
 }
 
 const mocks = vi.hoisted(() => ({
-  ipcHandler: undefined as
-    | (() => Promise<HealthResponse>)
-    | undefined,
+  ipcHandler: undefined as (() => Promise<HealthResponse>) | undefined,
 
   query: vi.fn(),
 
@@ -70,40 +68,27 @@ const mocks = vi.hoisted(() => ({
 
   storeGet: vi.fn(),
 
-  getTemplatesPath: vi.fn(
-    () => "C:/templates",
-  ),
+  getTemplatesPath: vi.fn(() => "C:/templates"),
 }));
 
 vi.mock("electron", () => ({
   ipcMain: {
-    handle: vi.fn(
-      (
-        channel: string,
-        handler: () => Promise<HealthResponse>,
-      ) => {
-        if (channel === "get-system-health") {
-          mocks.ipcHandler = handler;
-        }
-      },
-    ),
+    handle: vi.fn((channel: string, handler: () => Promise<HealthResponse>) => {
+      if (channel === "get-system-health") {
+        mocks.ipcHandler = handler;
+      }
+    }),
   },
 }));
 
-vi.mock(
-  "node:fs/promises",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("node:fs/promises")
-      >();
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
 
-    return {
-      ...actual,
-      readdir: mocks.readdir,
-    };
-  },
-);
+  return {
+    ...actual,
+    readdir: mocks.readdir,
+  };
+});
 
 vi.mock("../config/DatabaseConfig", () => ({
   getDatabase: () => ({
@@ -112,8 +97,7 @@ vi.mock("../config/DatabaseConfig", () => ({
 }));
 
 vi.mock("../printer/PrinterStatus", () => ({
-  queryPrinterStatus:
-  mocks.queryPrinterStatus,
+  queryPrinterStatus: mocks.queryPrinterStatus,
 }));
 
 vi.mock("../utils/store", () => ({
@@ -123,109 +107,85 @@ vi.mock("../utils/store", () => ({
 }));
 
 vi.mock("../system/TemplatePaths", () => ({
-  getTemplatesPath:
-  mocks.getTemplatesPath,
+  getTemplatesPath: mocks.getTemplatesPath,
 }));
 
 vi.mock("../audit/AuditLog", () => ({
-  checkAuditLogWritable:
-  mocks.checkAuditLogWritable,
+  checkAuditLogWritable: mocks.checkAuditLogWritable,
 }));
 
 const getHandler = (): (() => Promise<HealthResponse>) => {
   if (!mocks.ipcHandler) {
-    throw new Error(
-      "get-system-health handler was not registered",
-    );
+    throw new Error("get-system-health handler was not registered");
   }
 
   return mocks.ipcHandler;
 };
 
 const setHealthyDatabase = (): void => {
-  mocks.query.mockImplementation(
-    async (sql: string) => {
-      if (sql.includes("@@hostname")) {
-        return [
-          [
-            {
-              serverHostname: "mysql01",
-              databaseName: "labels",
-              serverTimeMs: Date.now(),
-            },
-          ],
-          [],
-        ];
-      }
+  mocks.query.mockImplementation(async (sql: string) => {
+    if (sql.includes("@@hostname")) {
+      return [
+        [
+          {
+            serverHostname: "mysql01",
+            databaseName: "labels",
+            serverTimeMs: Date.now(),
+          },
+        ],
+        [],
+      ];
+    }
 
-      if (
-        sql.includes(
-          "information_schema.TABLES",
-        )
-      ) {
-        return [
-          [
-            {
-              ENGINE: "InnoDB",
-            },
-          ],
-          [],
-        ];
-      }
+    if (sql.includes("information_schema.TABLES")) {
+      return [
+        [
+          {
+            ENGINE: "InnoDB",
+          },
+        ],
+        [],
+      ];
+    }
 
-      if (
-        sql.includes(
-          "HAVING COUNT(*) > 1",
-        )
-      ) {
-        return [[], []];
-      }
+    if (sql.includes("HAVING COUNT(*) > 1")) {
+      return [[], []];
+    }
 
-      throw new Error(
-        `Unexpected SQL: ${sql}`,
-      );
-    },
-  );
+    throw new Error(`Unexpected SQL: ${sql}`);
+  });
 };
 
 describe("SystemHealthHandler", () => {
   beforeEach(() => {
     vi.useFakeTimers();
 
-    vi.setSystemTime(
-      new Date(
-        "2026-08-21T10:00:00.000Z",
-      ),
-    );
+    vi.setSystemTime(new Date("2026-08-21T10:00:00.000Z"));
 
     vi.clearAllMocks();
 
     mocks.ipcHandler = undefined;
 
-    mocks.getTemplatesPath.mockReturnValue(
-      "C:/templates",
-    );
+    mocks.getTemplatesPath.mockReturnValue("C:/templates");
 
-    mocks.storeGet.mockImplementation(
-      (key: string) => {
-        if (key === "database") {
-          return {
-            host: "db",
-            database: "labels",
-          };
-        }
+    mocks.storeGet.mockImplementation((key: string) => {
+      if (key === "database") {
+        return {
+          host: "db",
+          database: "labels",
+        };
+      }
 
-        if (key === "printer") {
-          return {
-            type: "IP",
-            ip: "10.0.0.10",
-            port: 9100,
-          };
-        }
+      if (key === "printer") {
+        return {
+          type: "IP",
+          ip: "10.0.0.10",
+          port: 9100,
+        };
+      }
 
-        return undefined;
-      },
-    );
+      return undefined;
+    });
 
     mocks.readdir.mockResolvedValue([
       "16x13.zpl",
@@ -244,8 +204,7 @@ describe("SystemHealthHandler", () => {
     mocks.checkAuditLogWritable.mockResolvedValue({
       status: true,
       path: "C:/logs",
-      message:
-        "backend.audit.storage_ready",
+      message: "backend.audit.storage_ready",
       lastFailureAt: null,
     });
 
@@ -263,13 +222,9 @@ describe("SystemHealthHandler", () => {
 
     expect(response.status).toBe(true);
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("healthy");
+    expect(response.data.overallStatus).toBe("healthy");
 
-    expect(response.data.checkedAt).toBe(
-      "2026-08-21T10:00:00.000Z",
-    );
+    expect(response.data.checkedAt).toBe("2026-08-21T10:00:00.000Z");
 
     expect(response.data.database).toMatchObject({
       status: true,
@@ -282,9 +237,7 @@ describe("SystemHealthHandler", () => {
       engineOk: true,
       duplicateFamilies: [],
       timeDriftMs: 0,
-      message: [
-        "backend.health.database_ok",
-      ],
+      message: ["backend.health.database_ok"],
     });
 
     expect(response.data.printer).toMatchObject({
@@ -299,77 +252,60 @@ describe("SystemHealthHandler", () => {
       status: true,
       path: "C:/templates",
       count: 2,
-      message:
-        "backend.health.templates_ok",
+      message: "backend.health.templates_ok",
     });
 
-    expect(response.data.audit.status).toBe(
-      true,
-    );
+    expect(response.data.audit.status).toBe(true);
   });
 
   it("returns duplicateFamilies and marks duplicate family names unhealthy", async () => {
-    mocks.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("@@hostname")) {
-          return [
-            [
-              {
-                serverHostname: "mysql01",
-                databaseName: "labels",
-                serverTimeMs: Date.now(),
-              },
-            ],
-            [],
-          ];
-        }
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("@@hostname")) {
+        return [
+          [
+            {
+              serverHostname: "mysql01",
+              databaseName: "labels",
+              serverTimeMs: Date.now(),
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "information_schema.TABLES",
-          )
-        ) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "HAVING COUNT(*) > 1",
-          )
-        ) {
-          return [
-            [
-              {
-                name: "42022977",
-                count: "2",
-              },
-              {
-                name: "42022978",
-                count: 3,
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("HAVING COUNT(*) > 1")) {
+        return [
+          [
+            {
+              name: "42022977",
+              count: "2",
+            },
+            {
+              name: "42022978",
+              count: 3,
+            },
+          ],
+          [],
+        ];
+      }
 
-        throw new Error(
-          `Unexpected SQL: ${sql}`,
-        );
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.database.duplicateFamilies,
-    ).toEqual([
+    expect(response.data.database.duplicateFamilies).toEqual([
       {
         name: "42022977",
         count: 2,
@@ -380,322 +316,224 @@ describe("SystemHealthHandler", () => {
       },
     ]);
 
-    expect(
-      response.data.database.status,
-    ).toBe(false);
+    expect(response.data.database.status).toBe(false);
 
-    expect(
-      response.data.database.message,
-    ).toContain(
+    expect(response.data.database.message).toContain(
       "backend.health.database_duplicates",
     );
 
-    expect(
-      response.data.database.rawError,
-    ).toContain(
+    expect(response.data.database.rawError).toContain(
       "Duplicate family names: 42022977 (2), 42022978 (3)",
     );
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("marks database unhealthy when family table does not use InnoDB", async () => {
-    mocks.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("@@hostname")) {
-          return [
-            [
-              {
-                serverHostname: "mysql01",
-                databaseName: "labels",
-                serverTimeMs: Date.now(),
-              },
-            ],
-            [],
-          ];
-        }
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("@@hostname")) {
+        return [
+          [
+            {
+              serverHostname: "mysql01",
+              databaseName: "labels",
+              serverTimeMs: Date.now(),
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "information_schema.TABLES",
-          )
-        ) {
-          return [
-            [
-              {
-                ENGINE: "MyISAM",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "MyISAM",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "HAVING COUNT(*) > 1",
-          )
-        ) {
-          return [[], []];
-        }
+      if (sql.includes("HAVING COUNT(*) > 1")) {
+        return [[], []];
+      }
 
-        throw new Error(
-          `Unexpected SQL: ${sql}`,
-        );
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.database.status,
-    ).toBe(false);
+    expect(response.data.database.status).toBe(false);
 
-    expect(
-      response.data.database.engine,
-    ).toBe("MyISAM");
+    expect(response.data.database.engine).toBe("MyISAM");
 
-    expect(
-      response.data.database.engineOk,
-    ).toBe(false);
+    expect(response.data.database.engineOk).toBe(false);
 
-    expect(
-      response.data.database.message,
-    ).toContain(
+    expect(response.data.database.message).toContain(
       "backend.health.database_engine_invalid",
     );
 
-    expect(
-      response.data.database.rawError,
-    ).toContain(
+    expect(response.data.database.rawError).toContain(
       'Invalid storage engine for table "family": MyISAM. Expected: InnoDB.',
     );
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("marks database unhealthy when database clock drift exceeds 30 seconds", async () => {
-    mocks.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("@@hostname")) {
-          return [
-            [
-              {
-                serverHostname: "mysql01",
-                databaseName: "labels",
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("@@hostname")) {
+        return [
+          [
+            {
+              serverHostname: "mysql01",
+              databaseName: "labels",
 
-                // 45 seconds behind
-                serverTimeMs:
-                  Date.now() - 45_000,
-              },
-            ],
-            [],
-          ];
-        }
+              // 45 seconds behind
+              serverTimeMs: Date.now() - 45_000,
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "information_schema.TABLES",
-          )
-        ) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "HAVING COUNT(*) > 1",
-          )
-        ) {
-          return [[], []];
-        }
+      if (sql.includes("HAVING COUNT(*) > 1")) {
+        return [[], []];
+      }
 
-        throw new Error(
-          `Unexpected SQL: ${sql}`,
-        );
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.database.timeDriftMs,
-    ).toBe(45_000);
+    expect(response.data.database.timeDriftMs).toBe(45_000);
 
-    expect(
-      response.data.database.status,
-    ).toBe(false);
+    expect(response.data.database.status).toBe(false);
 
-    expect(
-      response.data.database.message,
-    ).toContain(
+    expect(response.data.database.message).toContain(
       "backend.health.database_time_drift",
     );
 
-    expect(
-      response.data.database.rawError,
-    ).toContain(
+    expect(response.data.database.rawError).toContain(
       "Database server time drift: 45 seconds.",
     );
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("marks database unhealthy when server time cannot be determined", async () => {
-    mocks.query.mockImplementation(
-      async (sql: string) => {
-        if (sql.includes("@@hostname")) {
-          return [
-            [
-              {
-                serverHostname: "mysql01",
-                databaseName: "labels",
-                serverTimeMs: "invalid",
-              },
-            ],
-            [],
-          ];
-        }
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("@@hostname")) {
+        return [
+          [
+            {
+              serverHostname: "mysql01",
+              databaseName: "labels",
+              serverTimeMs: "invalid",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "information_schema.TABLES",
-          )
-        ) {
-          return [
-            [
-              {
-                ENGINE: "InnoDB",
-              },
-            ],
-            [],
-          ];
-        }
+      if (sql.includes("information_schema.TABLES")) {
+        return [
+          [
+            {
+              ENGINE: "InnoDB",
+            },
+          ],
+          [],
+        ];
+      }
 
-        if (
-          sql.includes(
-            "HAVING COUNT(*) > 1",
-          )
-        ) {
-          return [[], []];
-        }
+      if (sql.includes("HAVING COUNT(*) > 1")) {
+        return [[], []];
+      }
 
-        throw new Error(
-          `Unexpected SQL: ${sql}`,
-        );
-      },
-    );
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.database.timeDriftMs,
-    ).toBeNull();
+    expect(response.data.database.timeDriftMs).toBeNull();
 
-    expect(
-      response.data.database.message,
-    ).toContain(
+    expect(response.data.database.message).toContain(
       "backend.health.database_time_unavailable",
     );
 
-    expect(
-      response.data.database.rawError,
-    ).toContain(
+    expect(response.data.database.rawError).toContain(
       "Unable to calculate database server time drift.",
     );
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("returns an empty duplicate list if database check fails", async () => {
-    mocks.query.mockRejectedValueOnce(
-      new Error("database unavailable"),
-    );
+    mocks.query.mockRejectedValueOnce(new Error("database unavailable"));
 
     const response = await getHandler()();
 
-    expect(
-      response.data.database,
-    ).toMatchObject({
+    expect(response.data.database).toMatchObject({
       status: false,
       reachable: false,
       engine: null,
       engineOk: false,
       duplicateFamilies: [],
       timeDriftMs: null,
-      message: [
-        "backend.health.database_error",
-      ],
+      message: ["backend.health.database_error"],
       rawError: "database unavailable",
     });
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("marks the system unhealthy when print history is not writable", async () => {
     mocks.checkAuditLogWritable.mockResolvedValueOnce({
       status: false,
       path: "C:/logs",
-      message:
-        "backend.audit.storage_unavailable",
-      lastFailureAt:
-        "2026-08-21T09:59:00.000Z",
+      message: "backend.audit.storage_unavailable",
+      lastFailureAt: "2026-08-21T09:59:00.000Z",
       rawError: "Access denied",
     });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.audit.status,
-    ).toBe(false);
+    expect(response.data.audit.status).toBe(false);
 
-    expect(
-      response.data.audit.message,
-    ).toBe(
+    expect(response.data.audit.message).toBe(
       "backend.audit.storage_unavailable",
     );
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("marks the system unhealthy when templates cannot be read", async () => {
-    mocks.readdir.mockRejectedValueOnce(
-      new Error("EACCES: access denied"),
-    );
+    mocks.readdir.mockRejectedValueOnce(new Error("EACCES: access denied"));
 
     const response = await getHandler()();
 
-    expect(
-      response.data.templates,
-    ).toEqual({
+    expect(response.data.templates).toEqual({
       status: false,
       path: "C:/templates",
       count: 0,
-      message:
-        "backend.health.templates_error",
+      message: "backend.health.templates_error",
       rawError: "EACCES: access denied",
     });
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("counts only ZPL and TXT template files", async () => {
@@ -711,13 +549,9 @@ describe("SystemHealthHandler", () => {
 
     const response = await getHandler()();
 
-    expect(
-      response.data.templates.count,
-    ).toBe(4);
+    expect(response.data.templates.count).toBe(4);
 
-    expect(
-      response.data.templates.status,
-    ).toBe(true);
+    expect(response.data.templates.status).toBe(true);
   });
 
   it("returns warning when printer is reachable but not ready", async () => {
@@ -731,19 +565,14 @@ describe("SystemHealthHandler", () => {
 
     const response = await getHandler()();
 
-    expect(
-      response.data.printer,
-    ).toMatchObject({
+    expect(response.data.printer).toMatchObject({
       status: false,
       reachable: true,
       ready: false,
-      message:
-        "backend.printer.head_open",
+      message: "backend.printer.head_open",
     });
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("warning");
+    expect(response.data.overallStatus).toBe("warning");
   });
 
   it("returns error when printer is unreachable", async () => {
@@ -752,24 +581,17 @@ describe("SystemHealthHandler", () => {
       reachable: false,
       ready: false,
       detailsAvailable: false,
-      message:
-        "backend.printer.unreachable",
+      message: "backend.printer.unreachable",
       rawError: "ECONNREFUSED",
     });
 
     const response = await getHandler()();
 
-    expect(
-      response.data.printer.reachable,
-    ).toBe(false);
+    expect(response.data.printer.reachable).toBe(false);
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
 
-    expect(
-      mocks.queryPrinterStatus,
-    ).toHaveBeenCalledOnce();
+    expect(mocks.queryPrinterStatus).toHaveBeenCalledOnce();
   });
 
   it("retries printer status once after access denied", async () => {
@@ -779,43 +601,30 @@ describe("SystemHealthHandler", () => {
         reachable: false,
         ready: false,
         detailsAvailable: false,
-        message:
-          "backend.printer.error",
-        rawError:
-          "EPERM: operation not permitted - Access denied",
+        message: "backend.printer.error",
+        rawError: "EPERM: operation not permitted - Access denied",
       })
       .mockResolvedValueOnce({
         status: true,
         reachable: true,
         ready: true,
         detailsAvailable: true,
-        message:
-          "backend.printer.ready",
+        message: "backend.printer.ready",
       });
 
-    const responsePromise =
-      getHandler()();
+    const responsePromise = getHandler()();
 
     await Promise.resolve();
 
-    await vi.advanceTimersByTimeAsync(
-      1000,
-    );
+    await vi.advanceTimersByTimeAsync(1000);
 
-    const response =
-      await responsePromise;
+    const response = await responsePromise;
 
-    expect(
-      mocks.queryPrinterStatus,
-    ).toHaveBeenCalledTimes(2);
+    expect(mocks.queryPrinterStatus).toHaveBeenCalledTimes(2);
 
-    expect(
-      response.data.printer.ready,
-    ).toBe(true);
+    expect(response.data.printer.ready).toBe(true);
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("healthy");
+    expect(response.data.overallStatus).toBe("healthy");
   });
 
   it.each([
@@ -824,49 +633,36 @@ describe("SystemHealthHandler", () => {
     "EACCES",
     "EPERM",
     "Permission denied",
-  ])(
-    "retries printer check for permission error: %s",
-    async (rawError) => {
-      mocks.queryPrinterStatus
-        .mockResolvedValueOnce({
-          status: false,
-          reachable: false,
-          ready: false,
-          detailsAvailable: false,
-          message:
-            "backend.printer.error",
-          rawError,
-        })
-        .mockResolvedValueOnce({
-          status: true,
-          reachable: true,
-          ready: true,
-          detailsAvailable: true,
-          message:
-            "backend.printer.ready",
-        });
+  ])("retries printer check for permission error: %s", async (rawError) => {
+    mocks.queryPrinterStatus
+      .mockResolvedValueOnce({
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.printer.error",
+        rawError,
+      })
+      .mockResolvedValueOnce({
+        status: true,
+        reachable: true,
+        ready: true,
+        detailsAvailable: true,
+        message: "backend.printer.ready",
+      });
 
-      const responsePromise =
-        getHandler()();
+    const responsePromise = getHandler()();
 
-      await Promise.resolve();
+    await Promise.resolve();
 
-      await vi.advanceTimersByTimeAsync(
-        1000,
-      );
+    await vi.advanceTimersByTimeAsync(1000);
 
-      const response =
-        await responsePromise;
+    const response = await responsePromise;
 
-      expect(
-        mocks.queryPrinterStatus,
-      ).toHaveBeenCalledTimes(2);
+    expect(mocks.queryPrinterStatus).toHaveBeenCalledTimes(2);
 
-      expect(
-        response.data.printer.ready,
-      ).toBe(true);
-    },
-  );
+    expect(response.data.printer.ready).toBe(true);
+  });
 
   it("does not retry printer status for a non-permission error", async () => {
     mocks.queryPrinterStatus.mockResolvedValueOnce({
@@ -874,20 +670,15 @@ describe("SystemHealthHandler", () => {
       reachable: false,
       ready: false,
       detailsAvailable: false,
-      message:
-        "backend.printer.error",
+      message: "backend.printer.error",
       rawError: "ECONNREFUSED",
     });
 
     const response = await getHandler()();
 
-    expect(
-      mocks.queryPrinterStatus,
-    ).toHaveBeenCalledOnce();
+    expect(mocks.queryPrinterStatus).toHaveBeenCalledOnce();
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it("converts a thrown printer status error into an unhealthy printer result", async () => {
@@ -897,9 +688,7 @@ describe("SystemHealthHandler", () => {
 
     const response = await getHandler()();
 
-    expect(
-      response.data.printer,
-    ).toMatchObject({
+    expect(response.data.printer).toMatchObject({
       status: false,
       reachable: false,
       ready: false,
@@ -908,9 +697,7 @@ describe("SystemHealthHandler", () => {
       rawError: "printer check crashed",
     });
 
-    expect(
-      response.data.overallStatus,
-    ).toBe("error");
+    expect(response.data.overallStatus).toBe("error");
   });
 
   it.each([
@@ -943,37 +730,31 @@ describe("SystemHealthHandler", () => {
     [
       {
         type: "USB",
-        usbPrinterName:
-          "ZDesigner ZD421-203dpi ZPL",
+        usbPrinterName: "ZDesigner ZD421-203dpi ZPL",
       },
       "ZDesigner ZD421-203dpi ZPL",
     ],
   ])(
     "returns correct printer target for %j",
     async (printerConfig, expectedTarget) => {
-      mocks.storeGet.mockImplementation(
-        (key: string) => {
-          if (key === "database") {
-            return {
-              host: "db",
-              database: "labels",
-            };
-          }
+      mocks.storeGet.mockImplementation((key: string) => {
+        if (key === "database") {
+          return {
+            host: "db",
+            database: "labels",
+          };
+        }
 
-          if (key === "printer") {
-            return printerConfig;
-          }
+        if (key === "printer") {
+          return printerConfig;
+        }
 
-          return undefined;
-        },
-      );
+        return undefined;
+      });
 
-      const response =
-        await getHandler()();
+      const response = await getHandler()();
 
-      expect(
-        response.data.printer.target,
-      ).toBe(expectedTarget);
+      expect(response.data.printer.target).toBe(expectedTarget);
     },
   );
 });

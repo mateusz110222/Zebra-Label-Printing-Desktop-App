@@ -29,13 +29,8 @@ const createSecondBlock = (
   return values;
 };
 
-const hostStatus = (
-  first: string[],
-  second: string[],
-): string =>
-  `\x02${first.join(",")}\x03` +
-  `\x02${second.join(",")}\x03` +
-  `\x02PASS\x03`;
+const hostStatus = (first: string[], second: string[]): string =>
+  `\x02${first.join(",")}\x03` + `\x02${second.join(",")}\x03` + `\x02PASS\x03`;
 
 describe("parseHostStatus", () => {
   it("recognizes a ready printer and queue counters", () => {
@@ -47,9 +42,7 @@ describe("parseHostStatus", () => {
       7: "4",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
     expect(result).toEqual({
       status: true,
@@ -77,12 +70,7 @@ describe("parseHostStatus", () => {
       1: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result).toMatchObject({
       status: false,
@@ -100,12 +88,7 @@ describe("parseHostStatus", () => {
       2: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        createFirstBlock(),
-        second,
-      ),
-    );
+    const result = parseHostStatus(hostStatus(createFirstBlock(), second));
 
     expect(result).toMatchObject({
       status: false,
@@ -122,12 +105,7 @@ describe("parseHostStatus", () => {
       3: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        createFirstBlock(),
-        second,
-      ),
-    );
+    const result = parseHostStatus(hostStatus(createFirstBlock(), second));
 
     expect(result).toMatchObject({
       status: false,
@@ -143,12 +121,7 @@ describe("parseHostStatus", () => {
       2: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result).toMatchObject({
       status: false,
@@ -164,12 +137,7 @@ describe("parseHostStatus", () => {
       5: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result).toMatchObject({
       status: false,
@@ -185,23 +153,15 @@ describe("parseHostStatus", () => {
       11: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result).toMatchObject({
       status: false,
       ready: false,
-      message:
-        "backend.printer.over_temperature",
+      message: "backend.printer.over_temperature",
     });
 
-    expect(
-      result.data?.overTemperature,
-    ).toBe(true);
+    expect(result.data?.overTemperature).toBe(true);
   });
 
   it("reports under-temperature", () => {
@@ -209,23 +169,15 @@ describe("parseHostStatus", () => {
       10: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result).toMatchObject({
       status: false,
       ready: false,
-      message:
-        "backend.printer.under_temperature",
+      message: "backend.printer.under_temperature",
     });
 
-    expect(
-      result.data?.underTemperature,
-    ).toBe(true);
+    expect(result.data?.underTemperature).toBe(true);
   });
 
   it("marks the printer not ready when multiple fault flags are active", () => {
@@ -242,9 +194,7 @@ describe("parseHostStatus", () => {
       3: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
     expect(result.status).toBe(false);
     expect(result.ready).toBe(false);
@@ -273,13 +223,9 @@ describe("parseHostStatus", () => {
       3: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
-    expect(result.message).toBe(
-      "backend.printer.paper_out",
-    );
+    expect(result.message).toBe("backend.printer.paper_out");
   });
 
   it("uses head-open before ribbon-out, paused and buffer-full", () => {
@@ -293,13 +239,9 @@ describe("parseHostStatus", () => {
       3: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
-    expect(result.message).toBe(
-      "backend.printer.head_open",
-    );
+    expect(result.message).toBe("backend.printer.head_open");
   });
 
   it("uses ribbon-out before paused and buffer-full", () => {
@@ -312,13 +254,9 @@ describe("parseHostStatus", () => {
       3: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
-    expect(result.message).toBe(
-      "backend.printer.ribbon_out",
-    );
+    expect(result.message).toBe("backend.printer.ribbon_out");
   });
 
   it("uses paused before buffer-full", () => {
@@ -327,16 +265,9 @@ describe("parseHostStatus", () => {
       5: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
-    expect(result.message).toBe(
-      "backend.printer.paused",
-    );
+    expect(result.message).toBe("backend.printer.paused");
   });
 
   it("uses over-temperature before under-temperature", () => {
@@ -345,16 +276,9 @@ describe("parseHostStatus", () => {
       11: "1",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
-    expect(result.message).toBe(
-      "backend.printer.over_temperature",
-    );
+    expect(result.message).toBe("backend.printer.over_temperature");
   });
 
   it("parses formatsInBuffer and labelsRemaining as numbers", () => {
@@ -366,17 +290,11 @@ describe("parseHostStatus", () => {
       7: "456",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
-    expect(
-      result.data?.formatsInBuffer,
-    ).toBe(123);
+    expect(result.data?.formatsInBuffer).toBe(123);
 
-    expect(
-      result.data?.labelsRemaining,
-    ).toBe(456);
+    expect(result.data?.labelsRemaining).toBe(456);
   });
 
   it("uses zero when queue counter values are invalid", () => {
@@ -388,17 +306,11 @@ describe("parseHostStatus", () => {
       7: "invalid",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
-    expect(
-      result.data?.formatsInBuffer,
-    ).toBe(0);
+    expect(result.data?.formatsInBuffer).toBe(0);
 
-    expect(
-      result.data?.labelsRemaining,
-    ).toBe(0);
+    expect(result.data?.labelsRemaining).toBe(0);
 
     expect(result.ready).toBe(true);
   });
@@ -412,16 +324,12 @@ describe("parseHostStatus", () => {
       7: "50",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
     expect(result.status).toBe(true);
     expect(result.ready).toBe(true);
 
-    expect(result.message).toBe(
-      "backend.printer.ready",
-    );
+    expect(result.message).toBe("backend.printer.ready");
   });
 
   it("only treats flag value 1 as active", () => {
@@ -438,9 +346,7 @@ describe("parseHostStatus", () => {
       3: "2",
     });
 
-    const result = parseHostStatus(
-      hostStatus(first, second),
-    );
+    const result = parseHostStatus(hostStatus(first, second));
 
     expect(result.data).toMatchObject({
       paperOut: false,
@@ -460,12 +366,7 @@ describe("parseHostStatus", () => {
       1: " 1 ",
     });
 
-    const result = parseHostStatus(
-      hostStatus(
-        first,
-        createSecondBlock(),
-      ),
-    );
+    const result = parseHostStatus(hostStatus(first, createSecondBlock()));
 
     expect(result.data?.paperOut).toBe(true);
     expect(result.ready).toBe(false);
@@ -490,13 +391,9 @@ describe("parseHostStatus", () => {
     expect(result.status).toBe(true);
     expect(result.ready).toBe(true);
 
-    expect(
-      result.data?.formatsInBuffer,
-    ).toBe(2);
+    expect(result.data?.formatsInBuffer).toBe(2);
 
-    expect(
-      result.data?.labelsRemaining,
-    ).toBe(4);
+    expect(result.data?.labelsRemaining).toBe(4);
   });
 
   it("does not require the PASS block when both status blocks are present", () => {
@@ -504,8 +401,7 @@ describe("parseHostStatus", () => {
     const second = createSecondBlock();
 
     const rawStatus =
-      `\x02${first.join(",")}\x03` +
-      `\x02${second.join(",")}\x03`;
+      `\x02${first.join(",")}\x03` + `\x02${second.join(",")}\x03`;
 
     const result = parseHostStatus(rawStatus);
 
@@ -519,17 +415,14 @@ describe("parseHostStatus", () => {
   });
 
   it("does not claim readiness for an incomplete response", () => {
-    const result = parseHostStatus(
-      "unexpected response",
-    );
+    const result = parseHostStatus("unexpected response");
 
     expect(result).toEqual({
       status: false,
       reachable: true,
       ready: false,
       detailsAvailable: false,
-      message:
-        "backend.printer.status_unavailable",
+      message: "backend.printer.status_unavailable",
       rawError: "unexpected response",
     });
   });
@@ -542,8 +435,7 @@ describe("parseHostStatus", () => {
       reachable: true,
       ready: false,
       detailsAvailable: false,
-      message:
-        "backend.printer.status_unavailable",
+      message: "backend.printer.status_unavailable",
       rawError: "",
     });
   });
@@ -555,14 +447,10 @@ describe("parseHostStatus", () => {
 
     expect(result.status).toBe(false);
 
-    expect(result.message).toBe(
-      "backend.printer.status_unavailable",
-    );
+    expect(result.message).toBe("backend.printer.status_unavailable");
 
     expect(result.rawError).toHaveLength(500);
 
-    expect(result.rawError).toBe(
-      "X".repeat(500),
-    );
+    expect(result.rawError).toBe("X".repeat(500));
   });
 });

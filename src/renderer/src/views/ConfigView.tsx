@@ -1,6 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ConfigViewSkeleton, CriticalErrorState, LoadingWrapper, StatusBanner } from "../components/common";
+import {
+  ConfigViewSkeleton,
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+} from "../components/common";
 import {
   ConfigFormCard,
   ConnectionDisplayCard,
@@ -8,91 +13,29 @@ import {
   DatabaseDisplayCard,
   NoConfigCard,
   PartsSourceConfigCard,
-  PartsSourceDisplayCard
+  PartsSourceDisplayCard,
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useConfigView } from "@renderer/hooks";
-import { LocalPart } from "@renderer/types";
 
 export function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
   const { CanEdit } = useAuth();
+
   const { data, status, actions, isPrinterValid, isDatabaseValid } =
     useConfigView();
-  const { setUiMessage } = actions;
+
   const [activeTab, setActiveTab] = useState("connection");
-  const [partsSource, setPartsSource] = useState<"server" | "local">("server");
-  const [partsOperation, setPartsOperation] = useState("");
-  const [localParts, setLocalParts] = useState<LocalPart[]>([]);
   const [partsConfigVersion, setPartsConfigVersion] = useState(0);
-  const [isSavingParts, setIsSavingParts] = useState(false);
-  const [isPartsEditing, setIsPartsEditing] = useState(false);
-  const hasPartsConfig =
-    partsOperation.trim().length > 0 ||
-    partsSource === "local" ||
-    localParts.length > 0;
 
   const cancelPartsSourceEdit = (): void => {
-    setIsPartsEditing(false);
+    actions.cancelPartsEdit();
+
+    // Potrzebne głównie przy pierwszej konfiguracji,
+    // gdy nie istnieje jeszcze PartsSourceDisplayCard.
     setPartsConfigVersion((version) => version + 1);
+
     actions.setUiMessage(null);
-  };
-
-  useEffect(() => {
-    void window.api
-      .GetPartsConfig()
-      .then((config) => {
-        setPartsSource(config.source);
-        setPartsOperation(config.operation || "");
-        setLocalParts(config.localParts);
-        setPartsConfigVersion((version) => version + 1);
-      })
-      .catch(() =>
-        setUiMessage({
-          type: "error",
-          text: t("parts_config.load_error"),
-        }),
-      );
-  }, [setUiMessage, t]);
-
-  const savePartsConfig = async (
-    source: "server" | "local",
-    operation: string,
-    parts: LocalPart[],
-  ): Promise<void> => {
-    if (!CanEdit) return;
-
-    setIsSavingParts(true);
-    try {
-      const response = await window.api.SavePartsConfig({
-        source,
-        operation,
-        localParts: parts,
-      });
-      if (response.status) {
-        setPartsSource(source);
-        setPartsOperation(operation);
-        setLocalParts(parts);
-        setPartsConfigVersion((version) => version + 1);
-        setIsPartsEditing(false);
-        actions.setUiMessage({
-          type: "success",
-          text: t("parts_config.save_success"),
-        });
-      } else {
-        actions.setUiMessage({
-          type: "error",
-          text: t("parts_config.save_error"),
-        });
-      }
-    } catch {
-      actions.setUiMessage({
-        type: "error",
-        text: t("parts_config.save_error"),
-      });
-    } finally {
-      setIsSavingParts(false);
-    }
   };
 
   if (status.criticalError) {
@@ -117,6 +60,7 @@ export function ConfigView(): React.JSX.Element {
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               {t("config_view.title")}
             </h2>
+
             <p className="text-slate-500 dark:text-slate-400 mt-1 sm:mt-2 text-sm sm:text-base">
               {t("config_view.subtitle")}
             </p>
@@ -139,6 +83,7 @@ export function ConfigView(): React.JSX.Element {
             <div className="border-b border-gray-200 dark:border-gray-700">
               <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                 <button
+                  type="button"
                   onClick={() => setActiveTab("connection")}
                   className={`${
                     activeTab === "connection"
@@ -148,7 +93,9 @@ export function ConfigView(): React.JSX.Element {
                 >
                   {t("config_view.connection_tab")}
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setActiveTab("database")}
                   className={`${
                     activeTab === "database"
@@ -158,7 +105,9 @@ export function ConfigView(): React.JSX.Element {
                 >
                   {t("config_view.database_tab")}
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setActiveTab("parts")}
                   className={`${
                     activeTab === "parts"
@@ -172,7 +121,7 @@ export function ConfigView(): React.JSX.Element {
             </div>
           </div>
 
-          {/* Main card - conditional rendering based on tab */}
+          {/* Printer */}
           {activeTab === "connection" && (
             <>
               {!data.hasConfig && !CanEdit ? (
@@ -219,6 +168,8 @@ export function ConfigView(): React.JSX.Element {
               )}
             </>
           )}
+
+          {/* Database */}
           {activeTab === "database" && (
             <>
               {!data.hasDatabaseConfig && !CanEdit ? (
@@ -252,23 +203,25 @@ export function ConfigView(): React.JSX.Element {
               )}
             </>
           )}
+
+          {/* Parts */}
           {activeTab === "parts" &&
-            (!isPartsEditing && hasPartsConfig ? (
+            (!CanEdit ? (
               <PartsSourceDisplayCard
-                source={partsSource}
-                operation={partsOperation}
+                source={data.partsSource}
+                operation={data.partsOperation}
                 canEdit={CanEdit}
-                onEdit={() => setIsPartsEditing(true)}
+                onEdit={actions.beginPartsEdit}
               />
             ) : (
               <PartsSourceConfigCard
                 key={partsConfigVersion}
-                source={partsSource}
-                operation={partsOperation}
-                parts={localParts}
-                isProcessing={isSavingParts}
+                source={data.partsSource}
+                operation={data.partsOperation}
+                parts={data.localParts}
+                isProcessing={status.isPartsProcessing}
                 canEdit={CanEdit}
-                onSave={savePartsConfig}
+                onSave={actions.handlePartsSave}
                 onCancel={cancelPartsSourceEdit}
               />
             ))}
