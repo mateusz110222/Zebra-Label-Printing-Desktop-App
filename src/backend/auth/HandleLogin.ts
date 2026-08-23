@@ -3,7 +3,12 @@ import { constants } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client, type ClientOptions } from "ldapts";
-import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  clearAuditSession,
+  getAuditActor,
+  setAuditSession,
+} from "../audit/AuditLog";
 import {
   buildBindUser,
   buildUserSearchFilter,
@@ -12,7 +17,7 @@ import {
   isSecureLdapUrl,
   parseBoolean,
   parsePositiveTimeout,
-  redactSecret
+  redactSecret,
 } from "./LdapAuth";
 import { t } from "i18next";
 import { isMainRendererAuthorized } from "./IsAutorized";

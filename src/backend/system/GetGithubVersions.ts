@@ -53,8 +53,7 @@ export default function GetGithubVersions(): void {
           data: data.tag_name,
         };
       } catch (error) {
-        const rawError =
-          error instanceof Error ? error.message : String(error);
+        const rawError = error instanceof Error ? error.message : String(error);
 
         console.error("Failed to fetch GitHub version:", rawError);
 

@@ -1,9 +1,9 @@
 import { Socket } from "node:net";
 import { SerialPort } from "serialport";
 import type { PrinterConfig } from "../utils/store";
-import { listUsbPrinters } from "./WindowsPrinter";
 import { isAccessDenied, sleep } from "../system/SystemHealth";
 import { parseHostStatus } from "../utils/parseHostStatus";
+import { getStatus } from "@maxxuxx/node-printer";
 
 export interface PrinterStatusDetails {
   paperOut: boolean;
@@ -212,7 +212,9 @@ const queryComPrinterStatus = (
 const queryUsbPrinterStatus = async (
   config: PrinterConfig,
 ): Promise<PrinterStatusResult> => {
-  if (!config.usbPrinterName?.trim()) {
+  const printerName = config.usbPrinterName?.trim();
+
+  if (!printerName) {
     return {
       status: false,
       reachable: false,
@@ -223,38 +225,45 @@ const queryUsbPrinterStatus = async (
   }
 
   try {
-    const configuredName = config.usbPrinterName.trim().toLocaleLowerCase();
-    const printer = (await listUsbPrinters()).find(
-      ({ name }) => name.toLocaleLowerCase() === configuredName,
-    );
-    if (!printer) {
-      return {
-        status: false,
-        reachable: false,
-        ready: false,
-        detailsAvailable: false,
-        message: "backend.printer.usb_not_found",
-      };
-    }
+    const printerStatus = await getStatus({
+      type: "winspool",
+      printerName,
+    });
 
-    const ready = !printer.workOffline && printer.printerStatus !== 7;
+    const paperOut = printerStatus.paperOut === true;
+    const offline = printerStatus.online === false;
+
+    const ready = !offline && !paperOut;
+
     return {
       status: ready,
       reachable: true,
       ready,
       detailsAvailable: false,
-      message: ready
-        ? "backend.printer.connected_usb"
-        : "backend.printer.usb_offline",
+      message: paperOut
+        ? "backend.printer.paper_out"
+        : offline
+          ? "backend.printer.usb_offline"
+          : "backend.printer.connected_usb",
     };
   } catch (error) {
+    const rawError = error instanceof Error ? error.message : String(error);
+
+    const normalizedError = rawError.toLowerCase();
+
+    const printerNotFound =
+      normalizedError.includes("not found") ||
+      normalizedError.includes("does not exist");
+
     return {
       status: false,
       reachable: false,
       ready: false,
       detailsAvailable: false,
-      message: "backend.printer.usb_status_error",
-      rawError: error instanceof Error ? error.message : String(error),
+      message: printerNotFound
+        ? "backend.printer.usb_not_found"
+        : "backend.printer.usb_status_error",
+      rawError,
     };
   }
 };

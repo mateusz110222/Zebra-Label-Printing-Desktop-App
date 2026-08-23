@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ConnectionType, UiMessage, UsbPrinterInfo } from "../types";
+import { ConnectionType, LocalPart, UiMessage, UsbPrinterInfo } from "../types";
 import { extractError } from "../utils/errorUtils";
 import { useAuth } from "../context/AuthContext";
+
+type PartsSource = "server" | "local";
 
 interface UseConfigData {
   connectionType: ConnectionType;
@@ -16,20 +18,30 @@ interface UseConfigData {
   selectedUsbPrinter: string;
   displayedUsbPrinter: string;
   usbPrinters: UsbPrinterInfo[];
+
   hasConfig: boolean;
   hasDatabaseConfig: boolean;
+  hasPartsConfig: boolean;
+
   isPrinterEditing: boolean;
   isDatabaseEditing: boolean;
+  isPartsEditing: boolean;
+
   dbHost: string;
   dbUser: string;
   dbPass: string;
   dbName: string;
+
+  partsSource: PartsSource;
+  partsOperation: string;
+  localParts: LocalPart[];
 }
 
 interface UseConfigStatus {
   isInitializing: boolean;
   isPrinterProcessing: boolean;
   isDatabaseProcessing: boolean;
+  isPartsProcessing: boolean;
   criticalError: string | null;
   uiMessage: UiMessage | null;
 }
@@ -41,15 +53,30 @@ interface UseConfigActions {
   setSelectedCom: (com: string) => void;
   setBaudRate: (rate: number) => void;
   setSelectedUsbPrinter: (name: string) => void;
+
   handleRefreshPorts: () => Promise<void>;
   handleRefreshUsbPrinters: () => Promise<void>;
+
   handlePrinterAction: (action: "SAVE" | "TEST") => Promise<void>;
   handleDatabaseSave: () => Promise<void>;
+
+  handlePartsSave: (
+    source: PartsSource,
+    operation: string,
+    parts: LocalPart[],
+  ) => Promise<void>;
+
   beginPrinterEdit: () => void;
   cancelPrinterEdit: () => void;
+
   beginDatabaseEdit: () => void;
   cancelDatabaseEdit: () => void;
+
+  beginPartsEdit: () => void;
+  cancelPartsEdit: () => void;
+
   setUiMessage: (msg: UiMessage | null) => void;
+
   setDbHost: (host: string) => void;
   setDbUser: (user: string) => void;
   setDbPass: (pass: string) => void;
@@ -80,6 +107,12 @@ interface DatabaseDraft {
   dbName: string;
 }
 
+interface PartsDraft {
+  source: PartsSource;
+  operation: string;
+  localParts: LocalPart[];
+}
+
 const DEFAULT_PRINTER_DRAFT: PrinterDraft = {
   connectionType: "IP",
   ipAddress: "",
@@ -96,6 +129,12 @@ const DEFAULT_DATABASE_DRAFT: DatabaseDraft = {
   dbName: "",
 };
 
+const DEFAULT_PARTS_DRAFT: PartsDraft = {
+  source: "server",
+  operation: "",
+  localParts: [],
+};
+
 export function useConfigView(): UseConfigViewReturn {
   const { t } = useTranslation();
   const { CanEdit } = useAuth();
@@ -104,6 +143,7 @@ export function useConfigView(): UseConfigViewReturn {
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  // Printer
   const [connectionType, setConnectionType] = useState<ConnectionType>("IP");
   const [ipAddress, setIpAddress] = useState("");
   const [port, setPort] = useState("9100");
@@ -116,19 +156,35 @@ export function useConfigView(): UseConfigViewReturn {
   const [displayedUsbPrinter, setDisplayedUsbPrinter] = useState("");
   const [usbPrinters, setUsbPrinters] = useState<UsbPrinterInfo[]>([]);
 
+  // Database
   const [dbHost, setDbHost] = useState("");
   const [dbUser, setDbUser] = useState("");
   const [dbPass, setDbPass] = useState("");
   const [dbName, setDbName] = useState("");
 
+  // Parts
+  const [partsSource, setPartsSource] = useState<PartsSource>("server");
+  const [partsOperation, setPartsOperation] = useState("");
+  const [localParts, setLocalParts] = useState<LocalPart[]>([]);
+
+  // Processing
   const [isPrinterProcessing, setIsPrinterProcessing] = useState(false);
   const [isDatabaseProcessing, setIsDatabaseProcessing] = useState(false);
+  const [isPartsProcessing, setIsPartsProcessing] = useState(false);
+
+  // Editing
   const [isPrinterEditing, setIsPrinterEditing] = useState(false);
   const [isDatabaseEditing, setIsDatabaseEditing] = useState(false);
+  const [isPartsEditing, setIsPartsEditing] = useState(false);
+
+  // Has config
   const [hasConfig, setHasConfig] = useState(false);
   const [hasDatabaseConfig, setHasDatabaseConfig] = useState(false);
+  const [hasPartsConfig, setHasPartsConfig] = useState(false);
+
   const savedPrinterDraft = useRef<PrinterDraft>(DEFAULT_PRINTER_DRAFT);
   const savedDatabaseDraft = useRef<DatabaseDraft>(DEFAULT_DATABASE_DRAFT);
+  const savedPartsDraft = useRef<PartsDraft>(DEFAULT_PARTS_DRAFT);
 
   const applyPrinterDraft = (draft: PrinterDraft): void => {
     setConnectionType(draft.connectionType);
@@ -149,52 +205,62 @@ export function useConfigView(): UseConfigViewReturn {
     setDbName(draft.dbName);
   };
 
+  const applyPartsDraft = (draft: PartsDraft): void => {
+    setPartsSource(draft.source);
+    setPartsOperation(draft.operation);
+    setLocalParts(draft.localParts);
+  };
+
   useEffect(() => {
     let isMounted = true;
 
     const init = async (): Promise<void> => {
       setIsInitializing(true);
+
       try {
-        const serialPortsResp = await window.api.GetSerialPorts();
+        const [
+          serialPortsResp,
+          usbPrintersResp,
+          configResponse,
+          dbConfigResponse,
+          partsConfigResponse,
+        ] = await Promise.all([
+          window.api.GetSerialPorts(),
+          window.api.GetUsbPrinters(),
+          window.api.GetPrinterConfig(),
+          window.api.GetDatabaseConfig(),
+          window.api.GetPartsConfig(),
+        ]);
 
         if (!isMounted) return;
-        if (serialPortsResp.status)
-          setSerialPorts(serialPortsResp.data as string[]);
 
-        const usbPrintersResp = await window.api.GetUsbPrinters();
-        if (!isMounted) return;
+        if (serialPortsResp.status && serialPortsResp.data) {
+          setSerialPorts(serialPortsResp.data);
+        }
+
         if (usbPrintersResp.status && usbPrintersResp.data) {
           setUsbPrinters(usbPrintersResp.data);
         }
 
-        const configResponse = await window.api.GetPrinterConfig();
-
-        if (!isMounted) return;
         if (configResponse.status && configResponse.data) {
           const cfg = configResponse.data;
 
           const printerDraft: PrinterDraft = {
             connectionType: cfg.type,
             ipAddress: cfg.type === "IP" ? cfg.ip : "",
-            port:
-              cfg.type === "IP"
-                ? (cfg.port ?? 9100).toString()
-                : "9100",
+            port: cfg.type === "IP" ? (cfg.port ?? 9100).toString() : "9100",
             selectedCom: cfg.type === "COM" ? cfg.comPort : "",
-            baudRate:
-              cfg.type === "COM"
-                ? (cfg.baudRate ?? 9600)
-                : 9600,
-            selectedUsbPrinter:
-              cfg.type === "USB"
-                ? cfg.usbPrinterName
-                : "",
+            baudRate: cfg.type === "COM" ? (cfg.baudRate ?? 9600) : 9600,
+            selectedUsbPrinter: cfg.type === "USB" ? cfg.usbPrinterName : "",
           };
+
           savedPrinterDraft.current = printerDraft;
           applyPrinterDraft(printerDraft);
 
           const isIpValid = cfg.type === "IP" && cfg.ip;
+
           const isComValid = cfg.type === "COM" && cfg.comPort;
+
           const isUsbValid = cfg.type === "USB" && cfg.usbPrinterName;
 
           if (isIpValid || isComValid || isUsbValid) {
@@ -203,32 +269,69 @@ export function useConfigView(): UseConfigViewReturn {
           }
         }
 
-        const dbConfigResponse = await window.api.GetDatabaseConfig();
-        if (!isMounted) return;
+        // Database config
         if (dbConfigResponse.status && dbConfigResponse.data) {
           const dbConfig = dbConfigResponse.data;
+
           const databaseDraft: DatabaseDraft = {
             dbHost: dbConfig.host || "",
             dbUser: dbConfig.user || "",
             dbPass: CanEdit ? dbConfig.password || "" : "",
             dbName: dbConfig.database || "",
           };
+
           savedDatabaseDraft.current = databaseDraft;
           applyDatabaseDraft(databaseDraft);
+
           setHasDatabaseConfig(
             Boolean(dbConfig.host || dbConfig.user || dbConfig.database),
           );
+
           setIsDatabaseEditing(false);
+        }
+
+        // Parts config
+        if (partsConfigResponse.status && partsConfigResponse.data) {
+          const config = partsConfigResponse.data;
+
+          const partsDraft: PartsDraft = {
+            source: config.source,
+            operation: config.operation,
+            localParts: config.localParts,
+          };
+
+          savedPartsDraft.current = partsDraft;
+          applyPartsDraft(partsDraft);
+
+          setHasPartsConfig(
+            config.operation.trim().length > 0 ||
+              config.source === "local" ||
+              config.localParts.length > 0,
+          );
+
+          setIsPartsEditing(false);
+        } else if (!partsConfigResponse.status) {
+          setUiMessage({
+            type: "error",
+            text: t("parts_config.load_error"),
+            details: partsConfigResponse.message
+              ? t(partsConfigResponse.message)
+              : undefined,
+          });
         }
       } catch (err) {
         if (!isMounted) return;
+
         const { message } = extractError(err);
         setCriticalError(t(message));
       } finally {
-        if (isMounted) setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
-    init();
+
+    void init();
 
     return () => {
       isMounted = false;
@@ -245,20 +348,20 @@ export function useConfigView(): UseConfigViewReturn {
       const payload: PrinterPayload =
         connectionType === "IP"
           ? {
-            type: "IP",
-            ip: ipAddress,
-            port: parseInt(port, 10),
-          }
+              type: "IP",
+              ip: ipAddress,
+              port: parseInt(port, 10),
+            }
           : connectionType === "COM"
             ? {
-              type: "COM",
-              comPort: selectedCom,
-              baudRate,
-            }
+                type: "COM",
+                comPort: selectedCom,
+                baudRate,
+              }
             : {
-              type: "USB",
-              usbPrinterName: selectedUsbPrinter,
-            };
+                type: "USB",
+                usbPrinterName: selectedUsbPrinter,
+              };
 
       const resp =
         action === "SAVE"
@@ -287,8 +390,10 @@ export function useConfigView(): UseConfigViewReturn {
             baudRate,
             selectedUsbPrinter,
           };
+
           savedPrinterDraft.current = savedDraft;
           applyPrinterDraft(savedDraft);
+
           setHasConfig(true);
           setIsPrinterEditing(false);
         }
@@ -304,6 +409,7 @@ export function useConfigView(): UseConfigViewReturn {
       }
     } catch (err) {
       const { message } = extractError(err);
+
       setUiMessage({
         type: "error",
         text: t("config_view.critical_error"),
@@ -325,24 +431,34 @@ export function useConfigView(): UseConfigViewReturn {
         password: dbPass,
         database: dbName,
       });
+
       if (!response.status) {
         setUiMessage({
           type: "error",
           text: t("config_view.save_error"),
           details: t(response.message || ""),
         });
+
         return;
       }
 
-      savedDatabaseDraft.current = { dbHost, dbUser, dbPass, dbName };
+      savedDatabaseDraft.current = {
+        dbHost,
+        dbUser,
+        dbPass,
+        dbName,
+      };
+
       setHasDatabaseConfig(true);
       setIsDatabaseEditing(false);
+
       setUiMessage({
         type: "success",
         text: t("config_view.save_success"),
       });
     } catch (err) {
       const { message } = extractError(err);
+
       setUiMessage({
         type: "error",
         text: t("config_view.critical_error"),
@@ -350,6 +466,67 @@ export function useConfigView(): UseConfigViewReturn {
       });
     } finally {
       setIsDatabaseProcessing(false);
+    }
+  };
+
+  const handlePartsSave = async (
+    source: PartsSource,
+    operation: string,
+    parts: LocalPart[],
+  ): Promise<void> => {
+    if (!CanEdit) return;
+
+    setIsPartsProcessing(true);
+    setUiMessage(null);
+
+    try {
+      const response = await window.api.SavePartsConfig({
+        source,
+        operation: operation.trim(),
+        localParts: parts,
+      });
+
+      if (!response.status) {
+        setUiMessage({
+          type: "error",
+          text: t("parts_config.save_error"),
+          details: response.message ? t(response.message) : undefined,
+        });
+
+        return;
+      }
+
+      const savedDraft: PartsDraft = {
+        source,
+        operation: operation.trim(),
+        localParts: parts.map((part) => ({ ...part })),
+      };
+
+      savedPartsDraft.current = savedDraft;
+      applyPartsDraft(savedDraft);
+
+      setHasPartsConfig(
+        savedDraft.operation.length > 0 ||
+          savedDraft.source === "local" ||
+          savedDraft.localParts.length > 0,
+      );
+
+      setIsPartsEditing(false);
+
+      setUiMessage({
+        type: "success",
+        text: t("parts_config.save_success"),
+      });
+    } catch (err) {
+      const { message } = extractError(err);
+
+      setUiMessage({
+        type: "error",
+        text: t("parts_config.save_error"),
+        details: t(message),
+      });
+    } finally {
+      setIsPartsProcessing(false);
     }
   };
 
@@ -363,20 +540,34 @@ export function useConfigView(): UseConfigViewReturn {
     setIsDatabaseEditing(false);
   };
 
+  const cancelPartsEdit = (): void => {
+    applyPartsDraft(savedPartsDraft.current);
+    setIsPartsEditing(false);
+  };
+
   const handleRefreshPorts = async (): Promise<void> => {
     const serialPortsResp = await window.api.GetSerialPorts();
-    if (serialPortsResp.status)
-      setSerialPorts(serialPortsResp.data as string[]);
+
+    if (serialPortsResp.status && serialPortsResp.data) {
+      setSerialPorts(serialPortsResp.data);
+    }
   };
 
   const handleRefreshUsbPrinters = async (): Promise<void> => {
-    const response = await window.api.GetUsbPrinters();
-    if (response.status && response.data) setUsbPrinters(response.data);
+    const usbPrintersResp = await window.api.GetUsbPrinters();
+
+    if (usbPrintersResp.status && usbPrintersResp.data) {
+      setUsbPrinters(usbPrintersResp.data);
+    }
   };
 
   const isValidIpAddress = (ip: string): boolean => {
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipRegex.test(ip)) return false;
+
+    if (!ipRegex.test(ip)) {
+      return false;
+    }
+
     return ip.split(".").every((octet) => {
       const num = parseInt(octet, 10);
       return num >= 0 && num <= 255;
@@ -384,6 +575,7 @@ export function useConfigView(): UseConfigViewReturn {
   };
 
   const parsedPort = Number(port);
+
   const isPrinterValid =
     connectionType === "IP"
       ? isValidIpAddress(ipAddress) &&
@@ -393,6 +585,7 @@ export function useConfigView(): UseConfigViewReturn {
       : connectionType === "COM"
         ? selectedCom.length > 0
         : selectedUsbPrinter.trim().length > 0;
+
   const isDatabaseValid =
     dbHost.trim().length > 0 &&
     dbUser.trim().length > 0 &&
@@ -411,22 +604,34 @@ export function useConfigView(): UseConfigViewReturn {
       selectedUsbPrinter,
       displayedUsbPrinter,
       usbPrinters,
+
       hasConfig,
       hasDatabaseConfig,
+      hasPartsConfig,
+
       isPrinterEditing,
       isDatabaseEditing,
+      isPartsEditing,
+
       dbHost,
       dbUser,
       dbPass,
       dbName,
+
+      partsSource,
+      partsOperation,
+      localParts,
     },
+
     status: {
       isInitializing,
       isPrinterProcessing,
       isDatabaseProcessing,
+      isPartsProcessing,
       criticalError,
       uiMessage,
     },
+
     actions: {
       setConnectionType,
       setIpAddress,
@@ -434,20 +639,31 @@ export function useConfigView(): UseConfigViewReturn {
       setSelectedCom,
       setBaudRate,
       setSelectedUsbPrinter,
+
       handleRefreshPorts,
       handleRefreshUsbPrinters,
+
       handlePrinterAction,
       handleDatabaseSave,
+      handlePartsSave,
+
       beginPrinterEdit: () => setIsPrinterEditing(true),
       cancelPrinterEdit,
+
       beginDatabaseEdit: () => setIsDatabaseEditing(true),
       cancelDatabaseEdit,
+
+      beginPartsEdit: () => setIsPartsEditing(true),
+      cancelPartsEdit,
+
       setUiMessage,
+
       setDbHost,
       setDbUser,
       setDbPass,
       setDbName,
     },
+
     isPrinterValid,
     isDatabaseValid,
   };

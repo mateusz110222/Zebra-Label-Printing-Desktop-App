@@ -55,3 +55,4 @@ Desktop.ini
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+/certs/

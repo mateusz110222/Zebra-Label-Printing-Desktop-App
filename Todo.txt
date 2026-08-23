@@ -1,2 +1,0 @@
-Dodać funckjonalść resetowania seriala dla DAILY
-Dodać możliwość dodawania nowych formatów etykiet

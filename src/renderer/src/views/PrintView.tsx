@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
-import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+  SubmitButton,
+} from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
@@ -26,6 +31,7 @@ export function PrintView(): React.JSX.Element {
   const healthRequestId = useRef(0);
   const healthExpiryTimer = useRef<number | null>(null);
 
+  const clearUiMessage = actions.clearUiMessage;
   const refreshHealth = useCallback(async (): Promise<void> => {
     const requestId = ++healthRequestId.current;
     setHealthIsLoading(true);
@@ -114,14 +120,14 @@ export function PrintView(): React.JSX.Element {
       health?.printer.ready === true;
 
     if (printerRecovered) {
-      actions.clearUiMessage();
+      clearUiMessage();
     }
   }, [
     status.uiMessage,
     data.lastPrintSummary,
     verifiedPostPrintSummary,
     health?.printer.ready,
-    actions.clearUiMessage,
+    clearUiMessage,
   ]);
 
   const effectiveHealthIsStale = healthIsStale || postPrintVerificationPending;

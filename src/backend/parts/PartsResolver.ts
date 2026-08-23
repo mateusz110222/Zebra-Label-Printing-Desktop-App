@@ -43,17 +43,82 @@ export type PartResolution =
       rawError?: string;
     };
 
-const failure = (
-  message: string,
-  rawError?: string,
-): PartsResponse => ({
+const failure = (message: string, rawError?: string): PartsResponse => ({
   status: false,
   message,
   rawError,
   data: [],
 });
 
-const normalizeParts = (
+export const normalizePartsConfig = (
+  value: unknown,
+  requireCompleteConfig = true,
+):
+  | { status: true; data: PartsConfig }
+  | { status: false; message: string; rawError?: string } => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      status: false,
+      message: "backend.parts.INVALID_CONFIG",
+      rawError: "Parts config must be an object.",
+    };
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  if (candidate.source !== "server" && candidate.source !== "local") {
+    return {
+      status: false,
+      message: "backend.parts.INVALID_SOURCE_CONFIG",
+      rawError: `Invalid parts source: ${String(candidate.source)}`,
+    };
+  }
+
+  if (typeof candidate.operation !== "string") {
+    return {
+      status: false,
+      message: "backend.parts.INVALID_OPERATION",
+      rawError: `Operation must be a string, received ${typeof candidate.operation}.`,
+    };
+  }
+
+  const operation = candidate.operation.trim();
+
+  if (requireCompleteConfig && operation.length === 0) {
+    return {
+      status: false,
+      message: "backend.parts.OPERATION_REQUIRED",
+    };
+  }
+
+  const normalizedParts = normalizeParts(candidate.localParts ?? []);
+
+  if (!normalizedParts.status) {
+    return normalizedParts;
+  }
+
+  if (
+    requireCompleteConfig &&
+    candidate.source === "local" &&
+    normalizedParts.data.length === 0
+  ) {
+    return {
+      status: false,
+      message: "backend.parts.LOCAL_PARTS_REQUIRED",
+    };
+  }
+
+  return {
+    status: true,
+    data: {
+      source: candidate.source,
+      operation,
+      localParts: normalizedParts.data,
+    },
+  };
+};
+
+export const normalizeParts = (
   value: unknown,
 ):
   | { status: true; data: LocalPart[] }
@@ -110,17 +175,17 @@ const parseLookup = (
   value: unknown,
 ):
   | {
-  status: true;
-  partNumber: string;
-  operation?: string;
-  serialPrefix?: string;
-  labelFormat: string;
-}
+      status: true;
+      partNumber: string;
+      operation?: string;
+      serialPrefix?: string;
+      labelFormat: string;
+    }
   | {
-  status: false;
-  message: string;
-  rawError?: string;
-} => {
+      status: false;
+      message: string;
+      rawError?: string;
+    } => {
   if (!value || typeof value !== "object") {
     return {
       status: false,
@@ -218,19 +283,16 @@ export async function loadAuthoritativeParts(
 
       return validated.status
         ? {
-          status: true,
-          message: "backend.parts.PARTS_FETCH_SUCCESS",
-          data: validated.data,
-        }
+            status: true,
+            message: "backend.parts.PARTS_FETCH_SUCCESS",
+            data: validated.data,
+          }
         : failure(validated.message, validated.rawError);
     }
 
-    const configUrl =
-      dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
+    const configUrl = dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
 
-    const configFile =
-      dependencies.configFile ??
-      process.env.PARTS_CONFIG_FILE;
+    const configFile = dependencies.configFile ?? process.env.PARTS_CONFIG_FILE;
 
     if (!configUrl?.trim()) {
       return failure(
@@ -305,10 +367,10 @@ export async function loadAuthoritativeParts(
 
     return validated.status
       ? {
-        status: true,
-        message: "backend.parts.PARTS_FETCH_SUCCESS",
-        data: validated.data,
-      }
+          status: true,
+          message: "backend.parts.PARTS_FETCH_SUCCESS",
+          data: validated.data,
+        }
       : failure(validated.message, validated.rawError);
   } catch (error) {
     return failure(
@@ -350,8 +412,7 @@ export async function resolveAuthoritativePart(
       normalizeKey(part.Label_Format) === parsed.labelFormat &&
       (!parsed.serialPrefix ||
         normalizeKey(part.Serial_Prefix) === parsed.serialPrefix) &&
-      (!parsed.operation ||
-        normalizeKey(part.Operation) === parsed.operation),
+      (!parsed.operation || normalizeKey(part.Operation) === parsed.operation),
   );
 
   if (matches.length === 0) {

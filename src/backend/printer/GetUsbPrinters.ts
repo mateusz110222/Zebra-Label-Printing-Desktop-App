@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { listUsbPrinters } from "./WindowsPrinter";
+import { listUsbPrinters } from "../PrinterConnections/USBConnection";
 
 export default function GetUsbPrinters(): void {
   ipcMain.handle("get-usb-printers", async () => {

@@ -8,20 +8,11 @@ const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 const mocks = vi.hoisted(() => ({
   autoUpdateSetting: true,
 
-  handlers: new Map<
-    string,
-    (...args: unknown[]) => unknown
-  >(),
+  handlers: new Map<string, (...args: unknown[]) => unknown>(),
 
-  windowCallbacks: new Map<
-    string,
-    (...args: unknown[]) => void
-  >(),
+  windowCallbacks: new Map<string, (...args: unknown[]) => void>(),
 
-  updaterCallbacks: new Map<
-    string,
-    (...args: unknown[]) => void
-  >(),
+  updaterCallbacks: new Map<string, (...args: unknown[]) => void>(),
 
   storeGet: vi.fn(),
   storeSet: vi.fn(),
@@ -55,8 +46,7 @@ const updater = vi.hoisted(() => ({
   forceDevUpdateConfig: false,
 
   checkForUpdates: mocks.checkForUpdates,
-  checkForUpdatesAndNotify:
-  mocks.checkForUpdatesAndNotify,
+  checkForUpdatesAndNotify: mocks.checkForUpdatesAndNotify,
 
   downloadUpdate: mocks.downloadUpdate,
 
@@ -65,36 +55,26 @@ const updater = vi.hoisted(() => ({
   quitAndInstall: mocks.quitAndInstall,
 }));
 
-const createEvent = (): IpcMainInvokeEvent =>
-  ({}) as IpcMainInvokeEvent;
+const createEvent = (): IpcMainInvokeEvent => ({}) as IpcMainInvokeEvent;
 
 vi.mock("electron", () => ({
   app: mocks.app,
 
   ipcMain: {
     handle: vi.fn(
-      (
-        channel: string,
-        handler: (...args: unknown[]) => unknown,
-      ) => {
+      (channel: string, handler: (...args: unknown[]) => unknown) => {
         mocks.handlers.set(channel, handler);
       },
     ),
 
-    on: vi.fn(
-      (
-        channel: string,
-        handler: (...args: unknown[]) => unknown,
-      ) => {
-        mocks.handlers.set(channel, handler);
-      },
-    ),
+    on: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
+      mocks.handlers.set(channel, handler);
+    }),
   },
 }));
 
 vi.mock("../auth/IsAutorized", () => ({
-  isMainRendererAuthorized:
-  mocks.isMainRendererAuthorized,
+  isMainRendererAuthorized: mocks.isMainRendererAuthorized,
 }));
 
 vi.mock("electron-updater", () => ({
@@ -116,35 +96,25 @@ vi.mock("../utils/store", () => ({
 
 vi.mock("../audit/AuditLog", () => ({
   appendAuditLog: mocks.appendAuditLog,
-  checkAuditLogWritable:
-  mocks.checkAuditLogWritable,
+  checkAuditLogWritable: mocks.checkAuditLogWritable,
   canViewAuditLogs: mocks.canViewAuditLogs,
 }));
 
 const mainWindow = {
-  once: vi.fn(
-    (
-      event: string,
-      callback: (...args: unknown[]) => void,
-    ) => {
-      mocks.windowCallbacks.set(event, callback);
-    },
-  ),
+  once: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+    mocks.windowCallbacks.set(event, callback);
+  }),
 
   webContents: {
     send: mocks.webContentsSend,
   },
 } as unknown as Electron.BrowserWindow;
 
-const getHandler = (
-  channel: string,
-): ((...args: unknown[]) => unknown) => {
+const getHandler = (channel: string): ((...args: unknown[]) => unknown) => {
   const handler = mocks.handlers.get(channel);
 
   if (!handler) {
-    throw new Error(
-      `IPC handler "${channel}" was not registered`,
-    );
+    throw new Error(`IPC handler "${channel}" was not registered`);
   }
 
   return handler;
@@ -154,24 +124,17 @@ const emitWindowEvent = (event: string): void => {
   const callback = mocks.windowCallbacks.get(event);
 
   if (!callback) {
-    throw new Error(
-      `Window event "${event}" was not registered`,
-    );
+    throw new Error(`Window event "${event}" was not registered`);
   }
 
   callback();
 };
 
-const emitUpdaterEvent = (
-  event: string,
-  ...args: unknown[]
-): void => {
+const emitUpdaterEvent = (event: string, ...args: unknown[]): void => {
   const callback = mocks.updaterCallbacks.get(event);
 
   if (!callback) {
-    throw new Error(
-      `Updater event "${event}" was not registered`,
-    );
+    throw new Error(`Updater event "${event}" was not registered`);
   }
 
   callback(...args);
@@ -199,29 +162,19 @@ describe("UpdatesHandler", () => {
     mocks.isMainRendererAuthorized.mockReturnValue(true);
     mocks.canViewAuditLogs.mockReturnValue(true);
 
-    mocks.storeGet.mockImplementation(
-      (key: string) =>
-        key === "autoUpdate"
-          ? mocks.autoUpdateSetting
-          : undefined,
+    mocks.storeGet.mockImplementation((key: string) =>
+      key === "autoUpdate" ? mocks.autoUpdateSetting : undefined,
     );
 
-    mocks.storeSet.mockImplementation(
-      (key: string, value: unknown) => {
-        if (
-          key === "autoUpdate" &&
-          typeof value === "boolean"
-        ) {
-          mocks.autoUpdateSetting = value;
-        }
-      },
-    );
+    mocks.storeSet.mockImplementation((key: string, value: unknown) => {
+      if (key === "autoUpdate" && typeof value === "boolean") {
+        mocks.autoUpdateSetting = value;
+      }
+    });
 
     mocks.checkForUpdates.mockResolvedValue(null);
 
-    mocks.checkForUpdatesAndNotify.mockResolvedValue(
-      null,
-    );
+    mocks.checkForUpdatesAndNotify.mockResolvedValue(null);
 
     mocks.downloadUpdate.mockResolvedValue([]);
 
@@ -234,16 +187,14 @@ describe("UpdatesHandler", () => {
       lastFailureAt: null,
     });
 
-    mocks.updaterOn.mockImplementation(
-      (event: string, callback: unknown) => {
-        mocks.updaterCallbacks.set(
-          event,
-          callback as (...args: unknown[]) => void,
-        );
+    mocks.updaterOn.mockImplementation((event: string, callback: unknown) => {
+      mocks.updaterCallbacks.set(
+        event,
+        callback as (...args: unknown[]) => void,
+      );
 
-        return updater;
-      },
-    );
+      return updater;
+    });
 
     updater.autoDownload = false;
     updater.autoInstallOnAppQuit = false;
@@ -271,13 +222,9 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      expect(
-        updater.forceDevUpdateConfig,
-      ).toBe(true);
+      expect(updater.forceDevUpdateConfig).toBe(true);
 
-      expect(
-        updater.autoInstallOnAppQuit,
-      ).toBe(false);
+      expect(updater.autoInstallOnAppQuit).toBe(false);
     });
 
     it("enables autoInstallOnAppQuit in packaged mode", () => {
@@ -285,29 +232,19 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      expect(
-        updater.autoInstallOnAppQuit,
-      ).toBe(true);
+      expect(updater.autoInstallOnAppQuit).toBe(true);
 
-      expect(
-        updater.forceDevUpdateConfig,
-      ).toBe(false);
+      expect(updater.forceDevUpdateConfig).toBe(false);
     });
 
     it("registers ready-to-show and closed separately", () => {
       UpdatesHandler(mainWindow);
 
-      expect(
-        mocks.windowCallbacks.has("ready-to-show"),
-      ).toBe(true);
+      expect(mocks.windowCallbacks.has("ready-to-show")).toBe(true);
 
-      expect(
-        mocks.windowCallbacks.has("closed"),
-      ).toBe(true);
+      expect(mocks.windowCallbacks.has("closed")).toBe(true);
 
-      expect(
-        mocks.windowCallbacks.get("ready-to-show"),
-      ).not.toBe(
+      expect(mocks.windowCallbacks.get("ready-to-show")).not.toBe(
         mocks.windowCallbacks.get("closed"),
       );
     });
@@ -323,13 +260,9 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdatesAndNotify).not.toHaveBeenCalled();
 
-      expect(
-        mocks.checkForUpdates,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdates).not.toHaveBeenCalled();
     });
 
     it("uses checkForUpdates in development during automatic startup check", async () => {
@@ -342,13 +275,9 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdates).toHaveBeenCalledOnce();
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdatesAndNotify).not.toHaveBeenCalled();
     });
 
     it("uses checkForUpdatesAndNotify in packaged mode during automatic startup check", async () => {
@@ -361,13 +290,9 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdatesAndNotify).toHaveBeenCalledOnce();
 
-      expect(
-        mocks.checkForUpdates,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdates).not.toHaveBeenCalled();
     });
 
     it("notifies renderer when startup check finds a newer version", async () => {
@@ -385,11 +310,7 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.webContentsSend,
-      ).toHaveBeenCalledWith(
-        "update_available",
-      );
+      expect(mocks.webContentsSend).toHaveBeenCalledWith("update_available");
     });
 
     it("does not notify renderer when startup version is not newer", async () => {
@@ -405,9 +326,7 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.webContentsSend,
-      ).not.toHaveBeenCalledWith(
+      expect(mocks.webContentsSend).not.toHaveBeenCalledWith(
         "update_available",
       );
     });
@@ -421,17 +340,11 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1);
 
-      await vi.advanceTimersByTimeAsync(
-        UPDATE_CHECK_INTERVAL,
-      );
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL);
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledTimes(2);
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(2);
     });
 
     it("stops automatic interval when the window is closed", async () => {
@@ -443,25 +356,17 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1);
 
       emitWindowEvent("closed");
 
-      await vi.advanceTimersByTimeAsync(
-        UPDATE_CHECK_INTERVAL,
-      );
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL);
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1);
     });
 
     it("logs automatic update check failures", async () => {
-      mocks.checkForUpdates.mockRejectedValue(
-        new Error("network unavailable"),
-      );
+      mocks.checkForUpdates.mockRejectedValue(new Error("network unavailable"));
 
       UpdatesHandler(mainWindow);
 
@@ -469,9 +374,7 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.logError,
-      ).toHaveBeenCalledWith(
+      expect(mocks.logError).toHaveBeenCalledWith(
         "Automatic update check failed:",
         expect.any(Error),
       );
@@ -482,8 +385,7 @@ describe("UpdatesHandler", () => {
     it("returns current application version", () => {
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("get-app-version");
+      const handler = getHandler("get-app-version");
 
       const response = handler(createEvent());
 
@@ -491,14 +393,11 @@ describe("UpdatesHandler", () => {
     });
 
     it("rejects unauthorized renderer", () => {
-      mocks.isMainRendererAuthorized.mockReturnValue(
-        false,
-      );
+      mocks.isMainRendererAuthorized.mockReturnValue(false);
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("get-app-version");
+      const handler = getHandler("get-app-version");
 
       const response = handler(createEvent());
 
@@ -517,33 +416,20 @@ describe("UpdatesHandler", () => {
 
         UpdatesHandler(mainWindow);
 
-        const handler =
-          getHandler("set-auto-update");
+        const handler = getHandler("set-auto-update");
 
-        const response = await handler(
-          createEvent(),
-          enabled,
-        );
+        const response = await handler(createEvent(), enabled);
 
         expect(response).toEqual({
           status: true,
           enabled,
         });
 
-        expect(
-          mocks.storeSet,
-        ).toHaveBeenCalledWith(
-          "autoUpdate",
-          enabled,
-        );
+        expect(mocks.storeSet).toHaveBeenCalledWith("autoUpdate", enabled);
 
-        expect(
-          updater.autoDownload,
-        ).toBe(enabled);
+        expect(updater.autoDownload).toBe(enabled);
 
-        expect(
-          mocks.checkForUpdatesAndNotify,
-        ).toHaveBeenCalledTimes(
+        expect(mocks.checkForUpdatesAndNotify).toHaveBeenCalledTimes(
           enabled ? 1 : 0,
         );
       },
@@ -554,17 +440,11 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      await handler(
-        createEvent(),
-        true,
-      );
+      await handler(createEvent(), true);
 
-      expect(
-        mocks.appendAuditLog,
-      ).toHaveBeenCalledWith({
+      expect(mocks.appendAuditLog).toHaveBeenCalledWith({
         category: "config",
         action: "AUTO_UPDATE_CHANGED",
         status: "success",
@@ -575,36 +455,24 @@ describe("UpdatesHandler", () => {
     });
 
     it("rejects unauthorized renderer", async () => {
-      mocks.isMainRendererAuthorized.mockReturnValue(
-        false,
-      );
+      mocks.isMainRendererAuthorized.mockReturnValue(false);
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      const response = await handler(
-        createEvent(),
-        true,
-      );
+      const response = await handler(createEvent(), true);
 
       expect(response).toEqual({
         status: false,
         message: "backend.audit.unauthorized",
       });
 
-      expect(
-        mocks.storeSet,
-      ).not.toHaveBeenCalled();
+      expect(mocks.storeSet).not.toHaveBeenCalled();
 
-      expect(
-        mocks.checkAuditLogWritable,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkAuditLogWritable).not.toHaveBeenCalled();
 
-      expect(
-        mocks.appendAuditLog,
-      ).not.toHaveBeenCalled();
+      expect(mocks.appendAuditLog).not.toHaveBeenCalled();
     });
 
     it("rejects user without audit permission", async () => {
@@ -612,26 +480,18 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      const response = await handler(
-        createEvent(),
-        true,
-      );
+      const response = await handler(createEvent(), true);
 
       expect(response).toEqual({
         status: false,
         message: "backend.audit.unauthorized",
       });
 
-      expect(
-        mocks.storeSet,
-      ).not.toHaveBeenCalled();
+      expect(mocks.storeSet).not.toHaveBeenCalled();
 
-      expect(
-        mocks.checkAuditLogWritable,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkAuditLogWritable).not.toHaveBeenCalled();
     });
 
     it("rejects a non-boolean setting without changing store or updater", async () => {
@@ -639,38 +499,24 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const initialAutoDownload =
-        updater.autoDownload;
+      const initialAutoDownload = updater.autoDownload;
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      const response = await handler(
-        createEvent(),
-        "true",
-      );
+      const response = await handler(createEvent(), "true");
 
       expect(response).toEqual({
         status: false,
-        message:
-          "backend.update.invalid_setting",
+        message: "backend.update.invalid_setting",
       });
 
-      expect(
-        mocks.storeSet,
-      ).not.toHaveBeenCalled();
+      expect(mocks.storeSet).not.toHaveBeenCalled();
 
-      expect(
-        mocks.checkAuditLogWritable,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkAuditLogWritable).not.toHaveBeenCalled();
 
-      expect(
-        updater.autoDownload,
-      ).toBe(initialAutoDownload);
+      expect(updater.autoDownload).toBe(initialAutoDownload);
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdatesAndNotify).not.toHaveBeenCalled();
     });
 
     it("does not mutate setting when audit storage is unavailable", async () => {
@@ -678,94 +524,56 @@ describe("UpdatesHandler", () => {
 
       mocks.checkAuditLogWritable.mockResolvedValueOnce({
         status: false,
-        message:
-          "backend.audit.storage_unavailable",
+        message: "backend.audit.storage_unavailable",
         path: "C:/logs",
-        lastFailureAt:
-          new Date().toISOString(),
+        lastFailureAt: new Date().toISOString(),
         rawError: "disk full",
       });
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      const response = await handler(
-        createEvent(),
-        true,
-      );
+      const response = await handler(createEvent(), true);
 
       expect(response).toEqual({
         status: false,
-        message:
-          "backend.audit.storage_unavailable",
+        message: "backend.audit.storage_unavailable",
         rawError: "disk full",
       });
 
-      expect(
-        mocks.storeSet,
-      ).not.toHaveBeenCalled();
+      expect(mocks.storeSet).not.toHaveBeenCalled();
 
-      expect(
-        updater.autoDownload,
-      ).toBe(false);
+      expect(updater.autoDownload).toBe(false);
 
-      expect(
-        mocks.appendAuditLog,
-      ).not.toHaveBeenCalled();
+      expect(mocks.appendAuditLog).not.toHaveBeenCalled();
     });
 
     it("rolls back store and updater state when final audit log fails", async () => {
       mocks.autoUpdateSetting = false;
 
-      mocks.appendAuditLog.mockResolvedValueOnce(
-        false,
-      );
+      mocks.appendAuditLog.mockResolvedValueOnce(false);
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      const response = await handler(
-        createEvent(),
-        true,
-      );
+      const response = await handler(createEvent(), true);
 
       expect(response).toEqual({
         status: false,
-        message:
-          "backend.audit.storage_unavailable",
+        message: "backend.audit.storage_unavailable",
       });
 
-      expect(
-        mocks.storeSet,
-      ).toHaveBeenNthCalledWith(
-        1,
-        "autoUpdate",
-        true,
-      );
+      expect(mocks.storeSet).toHaveBeenNthCalledWith(1, "autoUpdate", true);
 
-      expect(
-        mocks.storeSet,
-      ).toHaveBeenNthCalledWith(
-        2,
-        "autoUpdate",
-        false,
-      );
+      expect(mocks.storeSet).toHaveBeenNthCalledWith(2, "autoUpdate", false);
 
-      expect(
-        mocks.autoUpdateSetting,
-      ).toBe(false);
+      expect(mocks.autoUpdateSetting).toBe(false);
 
-      expect(
-        updater.autoDownload,
-      ).toBe(false);
+      expect(updater.autoDownload).toBe(false);
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdatesAndNotify).not.toHaveBeenCalled();
     });
 
     it("starts automatic checking after enabling auto updates", async () => {
@@ -773,29 +581,19 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      await handler(
-        createEvent(),
-        true,
-      );
+      await handler(createEvent(), true);
 
-      expect(
-        mocks.checkForUpdatesAndNotify,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.checkForUpdatesAndNotify).toHaveBeenCalledTimes(1);
 
-      await vi.advanceTimersByTimeAsync(
-        UPDATE_CHECK_INTERVAL,
-      );
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL);
 
       /*
        * Interval używa checkForAutomaticUpdate().
        * W dev checkForAutomaticUpdate używa checkForUpdates().
        */
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdates).toHaveBeenCalledOnce();
     });
 
     it("stops automatic checking after disabling auto updates", async () => {
@@ -807,25 +605,15 @@ describe("UpdatesHandler", () => {
 
       await flushPromises();
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdates).toHaveBeenCalledOnce();
 
-      const handler =
-        getHandler("set-auto-update");
+      const handler = getHandler("set-auto-update");
 
-      await handler(
-        createEvent(),
-        false,
-      );
+      await handler(createEvent(), false);
 
-      await vi.advanceTimersByTimeAsync(
-        UPDATE_CHECK_INTERVAL,
-      );
+      await vi.advanceTimersByTimeAsync(UPDATE_CHECK_INTERVAL);
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdates).toHaveBeenCalledOnce();
     });
   });
 
@@ -841,20 +629,13 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
-      expect(
-        mocks.checkForUpdates,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.checkForUpdates).toHaveBeenCalledOnce();
 
-      expect(
-        mocks.downloadUpdate,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.downloadUpdate).toHaveBeenCalledOnce();
 
       expect(response).toEqual({
         status: true,
@@ -862,9 +643,7 @@ describe("UpdatesHandler", () => {
         version: "2.0.0",
       });
 
-      expect(
-        updater.autoDownload,
-      ).toBe(false);
+      expect(updater.autoDownload).toBe(false);
     });
 
     it("restores autoDownload after manual update check", async () => {
@@ -878,18 +657,13 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      expect(
-        updater.autoDownload,
-      ).toBe(true);
+      expect(updater.autoDownload).toBe(true);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
       await handler(createEvent());
 
-      expect(
-        updater.autoDownload,
-      ).toBe(true);
+      expect(updater.autoDownload).toBe(true);
     });
 
     it("does not download when current version is already latest", async () => {
@@ -901,12 +675,9 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
       expect(response).toEqual({
         status: true,
@@ -914,9 +685,7 @@ describe("UpdatesHandler", () => {
         version: "1.2.1",
       });
 
-      expect(
-        mocks.downloadUpdate,
-      ).not.toHaveBeenCalled();
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled();
     });
 
     it("handles response without update version", async () => {
@@ -926,21 +695,16 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
       expect(response).toEqual({
         status: true,
         updateAvailable: false,
       });
 
-      expect(
-        mocks.downloadUpdate,
-      ).not.toHaveBeenCalled();
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled();
     });
 
     it("handles invalid semver without downloading", async () => {
@@ -952,73 +716,52 @@ describe("UpdatesHandler", () => {
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
       expect(response).toEqual({
         status: true,
         updateAvailable: false,
       });
 
-      expect(
-        mocks.downloadUpdate,
-      ).not.toHaveBeenCalled();
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled();
     });
 
     it("returns error when manual update check fails", async () => {
-      mocks.checkForUpdates.mockRejectedValue(
-        new Error("network error"),
-      );
+      mocks.checkForUpdates.mockRejectedValue(new Error("network error"));
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
       expect(response).toEqual({
         status: false,
         message: "network error",
       });
 
-      expect(
-        updater.autoDownload,
-      ).toBe(true);
+      expect(updater.autoDownload).toBe(true);
     });
 
     it("rejects manual update check from unauthorized renderer", async () => {
-      mocks.isMainRendererAuthorized.mockReturnValue(
-        false,
-      );
+      mocks.isMainRendererAuthorized.mockReturnValue(false);
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("check-for-updates");
+      const handler = getHandler("check-for-updates");
 
-      const response = await handler(
-        createEvent(),
-      );
+      const response = await handler(createEvent());
 
       expect(response).toEqual({
         status: false,
         message: "backend.audit.unauthorized",
       });
 
-      expect(
-        mocks.checkForUpdates,
-      ).not.toHaveBeenCalled();
+      expect(mocks.checkForUpdates).not.toHaveBeenCalled();
 
-      expect(
-        mocks.downloadUpdate,
-      ).not.toHaveBeenCalled();
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -1028,31 +771,19 @@ describe("UpdatesHandler", () => {
 
       emitUpdaterEvent("update-available");
 
-      expect(
-        mocks.webContentsSend,
-      ).toHaveBeenCalledWith(
-        "update_available",
-      );
+      expect(mocks.webContentsSend).toHaveBeenCalledWith("update_available");
     });
 
     it("forwards download progress as rounded percentage", () => {
       UpdatesHandler(mainWindow);
 
-      emitUpdaterEvent(
-        "download-progress",
-        {
-          percent: 52.7,
-        },
-      );
+      emitUpdaterEvent("download-progress", {
+        percent: 52.7,
+      });
 
-      expect(
-        mocks.webContentsSend,
-      ).toHaveBeenCalledWith(
-        "download_progress",
-        {
-          percent: "53",
-        },
-      );
+      expect(mocks.webContentsSend).toHaveBeenCalledWith("download_progress", {
+        percent: "53",
+      });
     });
 
     it("forwards update-downloaded to renderer", () => {
@@ -1060,11 +791,7 @@ describe("UpdatesHandler", () => {
 
       emitUpdaterEvent("update-downloaded");
 
-      expect(
-        mocks.webContentsSend,
-      ).toHaveBeenCalledWith(
-        "update_downloaded",
-      );
+      expect(mocks.webContentsSend).toHaveBeenCalledWith("update_downloaded");
     });
   });
 
@@ -1072,31 +799,23 @@ describe("UpdatesHandler", () => {
     it("restarts application when renderer is authorized", () => {
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("restart_app");
+      const handler = getHandler("restart_app");
 
       handler(createEvent());
 
-      expect(
-        mocks.quitAndInstall,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.quitAndInstall).toHaveBeenCalledOnce();
     });
 
     it("does not restart application for unauthorized renderer", () => {
-      mocks.isMainRendererAuthorized.mockReturnValue(
-        false,
-      );
+      mocks.isMainRendererAuthorized.mockReturnValue(false);
 
       UpdatesHandler(mainWindow);
 
-      const handler =
-        getHandler("restart_app");
+      const handler = getHandler("restart_app");
 
       handler(createEvent());
 
-      expect(
-        mocks.quitAndInstall,
-      ).not.toHaveBeenCalled();
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled();
     });
   });
 });

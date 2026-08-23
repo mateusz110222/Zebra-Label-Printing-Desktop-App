@@ -12,35 +12,25 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({
   app: {
-    getPath: vi.fn(
-      () => "C:/app-data",
-    ),
+    getPath: vi.fn(() => "C:/app-data"),
 
-    getVersion: vi.fn(
-      () => "1.1.4",
-    ),
+    getVersion: vi.fn(() => "1.1.4"),
   },
 }));
 
-vi.mock(
-  "node:fs/promises",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("node:fs/promises")
-      >();
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
 
-    return {
-      ...actual,
+  return {
+    ...actual,
 
-      mkdir: mocks.mkdir,
-      open: mocks.open,
-      readdir: mocks.readdir,
-      readFile: mocks.readFile,
-      unlink: mocks.unlink,
-    };
-  },
-);
+    mkdir: mocks.mkdir,
+    open: mocks.open,
+    readdir: mocks.readdir,
+    readFile: mocks.readFile,
+    unlink: mocks.unlink,
+  };
+});
 
 const entry = (
   action: string,
@@ -52,9 +42,7 @@ const entry = (
   category: "print",
   action,
 
-  status: action.includes("FAILED")
-    ? "failure"
-    : "success",
+  status: action.includes("FAILED") ? "failure" : "success",
 
   actor: "operator",
   workstation: "station-1",
@@ -64,83 +52,50 @@ const entry = (
   ...overrides,
 });
 
-const asJsonl = (
-  entries: AuditLogEntry[],
-): string =>
-  entries
-    .map((auditEntry) =>
-      JSON.stringify(auditEntry),
-    )
-    .join("\n");
+const asJsonl = (entries: AuditLogEntry[]): string =>
+  entries.map((auditEntry) => JSON.stringify(auditEntry)).join("\n");
 
 describe("readAuditLogs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    mocks.mkdir.mockResolvedValue(
-      undefined,
-    );
+    mocks.mkdir.mockResolvedValue(undefined);
 
-    mocks.readdir.mockResolvedValue([
-      "print-2026-08-18.jsonl",
-    ]);
+    mocks.readdir.mockResolvedValue(["print-2026-08-18.jsonl"]);
 
     mocks.readFile.mockResolvedValue(
       asJsonl([
-        entry(
-          "LABEL_DATA_PREPARED",
-          "2026-08-18T08:00:00.000Z",
-        ),
+        entry("TEST_LABEL_DATA_PREPARED", "2026-08-18T08:00:00.000Z"),
 
-        entry(
-          "LABEL_DATA_SENT",
-          "2026-08-18T08:00:01.000Z",
-        ),
+        entry("LABEL_DATA_SENT", "2026-08-18T08:00:01.000Z"),
 
-        entry(
-          "TEST_LABEL_DATA_PREPARED",
-          "2026-08-18T08:00:02.000Z",
-        ),
+        entry("TEST_LABEL_DATA_PREPARED", "2026-08-18T08:00:02.000Z"),
 
-        entry(
-          "LABEL_SEND_FAILED",
-          "2026-08-18T08:00:03.000Z",
-        ),
+        entry("LABEL_SEND_FAILED", "2026-08-18T08:00:03.000Z"),
       ]),
     );
   });
 
   describe("internal records", () => {
     it("hides preparation records while retaining final delivery outcomes", async () => {
-      const result =
-        await readAuditLogs({
-          scope: "print",
-        });
+      const result = await readAuditLogs({
+        scope: "print",
+      });
 
       expect(result.total).toBe(2);
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "LABEL_SEND_FAILED",
         "LABEL_DATA_SENT",
       ]);
     });
 
-    it("hides LABEL_DATA_PREPARED", async () => {
+    it("hides legacy LABEL_DATA_PREPARED records", async () => {
       mocks.readFile.mockResolvedValue(
-        asJsonl([
-          entry(
-            "LABEL_DATA_PREPARED",
-            "2026-08-18T08:00:00.000Z",
-          ),
-        ]),
+        asJsonl([entry("LABEL_DATA_PREPARED", "2026-08-18T08:00:00.000Z")]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.total).toBe(0);
       expect(result.entries).toEqual([]);
@@ -149,44 +104,40 @@ describe("readAuditLogs", () => {
     it("hides TEST_LABEL_DATA_PREPARED", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "TEST_LABEL_DATA_PREPARED",
-            "2026-08-18T08:00:00.000Z",
-          ),
+          entry("TEST_LABEL_DATA_PREPARED", "2026-08-18T08:00:00.000Z"),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.total).toBe(0);
+    });
+
+    it("hides legacy LABEL_BATCH_REQUESTED records", async () => {
+      mocks.readFile.mockResolvedValue(
+        asJsonl([entry("LABEL_BATCH_REQUESTED", "2026-08-18T08:00:00.000Z")]),
+      );
+
+      const result = await readAuditLogs();
+
+      expect(result.total).toBe(0);
+      expect(result.entries).toEqual([]);
     });
 
     it("does not hide final test-label delivery records", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "TEST_LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-          ),
+          entry("TEST_LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z"),
 
-          entry(
-            "TEST_LABEL_SEND_FAILED",
-            "2026-08-18T08:00:01.000Z",
-          ),
+          entry("TEST_LABEL_SEND_FAILED", "2026-08-18T08:00:01.000Z"),
         ]),
       );
 
-      const result =
-        await readAuditLogs({
-          scope: "print",
-        });
+      const result = await readAuditLogs({
+        scope: "print",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "TEST_LABEL_SEND_FAILED",
         "TEST_LABEL_DATA_SENT",
       ]);
@@ -197,9 +148,7 @@ describe("readAuditLogs", () => {
     it("creates the logs directory before reading files", async () => {
       await readAuditLogs();
 
-      expect(
-        mocks.mkdir,
-      ).toHaveBeenCalledWith(
+      expect(mocks.mkdir).toHaveBeenCalledWith(
         expect.stringContaining("logs"),
         {
           recursive: true,
@@ -208,44 +157,28 @@ describe("readAuditLogs", () => {
     });
 
     it("reads valid daily audit log files", async () => {
-      mocks.readdir.mockResolvedValue([
-        "print-2026-08-18.jsonl",
-      ]);
+      mocks.readdir.mockResolvedValue(["print-2026-08-18.jsonl"]);
 
       await readAuditLogs();
 
-      expect(
-        mocks.readFile,
-      ).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "print-2026-08-18.jsonl",
-        ),
+      expect(mocks.readFile).toHaveBeenCalledWith(
+        expect.stringContaining("print-2026-08-18.jsonl"),
         "utf8",
       );
     });
 
     it("supports legacy monthly audit log filenames", async () => {
-      mocks.readdir.mockResolvedValue([
-        "print-2026-08.jsonl",
-      ]);
+      mocks.readdir.mockResolvedValue(["print-2026-08.jsonl"]);
 
       mocks.readFile.mockResolvedValue(
-        asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-          ),
-        ]),
+        asJsonl([entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z")]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.total).toBe(1);
 
-      expect(
-        mocks.readFile,
-      ).toHaveBeenCalledOnce();
+      expect(mocks.readFile).toHaveBeenCalledOnce();
     });
 
     it("ignores files with unsupported names", async () => {
@@ -261,13 +194,9 @@ describe("readAuditLogs", () => {
 
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LOGIN",
-            "2026-08-18T08:00:00.000Z",
-            {
-              category: "auth",
-            },
-          ),
+          entry("LOGIN", "2026-08-18T08:00:00.000Z", {
+            category: "auth",
+          }),
         ]),
       );
 
@@ -275,16 +204,10 @@ describe("readAuditLogs", () => {
         scope: "audit",
       });
 
-      expect(
-        mocks.readFile,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.readFile).toHaveBeenCalledTimes(1);
 
-      expect(
-        mocks.readFile.mock.calls[0][0],
-      ).toEqual(
-        expect.stringContaining(
-          "audit-2026-08-18.jsonl",
-        ),
+      expect(mocks.readFile.mock.calls[0][0]).toEqual(
+        expect.stringContaining("audit-2026-08-18.jsonl"),
       );
     });
 
@@ -301,27 +224,15 @@ describe("readAuditLogs", () => {
         scope: "print",
       });
 
-      expect(
-        String(
-          mocks.readFile.mock.calls[0][0],
-        ),
-      ).toContain(
+      expect(String(mocks.readFile.mock.calls[0][0])).toContain(
         "print-2026-08-19.jsonl",
       );
 
-      expect(
-        String(
-          mocks.readFile.mock.calls[1][0],
-        ),
-      ).toContain(
+      expect(String(mocks.readFile.mock.calls[1][0])).toContain(
         "print-2026-08-18.jsonl",
       );
 
-      expect(
-        String(
-          mocks.readFile.mock.calls[2][0],
-        ),
-      ).toContain(
+      expect(String(mocks.readFile.mock.calls[2][0])).toContain(
         "print-2026-08-17.jsonl",
       );
     });
@@ -334,146 +245,92 @@ describe("readAuditLogs", () => {
         "audit-2026-08-18.jsonl",
       ]);
 
-      mocks.readFile.mockImplementation(
-        async (filePath: unknown) => {
-          const path =
-            String(filePath);
+      mocks.readFile.mockImplementation(async (filePath: unknown) => {
+        const path = String(filePath);
 
-          if (
-            path.includes(
-              "print-2026-08-18",
-            )
-          ) {
-            return asJsonl([
-              entry(
-                "LABEL_DATA_SENT",
-                "2026-08-18T09:00:00.000Z",
-                {
-                  category: "print",
-                },
-              ),
-            ]);
-          }
-
+        if (path.includes("print-2026-08-18")) {
           return asJsonl([
-            entry(
-              "LOGIN",
-              "2026-08-18T08:00:00.000Z",
-              {
-                category: "auth",
-              },
-            ),
+            entry("LABEL_DATA_SENT", "2026-08-18T09:00:00.000Z", {
+              category: "print",
+            }),
           ]);
-        },
-      );
+        }
+
+        return asJsonl([
+          entry("LOGIN", "2026-08-18T08:00:00.000Z", {
+            category: "auth",
+          }),
+        ]);
+      });
     });
 
     it("returns both print and audit records for scope all", async () => {
-      const result =
-        await readAuditLogs({
-          scope: "all",
-        });
+      const result = await readAuditLogs({
+        scope: "all",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "LABEL_DATA_SENT",
         "LOGIN",
       ]);
     });
 
     it("returns only print category records for print scope", async () => {
-      const result =
-        await readAuditLogs({
-          scope: "print",
-        });
+      const result = await readAuditLogs({
+        scope: "print",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "LABEL_DATA_SENT",
       ]);
     });
 
     it("returns only non-print records for audit scope", async () => {
-      const result =
-        await readAuditLogs({
-          scope: "audit",
-        });
+      const result = await readAuditLogs({
+        scope: "audit",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
-        "LOGIN",
-      ]);
+      expect(result.entries.map(({ action }) => action)).toEqual(["LOGIN"]);
 
-      expect(
-        mocks.readFile,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.readFile).toHaveBeenCalledTimes(1);
     });
   });
 
   describe("category filtering", () => {
     beforeEach(() => {
-      mocks.readdir.mockResolvedValue([
-        "audit-2026-08-18.jsonl",
-      ]);
+      mocks.readdir.mockResolvedValue(["audit-2026-08-18.jsonl"]);
 
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LOGIN",
-            "2026-08-18T08:00:00.000Z",
-            {
-              category: "auth",
-            },
-          ),
+          entry("LOGIN", "2026-08-18T08:00:00.000Z", {
+            category: "auth",
+          }),
 
-          entry(
-            "PRINTER_CONFIG_CHANGED",
-            "2026-08-18T08:01:00.000Z",
-            {
-              category: "config",
-            },
-          ),
+          entry("PRINTER_CONFIG_CHANGED", "2026-08-18T08:01:00.000Z", {
+            category: "config",
+          }),
 
-          entry(
-            "TEMPLATE_DELETED",
-            "2026-08-18T08:02:00.000Z",
-            {
-              category: "template",
-            },
-          ),
+          entry("TEMPLATE_DELETED", "2026-08-18T08:02:00.000Z", {
+            category: "template",
+          }),
         ]),
       );
     });
 
     it("filters by exact category", async () => {
-      const result =
-        await readAuditLogs({
-          category: "config",
-        });
+      const result = await readAuditLogs({
+        category: "config",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].action,
-      ).toBe(
-        "PRINTER_CONFIG_CHANGED",
-      );
+      expect(result.entries[0].action).toBe("PRINTER_CONFIG_CHANGED");
     });
 
     it("does not filter category when category is all", async () => {
-      const result =
-        await readAuditLogs({
-          category: "all",
-        });
+      const result = await readAuditLogs({
+        category: "all",
+      });
 
       expect(result.total).toBe(3);
     });
@@ -483,56 +340,41 @@ describe("readAuditLogs", () => {
     beforeEach(() => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              status: "success",
-            },
-          ),
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            status: "success",
+          }),
 
-          entry(
-            "LABEL_SEND_FAILED",
-            "2026-08-18T08:01:00.000Z",
-            {
-              status: "failure",
-            },
-          ),
+          entry("LABEL_SEND_FAILED", "2026-08-18T08:01:00.000Z", {
+            status: "failure",
+          }),
         ]),
       );
     });
 
     it("returns only successful records", async () => {
-      const result =
-        await readAuditLogs({
-          status: "success",
-        });
+      const result = await readAuditLogs({
+        status: "success",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].action,
-      ).toBe("LABEL_DATA_SENT");
+      expect(result.entries[0].action).toBe("LABEL_DATA_SENT");
     });
 
     it("returns only failed records", async () => {
-      const result =
-        await readAuditLogs({
-          status: "failure",
-        });
+      const result = await readAuditLogs({
+        status: "failure",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].action,
-      ).toBe("LABEL_SEND_FAILED");
+      expect(result.entries[0].action).toBe("LABEL_SEND_FAILED");
     });
 
     it("does not filter by status when status is all", async () => {
-      const result =
-        await readAuditLogs({
-          status: "all",
-        });
+      const result = await readAuditLogs({
+        status: "all",
+      });
 
       expect(result.total).toBe(2);
     });
@@ -542,141 +384,134 @@ describe("readAuditLogs", () => {
     beforeEach(() => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              actor: "Jan Kowalski",
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            actor: "Jan Kowalski",
 
-              workstation:
-                "LINE-PC-01",
+            workstation: "LINE-PC-01",
 
-              details: {
-                partNumber:
-                  "42022977",
+            details: {
+              partNumber: "42022977",
 
-                serialNumber:
-                  "0200",
+              serialNumber: "0200",
 
-                printerTarget:
-                  "10.0.0.10:9100",
-              },
+              printerTarget: "10.0.0.10:9100",
             },
-          ),
+          }),
 
-          entry(
-            "LABEL_SEND_FAILED",
-            "2026-08-18T08:01:00.000Z",
-            {
-              actor:
-                "Anna Nowak",
+          entry("LABEL_SEND_FAILED", "2026-08-18T08:01:00.000Z", {
+            actor: "Anna Nowak",
 
-              workstation:
-                "LINE-PC-02",
+            workstation: "LINE-PC-02",
 
-              details: {
-                partNumber:
-                  "42099999",
-              },
+            details: {
+              partNumber: "42099999",
             },
-          ),
+          }),
         ]),
       );
     });
 
     it("searches by action", async () => {
-      const result =
-        await readAuditLogs({
-          search:
-            "label_data_sent",
-        });
+      const result = await readAuditLogs({
+        search: "label_data_sent",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].action,
-      ).toBe("LABEL_DATA_SENT");
+      expect(result.entries[0].action).toBe("LABEL_DATA_SENT");
     });
 
     it("searches by actor case-insensitively", async () => {
-      const result =
-        await readAuditLogs({
-          search:
-            "JAN KOWALSKI",
-        });
+      const result = await readAuditLogs({
+        search: "JAN KOWALSKI",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].actor,
-      ).toBe("Jan Kowalski");
+      expect(result.entries[0].actor).toBe("Jan Kowalski");
     });
 
     it("searches by workstation", async () => {
-      const result =
-        await readAuditLogs({
-          search: "line-pc-02",
-        });
+      const result = await readAuditLogs({
+        search: "line-pc-02",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].actor,
-      ).toBe("Anna Nowak");
+      expect(result.entries[0].actor).toBe("Anna Nowak");
     });
 
     it("searches inside audit details", async () => {
-      const result =
-        await readAuditLogs({
-          search: "42022977",
-        });
+      const result = await readAuditLogs({
+        search: "42022977",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].details
-          .partNumber,
-      ).toBe("42022977");
+      expect(result.entries[0].details.partNumber).toBe("42022977");
     });
 
     it("searches numeric detail values after converting them to strings", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              details: {
-                quantity: 123,
-              },
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              quantity: 123,
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs({
-          search: "123",
-        });
+      const result = await readAuditLogs({
+        search: "123",
+      });
 
       expect(result.total).toBe(1);
     });
 
+    it("searches inside nested batch label details", async () => {
+      mocks.readFile.mockResolvedValue(
+        asJsonl([
+          entry("BATCH_PRINT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              partNumber: "42022977",
+              labels: [
+                {
+                  serialNumber: "0200",
+                  fullSerialNumber: "42022977A262250200",
+                  deliveryState: "sent",
+                },
+                {
+                  serialNumber: "0201",
+                  fullSerialNumber: "42022977A262250201",
+                  deliveryState: "failed",
+                },
+              ],
+            },
+          }),
+        ]),
+      );
+
+      const result = await readAuditLogs({
+        search: "42022977A262250201",
+      });
+
+      expect(result.total).toBe(1);
+      expect(result.entries[0].action).toBe("BATCH_PRINT");
+    });
+
     it("trims search text", async () => {
-      const result =
-        await readAuditLogs({
-          search:
-            "  jan kowalski  ",
-        });
+      const result = await readAuditLogs({
+        search: "  jan kowalski  ",
+      });
 
       expect(result.total).toBe(1);
     });
 
     it("does not filter when search is whitespace only", async () => {
-      const result =
-        await readAuditLogs({
-          search: "   ",
-        });
+      const result = await readAuditLogs({
+        search: "   ",
+      });
 
       expect(result.total).toBe(2);
     });
@@ -686,68 +521,46 @@ describe("readAuditLogs", () => {
     beforeEach(() => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "EVENT_17",
-            "2026-08-17T12:00:00.000Z",
-          ),
+          entry("EVENT_17", "2026-08-17T12:00:00.000Z"),
 
-          entry(
-            "EVENT_18",
-            "2026-08-18T12:00:00.000Z",
-          ),
+          entry("EVENT_18", "2026-08-18T12:00:00.000Z"),
 
-          entry(
-            "EVENT_19",
-            "2026-08-19T12:00:00.000Z",
-          ),
+          entry("EVENT_19", "2026-08-19T12:00:00.000Z"),
         ]),
       );
     });
 
     it("includes dateFrom boundary", async () => {
-      const result =
-        await readAuditLogs({
-          dateFrom: "2026-08-18",
-        });
+      const result = await readAuditLogs({
+        dateFrom: "2026-08-18",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "EVENT_19",
         "EVENT_18",
       ]);
     });
 
     it("includes dateTo boundary", async () => {
-      const result =
-        await readAuditLogs({
-          dateTo: "2026-08-18",
-        });
+      const result = await readAuditLogs({
+        dateTo: "2026-08-18",
+      });
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "EVENT_18",
         "EVENT_17",
       ]);
     });
 
     it("filters records between dateFrom and dateTo inclusively", async () => {
-      const result =
-        await readAuditLogs({
-          dateFrom: "2026-08-18",
-          dateTo: "2026-08-18",
-        });
+      const result = await readAuditLogs({
+        dateFrom: "2026-08-18",
+        dateTo: "2026-08-18",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0].action,
-      ).toBe("EVENT_18");
+      expect(result.entries[0].action).toBe("EVENT_18");
     });
   });
 
@@ -755,31 +568,17 @@ describe("readAuditLogs", () => {
     it("sorts entries by timestamp descending regardless of file order", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "OLDEST",
-            "2026-08-18T08:00:00.000Z",
-          ),
+          entry("OLDEST", "2026-08-18T08:00:00.000Z"),
 
-          entry(
-            "NEWEST",
-            "2026-08-18T10:00:00.000Z",
-          ),
+          entry("NEWEST", "2026-08-18T10:00:00.000Z"),
 
-          entry(
-            "MIDDLE",
-            "2026-08-18T09:00:00.000Z",
-          ),
+          entry("MIDDLE", "2026-08-18T09:00:00.000Z"),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "NEWEST",
         "MIDDLE",
         "OLDEST",
@@ -791,121 +590,85 @@ describe("readAuditLogs", () => {
     beforeEach(() => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "EVENT_1",
-            "2026-08-18T10:00:00.000Z",
-          ),
+          entry("EVENT_1", "2026-08-18T10:00:00.000Z"),
 
-          entry(
-            "EVENT_2",
-            "2026-08-18T09:00:00.000Z",
-          ),
+          entry("EVENT_2", "2026-08-18T09:00:00.000Z"),
 
-          entry(
-            "EVENT_3",
-            "2026-08-18T08:00:00.000Z",
-          ),
+          entry("EVENT_3", "2026-08-18T08:00:00.000Z"),
 
-          entry(
-            "EVENT_4",
-            "2026-08-18T07:00:00.000Z",
-          ),
+          entry("EVENT_4", "2026-08-18T07:00:00.000Z"),
         ]),
       );
     });
 
     it("uses default page 1 and pageSize 100", async () => {
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.page).toBe(1);
 
-      expect(
-        result.pageSize,
-      ).toBe(100);
+      expect(result.pageSize).toBe(100);
 
       expect(result.total).toBe(4);
     });
 
     it("returns requested page", async () => {
-      const result =
-        await readAuditLogs({
-          page: 2,
-          pageSize: 2,
-        });
+      const result = await readAuditLogs({
+        page: 2,
+        pageSize: 2,
+      });
 
       expect(result.page).toBe(2);
       expect(result.pageSize).toBe(2);
 
       expect(result.total).toBe(4);
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "EVENT_3",
         "EVENT_4",
       ]);
     });
 
     it("normalizes page values below 1 to page 1", async () => {
-      const result =
-        await readAuditLogs({
-          page: -10,
-          pageSize: 2,
-        });
+      const result = await readAuditLogs({
+        page: -10,
+        pageSize: 2,
+      });
 
       expect(result.page).toBe(1);
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "EVENT_1",
         "EVENT_2",
       ]);
     });
 
     it("normalizes pageSize values below 1 to 1", async () => {
-      const result =
-        await readAuditLogs({
-          pageSize: -10,
-        });
+      const result = await readAuditLogs({
+        pageSize: -10,
+      });
 
-      expect(
-        result.pageSize,
-      ).toBe(1);
+      expect(result.pageSize).toBe(1);
 
-      expect(
-        result.entries,
-      ).toHaveLength(1);
+      expect(result.entries).toHaveLength(1);
     });
 
     it("limits pageSize to 50000", async () => {
-      const result =
-        await readAuditLogs({
-          pageSize: 100000,
-        });
+      const result = await readAuditLogs({
+        pageSize: 100000,
+      });
 
-      expect(
-        result.pageSize,
-      ).toBe(50000);
+      expect(result.pageSize).toBe(50000);
     });
 
     it("returns an empty page when page is beyond available entries", async () => {
-      const result =
-        await readAuditLogs({
-          page: 10,
-          pageSize: 2,
-        });
+      const result = await readAuditLogs({
+        page: 10,
+        pageSize: 2,
+      });
 
       expect(result.total).toBe(4);
 
-      expect(
-        result.entries,
-      ).toEqual([]);
+      expect(result.entries).toEqual([]);
     });
   });
 
@@ -913,34 +676,19 @@ describe("readAuditLogs", () => {
     it("ignores malformed JSON lines without losing valid records", async () => {
       mocks.readFile.mockResolvedValue(
         [
-          JSON.stringify(
-            entry(
-              "VALID_1",
-              "2026-08-18T08:00:00.000Z",
-            ),
-          ),
+          JSON.stringify(entry("VALID_1", "2026-08-18T08:00:00.000Z")),
 
           "{this is invalid json",
 
-          JSON.stringify(
-            entry(
-              "VALID_2",
-              "2026-08-18T09:00:00.000Z",
-            ),
-          ),
+          JSON.stringify(entry("VALID_2", "2026-08-18T09:00:00.000Z")),
         ].join("\n"),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.total).toBe(2);
 
-      expect(
-        result.entries.map(
-          ({ action }) => action,
-        ),
-      ).toEqual([
+      expect(result.entries.map(({ action }) => action)).toEqual([
         "VALID_2",
         "VALID_1",
       ]);
@@ -950,20 +698,14 @@ describe("readAuditLogs", () => {
       mocks.readFile.mockResolvedValue(
         [
           "",
-          JSON.stringify(
-            entry(
-              "VALID",
-              "2026-08-18T08:00:00.000Z",
-            ),
-          ),
+          JSON.stringify(entry("VALID", "2026-08-18T08:00:00.000Z")),
           "",
           "   ",
           "",
         ].join("\n"),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
       expect(result.total).toBe(1);
     });
@@ -973,34 +715,23 @@ describe("readAuditLogs", () => {
     it("removes password, secret and token fields", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LOGIN",
-            "2026-08-18T08:00:00.000Z",
-            {
-              category: "auth",
+          entry("LOGIN", "2026-08-18T08:00:00.000Z", {
+            category: "auth",
 
-              details: {
-                login: "user",
-                password:
-                  "very-secret",
-                ldapSecret:
-                  "secret",
-                accessToken:
-                  "token-value",
-                normalField:
-                  "visible",
-              },
+            details: {
+              login: "user",
+              password: "very-secret",
+              ldapSecret: "secret",
+              accessToken: "token-value",
+              normalField: "visible",
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries[0].details,
-      ).toEqual({
+      expect(result.entries[0].details).toEqual({
         login: "user",
         normalField: "visible",
       });
@@ -1009,29 +740,19 @@ describe("readAuditLogs", () => {
     it("removes internal batchId and labelId fields", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              details: {
-                batchId:
-                  "batch-secret",
-                labelId:
-                  "label-secret",
-                serialNumber:
-                  "0200",
-              },
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              batchId: "batch-secret",
+              labelId: "label-secret",
+              serialNumber: "0200",
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries[0].details,
-      ).toEqual({
+      expect(result.entries[0].details).toEqual({
         serialNumber: "0200",
       });
     });
@@ -1039,37 +760,23 @@ describe("readAuditLogs", () => {
     it("truncates string details to 2000 characters", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              details: {
-                rawError:
-                  "X".repeat(3000),
-              },
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              rawError: "X".repeat(3000),
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries[0].details
-          .rawError,
-      ).toBe(
-        "X".repeat(2000),
-      );
+      expect(result.entries[0].details.rawError).toBe("X".repeat(2000));
     });
 
-    it("converts object detail values to JSON strings", async () => {
+    it("preserves nested object detail values", async () => {
       mocks.readFile.mockResolvedValue(
         JSON.stringify({
-          ...entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-          ),
+          ...entry("BATCH_PRINT", "2026-08-18T08:00:00.000Z"),
 
           details: {
             metadata: {
@@ -1080,45 +787,80 @@ describe("readAuditLogs", () => {
         }),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries[0].details
-          .metadata,
-      ).toBe(
-        JSON.stringify({
-          serial: "0200",
-          quantity: 1,
-        }),
+      expect(result.entries[0].details.metadata).toEqual({
+        serial: "0200",
+        quantity: 1,
+      });
+    });
+
+    it("preserves batch labels as an array and sanitizes nested sensitive fields", async () => {
+      mocks.readFile.mockResolvedValue(
+        asJsonl([
+          entry("BATCH_PRINT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              requestedQuantity: 2,
+              labels: [
+                {
+                  batchPosition: 1,
+                  serialNumber: "0200",
+                  deliveryState: "sent",
+                  accessToken: "must-not-survive",
+                },
+                {
+                  batchPosition: 2,
+                  serialNumber: "0201",
+                  deliveryState: "failed",
+                  nested: {
+                    password: "must-not-survive",
+                    printerError: "timeout",
+                  },
+                },
+              ],
+            },
+          }),
+        ]),
       );
+
+      const result = await readAuditLogs();
+      const labels = result.entries[0].details.labels;
+
+      expect(Array.isArray(labels)).toBe(true);
+      expect(labels).toEqual([
+        {
+          batchPosition: 1,
+          serialNumber: "0200",
+          deliveryState: "sent",
+        },
+        {
+          batchPosition: 2,
+          serialNumber: "0201",
+          deliveryState: "failed",
+          nested: {
+            printerError: "timeout",
+          },
+        },
+      ]);
     });
 
     it("preserves null, string, number and boolean detail values", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T08:00:00.000Z",
-            {
-              details: {
-                stringValue:
-                  "text",
-                numberValue: 123,
-                booleanValue: true,
-                nullValue: null,
-              },
+          entry("LABEL_DATA_SENT", "2026-08-18T08:00:00.000Z", {
+            details: {
+              stringValue: "text",
+              numberValue: 123,
+              booleanValue: true,
+              nullValue: null,
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs();
+      const result = await readAuditLogs();
 
-      expect(
-        result.entries[0].details,
-      ).toEqual({
+      expect(result.entries[0].details).toEqual({
         stringValue: "text",
         numberValue: 123,
         booleanValue: true,
@@ -1131,82 +873,55 @@ describe("readAuditLogs", () => {
     it("applies scope, status, search and date filters together", async () => {
       mocks.readFile.mockResolvedValue(
         asJsonl([
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T10:00:00.000Z",
-            {
-              status: "success",
-              actor:
-                "Jan Kowalski",
+          entry("LABEL_DATA_SENT", "2026-08-18T10:00:00.000Z", {
+            status: "success",
+            actor: "Jan Kowalski",
 
-              details: {
-                partNumber:
-                  "42022977",
-              },
+            details: {
+              partNumber: "42022977",
             },
-          ),
+          }),
 
-          entry(
-            "LABEL_SEND_FAILED",
-            "2026-08-18T11:00:00.000Z",
-            {
-              status: "failure",
-              actor:
-                "Jan Kowalski",
+          entry("LABEL_SEND_FAILED", "2026-08-18T11:00:00.000Z", {
+            status: "failure",
+            actor: "Jan Kowalski",
 
-              details: {
-                partNumber:
-                  "42022977",
-              },
+            details: {
+              partNumber: "42022977",
             },
-          ),
+          }),
 
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-17T10:00:00.000Z",
-            {
-              status: "success",
-              actor:
-                "Jan Kowalski",
+          entry("LABEL_DATA_SENT", "2026-08-17T10:00:00.000Z", {
+            status: "success",
+            actor: "Jan Kowalski",
 
-              details: {
-                partNumber:
-                  "42022977",
-              },
+            details: {
+              partNumber: "42022977",
             },
-          ),
+          }),
 
-          entry(
-            "LABEL_DATA_SENT",
-            "2026-08-18T12:00:00.000Z",
-            {
-              status: "success",
-              actor:
-                "Anna Nowak",
+          entry("LABEL_DATA_SENT", "2026-08-18T12:00:00.000Z", {
+            status: "success",
+            actor: "Anna Nowak",
 
-              details: {
-                partNumber:
-                  "99999999",
-              },
+            details: {
+              partNumber: "99999999",
             },
-          ),
+          }),
         ]),
       );
 
-      const result =
-        await readAuditLogs({
-          scope: "print",
-          status: "success",
-          search: "42022977",
-          dateFrom: "2026-08-18",
-          dateTo: "2026-08-18",
-        });
+      const result = await readAuditLogs({
+        scope: "print",
+        status: "success",
+        search: "42022977",
+        dateFrom: "2026-08-18",
+        dateTo: "2026-08-18",
+      });
 
       expect(result.total).toBe(1);
 
-      expect(
-        result.entries[0],
-      ).toMatchObject({
+      expect(result.entries[0]).toMatchObject({
         action: "LABEL_DATA_SENT",
         actor: "Jan Kowalski",
 

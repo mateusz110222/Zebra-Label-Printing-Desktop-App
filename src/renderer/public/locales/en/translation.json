@@ -312,6 +312,7 @@
       "template_too_large": "The label template is too large."
     },
     "print": {
+      "partial_failure": "Some labels could not be sent to the printer.",
       "generate_error": "Error generating label",
       "invalid_data": "Invalid part data provided",
       "error": "Printing error",
@@ -456,7 +457,18 @@
     "total": "Total: {{count}}",
     "previous": "Previous",
     "next": "Next",
+    "sent": "Sent",
+    "failed": "Failed",
+    "partial": "Partial failure",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "error": "Error",
+    "labels_count": "labels",
+    "batch_labels_title": "Batch labels",
     "actions": {
+      "REPRINT": "Reprint",
+      "BATCH_PRINT": "Batch print",
+      "PRINT": "Print",
       "LABEL_PRINTED": "Label print",
       "LABEL_REPRINTED": "Label reprint",
       "LABEL_DATA_SENT": "Label data sent to printer",

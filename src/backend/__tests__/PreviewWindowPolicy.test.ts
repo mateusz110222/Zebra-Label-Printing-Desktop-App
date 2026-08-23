@@ -4,7 +4,7 @@ import {
   getRendererEntryUrl,
   isAllowedExternalUrl,
   isAllowedPreviewUrl,
-  isRendererDocumentUrl
+  isRendererDocumentUrl,
 } from "../preview/PreviewWindowPolicy";
 
 describe("PreviewWindowPolicy", () => {
@@ -50,12 +50,7 @@ describe("PreviewWindowPolicy", () => {
     ])(
       "rejects a hash route different from exact /preview: %s",
       (candidate) => {
-        expect(
-          isAllowedPreviewUrl(
-            candidate,
-            developmentEntry,
-          ),
-        ).toBe(false);
+        expect(isAllowedPreviewUrl(candidate, developmentEntry)).toBe(false);
       },
     );
 
@@ -70,10 +65,7 @@ describe("PreviewWindowPolicy", () => {
 
     it("rejects preview from another origin", () => {
       expect(
-        isAllowedPreviewUrl(
-          "https://example.com/#/preview",
-          developmentEntry,
-        ),
+        isAllowedPreviewUrl("https://example.com/#/preview", developmentEntry),
       ).toBe(false);
     });
 
@@ -114,8 +106,7 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("allows preview when candidate and renderer entry have the same search", () => {
-      const rendererEntry =
-        "http://localhost:5173/?mode=test";
+      const rendererEntry = "http://localhost:5173/?mode=test";
 
       expect(
         isAllowedPreviewUrl(
@@ -126,14 +117,10 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("rejects preview when credentials differ", () => {
-      const rendererEntry =
-        "http://user:password@localhost:5173/";
+      const rendererEntry = "http://user:password@localhost:5173/";
 
       expect(
-        isAllowedPreviewUrl(
-          "http://localhost:5173/#/preview",
-          rendererEntry,
-        ),
+        isAllowedPreviewUrl("http://localhost:5173/#/preview", rendererEntry),
       ).toBe(false);
 
       expect(
@@ -172,30 +159,19 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("rejects malformed candidate URL", () => {
-      expect(
-        isAllowedPreviewUrl(
-          "not a URL",
-          developmentEntry,
-        ),
-      ).toBe(false);
+      expect(isAllowedPreviewUrl("not a URL", developmentEntry)).toBe(false);
     });
 
     it("rejects malformed renderer entry URL", () => {
       expect(
-        isAllowedPreviewUrl(
-          "http://localhost:5173/#/preview",
-          "not a URL",
-        ),
+        isAllowedPreviewUrl("http://localhost:5173/#/preview", "not a URL"),
       ).toBe(false);
     });
 
     it("rejects when both URLs are invalid", () => {
-      expect(
-        isAllowedPreviewUrl(
-          "invalid candidate",
-          "invalid renderer",
-        ),
-      ).toBe(false);
+      expect(isAllowedPreviewUrl("invalid candidate", "invalid renderer")).toBe(
+        false,
+      );
     });
   });
 
@@ -224,8 +200,7 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("ignores hash differences when comparing renderer documents", () => {
-      const rendererEntry =
-        "http://localhost:5173/#/home";
+      const rendererEntry = "http://localhost:5173/#/home";
 
       expect(
         isRendererDocumentUrl(
@@ -237,10 +212,7 @@ describe("PreviewWindowPolicy", () => {
 
     it("rejects an external origin", () => {
       expect(
-        isRendererDocumentUrl(
-          "https://example.com/#/config",
-          developmentEntry,
-        ),
+        isRendererDocumentUrl("https://example.com/#/config", developmentEntry),
       ).toBe(false);
     });
 
@@ -272,8 +244,7 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("requires matching search query when renderer entry contains one", () => {
-      const rendererEntry =
-        "http://localhost:5173/?mode=test";
+      const rendererEntry = "http://localhost:5173/?mode=test";
 
       expect(
         isRendererDocumentUrl(
@@ -291,8 +262,7 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("requires matching username and password", () => {
-      const rendererEntry =
-        "http://user:secret@localhost:5173/";
+      const rendererEntry = "http://user:secret@localhost:5173/";
 
       expect(
         isRendererDocumentUrl(
@@ -318,10 +288,7 @@ describe("PreviewWindowPolicy", () => {
 
     it("recognizes the exact packaged renderer document", () => {
       expect(
-        isRendererDocumentUrl(
-          `${packagedEntry}#/settings`,
-          packagedEntry,
-        ),
+        isRendererDocumentUrl(`${packagedEntry}#/settings`, packagedEntry),
       ).toBe(true);
     });
 
@@ -335,42 +302,24 @@ describe("PreviewWindowPolicy", () => {
     });
 
     it("rejects malformed candidate URL", () => {
-      expect(
-        isRendererDocumentUrl(
-          "not a URL",
-          developmentEntry,
-        ),
-      ).toBe(false);
+      expect(isRendererDocumentUrl("not a URL", developmentEntry)).toBe(false);
     });
 
     it("rejects malformed renderer entry URL", () => {
-      expect(
-        isRendererDocumentUrl(
-          developmentEntry,
-          "not a URL",
-        ),
-      ).toBe(false);
+      expect(isRendererDocumentUrl(developmentEntry, "not a URL")).toBe(false);
     });
   });
 
   describe("getRendererEntryUrl", () => {
     it("returns the development renderer URL", () => {
-      expect(
-        getRendererEntryUrl(
-          false,
-          developmentEntry,
-          "C:/ignored",
-        ),
-      ).toBe(developmentEntry);
+      expect(getRendererEntryUrl(false, developmentEntry, "C:/ignored")).toBe(
+        developmentEntry,
+      );
     });
 
     it("normalizes the development renderer URL", () => {
       expect(
-        getRendererEntryUrl(
-          false,
-          "http://localhost:5173",
-          "C:/ignored",
-        ),
+        getRendererEntryUrl(false, "http://localhost:5173", "C:/ignored"),
       ).toBe("http://localhost:5173/");
     });
 
@@ -381,43 +330,23 @@ describe("PreviewWindowPolicy", () => {
           "http://localhost:5173/app?mode=test",
           "C:/ignored",
         ),
-      ).toBe(
-        "http://localhost:5173/app?mode=test",
-      );
+      ).toBe("http://localhost:5173/app?mode=test");
     });
 
     it("resolves packaged renderer relative to main directory", () => {
       expect(
-        getRendererEntryUrl(
-          true,
-          developmentEntry,
-          "C:/app/out/main",
-        ),
-      ).toBe(
-        "file:///C:/app/out/renderer/index.html",
-      );
+        getRendererEntryUrl(true, developmentEntry, "C:/app/out/main"),
+      ).toBe("file:///C:/app/out/renderer/index.html");
     });
 
     it("ignores development URL when application is packaged", () => {
       expect(
-        getRendererEntryUrl(
-          true,
-          "https://evil.example/",
-          "C:/app/out/main",
-        ),
-      ).toBe(
-        "file:///C:/app/out/renderer/index.html",
-      );
+        getRendererEntryUrl(true, "https://evil.example/", "C:/app/out/main"),
+      ).toBe("file:///C:/app/out/renderer/index.html");
     });
 
     it("falls back to packaged-style renderer path when development URL is undefined", () => {
-      expect(
-        getRendererEntryUrl(
-          false,
-          undefined,
-          "C:/app/out/main",
-        ),
-      ).toBe(
+      expect(getRendererEntryUrl(false, undefined, "C:/app/out/main")).toBe(
         "file:///C:/app/out/renderer/index.html",
       );
     });
@@ -430,14 +359,9 @@ describe("PreviewWindowPolicy", () => {
       "https://example.com/",
       "http://localhost:3000/",
       "https://127.0.0.1/test",
-    ])(
-      "allows HTTP(S) URL: %s",
-      (candidate) => {
-        expect(
-          isAllowedExternalUrl(candidate),
-        ).toBe(true);
-      },
-    );
+    ])("allows HTTP(S) URL: %s", (candidate) => {
+      expect(isAllowedExternalUrl(candidate)).toBe(true);
+    });
 
     it.each([
       "file:///C:/Windows/System32/calc.exe",
@@ -448,48 +372,26 @@ describe("PreviewWindowPolicy", () => {
       "ws://example.com/socket",
       "wss://example.com/socket",
       "about:blank",
-    ])(
-      "rejects non-HTTP(S) URL: %s",
-      (candidate) => {
-        expect(
-          isAllowedExternalUrl(candidate),
-        ).toBe(false);
-      },
-    );
+    ])("rejects non-HTTP(S) URL: %s", (candidate) => {
+      expect(isAllowedExternalUrl(candidate)).toBe(false);
+    });
 
-    it.each([
-      "",
-      "not a URL",
-      "example",
-      "://invalid",
-    ])(
+    it.each(["", "not a URL", "example", "://invalid"])(
       "rejects malformed URL: %s",
       (candidate) => {
-        expect(
-          isAllowedExternalUrl(candidate),
-        ).toBe(false);
+        expect(isAllowedExternalUrl(candidate)).toBe(false);
       },
     );
 
     it("is case-insensitive for HTTP protocol parsing", () => {
-      expect(
-        isAllowedExternalUrl(
-          "HTTPS://example.com/help",
-        ),
-      ).toBe(true);
+      expect(isAllowedExternalUrl("HTTPS://example.com/help")).toBe(true);
 
-      expect(
-        isAllowedExternalUrl(
-          "HTTP://example.com/help",
-        ),
-      ).toBe(true);
+      expect(isAllowedExternalUrl("HTTP://example.com/help")).toBe(true);
     });
 
     it("allows HTTP URLs containing search and hash", () => {
       expect(
-        isAllowedExternalUrl(
-          "https://example.com/help?page=2#section",
-        ),
+        isAllowedExternalUrl("https://example.com/help?page=2#section"),
       ).toBe(true);
     });
   });

@@ -4,7 +4,10 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { getTemplatesPath } from "./TemplatePaths";
 import { PrinterConfig, store } from "../utils/store";
-import { PrinterStatusResult, queryPrinterStatus } from "../printer/PrinterStatus";
+import {
+  PrinterStatusResult,
+  queryPrinterStatus,
+} from "../printer/PrinterStatus";
 import { getDatabase } from "../config/DatabaseConfig";
 import { checkAuditLogWritable } from "../audit/AuditLog";
 

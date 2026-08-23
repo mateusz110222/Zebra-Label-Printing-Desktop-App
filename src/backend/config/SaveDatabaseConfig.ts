@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 import mysql from "mysql2/promise";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { closeDatabase } from "./DatabaseConfig";
 import { DatabaseConfig, store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";

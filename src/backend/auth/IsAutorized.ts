@@ -1,6 +1,10 @@
 import { app, IpcMainEvent, IpcMainInvokeEvent } from "electron";
 
-import { getRendererEntryUrl, isAllowedPreviewUrl, isRendererDocumentUrl } from "../preview/PreviewWindowPolicy";
+import {
+  getRendererEntryUrl,
+  isAllowedPreviewUrl,
+  isRendererDocumentUrl,
+} from "../preview/PreviewWindowPolicy";
 
 const getRendererUrl = (): string =>
   getRendererEntryUrl(

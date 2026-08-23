@@ -1,5 +1,8 @@
 import { ipcMain } from "electron";
-import { generatePreviewZPL, generateReprintPreviewZPL } from "../hooks/ZPLService";
+import {
+  generatePreviewZPL,
+  generateReprintPreviewZPL,
+} from "../hooks/ZPLService";
 import sharp from "sharp";
 
 interface LabelPreviewResponse {
