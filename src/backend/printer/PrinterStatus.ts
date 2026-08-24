@@ -4,6 +4,7 @@ import type { PrinterConfig } from "../utils/store";
 import { isAccessDenied, sleep } from "../system/SystemHealth";
 import { parseHostStatus } from "../utils/parseHostStatus";
 import { getStatus } from "@maxxuxx/node-printer";
+import { runPrinterStatusQuery } from "./PrinterActivity";
 
 export interface PrinterStatusDetails {
   paperOut: boolean;
@@ -294,12 +295,13 @@ const queryPrinterStatusOnce = (
 
 export const queryPrinterStatus = async (
   config: PrinterConfig,
-): Promise<PrinterStatusResult> => {
-  let result = await queryPrinterStatusOnce(config);
+): Promise<PrinterStatusResult> =>
+  runPrinterStatusQuery(async () => {
+    let result = await queryPrinterStatusOnce(config);
 
-  if (isAccessDenied(result.rawError)) {
-    await sleep(1000);
-    result = await queryPrinterStatusOnce(config);
-  }
-  return result;
-};
+    if (isAccessDenied(result.rawError)) {
+      await sleep(1000);
+      result = await queryPrinterStatusOnce(config);
+    }
+    return result;
+  });

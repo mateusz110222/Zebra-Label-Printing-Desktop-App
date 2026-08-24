@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   usbConnection: vi.fn(),
 
   queryPrinterStatus: vi.fn(),
+  beginPrinterBatch: vi.fn(),
+  finishPrinterBatch: vi.fn(),
   resolveAuthoritativePart: vi.fn(),
 }));
 
@@ -66,6 +68,10 @@ vi.mock("../audit/AuditLog", () => ({
 
 vi.mock("../printer/PrinterStatus", () => ({
   queryPrinterStatus: mocks.queryPrinterStatus,
+}));
+
+vi.mock("../printer/PrinterActivity", () => ({
+  beginPrinterBatch: mocks.beginPrinterBatch,
 }));
 
 vi.mock("../parts/PartsResolver", () => ({
@@ -194,6 +200,9 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
     });
 
     mocks.queryPrinterStatus.mockResolvedValue(successfulPrinterStatus);
+    mocks.beginPrinterBatch.mockImplementation(
+      async () => mocks.finishPrinterBatch,
+    );
 
     mocks.resolveAuthoritativePart.mockResolvedValue({
       status: true,
@@ -421,6 +430,29 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
   });
 
   describe("printer readiness", () => {
+    it("holds background status checks for the entire label batch", async () => {
+      const labels = Array.from({ length: 3 }, (_, index) =>
+        makeGeneratedLabel(String(200 + index).padStart(4, "0")),
+      );
+      mocks.generatePrintZPL.mockResolvedValueOnce({
+        status: true,
+        message: "backend.print.print_success",
+        labels,
+      });
+
+      const result = await getHandler("print-label")(createEvent(), {
+        part,
+        quantity: 3,
+      });
+
+      expect(result).toMatchObject({ status: true, sentCount: 3 });
+      expect(mocks.beginPrinterBatch).toHaveBeenCalledWith(
+        successfulPrinterStatus,
+      );
+      expect(mocks.finishPrinterBatch).toHaveBeenCalledOnce();
+      expect(mocks.queryPrinterStatus).toHaveBeenCalledOnce();
+    });
+
     it("checks printer readiness before reserving a normal-print serial", async () => {
       mocks.queryPrinterStatus.mockResolvedValueOnce({
         status: false,

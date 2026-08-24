@@ -7,12 +7,9 @@ import USBConnection from "../PrinterConnections/USBConnection";
 import type { GeneratedLabel } from "../hooks/ZPLService";
 import { generatePrintZPL, generateReprintZPL } from "../hooks/ZPLService";
 import type { ConnectionResult } from "./PrinterConnectionBase";
-import {
-  appendAuditLog,
-  canViewAuditLogs,
-  checkAuditLogWritable,
-} from "../audit/AuditLog";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
+import { beginPrinterBatch } from "./PrinterActivity";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
@@ -103,6 +100,7 @@ const executeAndLogBatch = async ({
   quantity,
   labels,
   printer,
+  printerStatusBeforeSend,
   selectedDate,
 }: {
   mode: "print" | "reprint";
@@ -110,6 +108,7 @@ const executeAndLogBatch = async ({
   quantity: number;
   labels: GeneratedLabel[];
   printer: PrinterConfig;
+  printerStatusBeforeSend: PrinterStatusResult;
   selectedDate?: string;
 }): Promise<{
   status: boolean;
@@ -135,44 +134,50 @@ const executeAndLogBatch = async ({
 
   let lastSuccessfulResponse: ConnectionResult | undefined;
 
-  for (let i = 0; i < labels.length; i++) {
-    const label = labels[i];
+  const finishPrinterBatch = await beginPrinterBatch(printerStatusBeforeSend);
 
-    let response: ConnectionResult;
+  try {
+    for (let i = 0; i < labels.length; i++) {
+      const label = labels[i];
 
-    try {
-      response = await sendToPrinter(label.zpl, printer);
-    } catch (error) {
-      response = {
-        status: false,
-        message: "backend.printer.error",
-        rawError: error instanceof Error ? error.message : String(error),
-      };
+      let response: ConnectionResult;
+
+      try {
+        response = await sendToPrinter(label.zpl, printer);
+      } catch (error) {
+        response = {
+          status: false,
+          message: "backend.printer.error",
+          rawError: error instanceof Error ? error.message : String(error),
+        };
+      }
+
+      const deliveryState: DeliveryState = response.status ? "sent" : "failed";
+
+      if (deliveryState === "sent") {
+        sentCount++;
+        lastSuccessfulResponse = response;
+      } else {
+        failedCount++;
+      }
+
+      labelResults.push({
+        batchPosition: i + 1,
+        serialNumber: label.metadata.serialNumber,
+        fullSerialNumber:
+          `${canonicalPart.Serial_Prefix}` +
+          `${label.metadata.julianDate}` +
+          `${label.metadata.serialNumber}`,
+        julianDate: label.metadata.julianDate,
+        bmsDate: label.metadata.bmsDate,
+        zplSha256: label.metadata.zplSha256,
+        deliveryState,
+        printerMessage: response.message || null,
+        printerError: response.rawError || null,
+      });
     }
-
-    const deliveryState: DeliveryState = response.status ? "sent" : "failed";
-
-    if (deliveryState === "sent") {
-      sentCount++;
-      lastSuccessfulResponse = response;
-    } else {
-      failedCount++;
-    }
-
-    labelResults.push({
-      batchPosition: i + 1,
-      serialNumber: label.metadata.serialNumber,
-      fullSerialNumber:
-        `${canonicalPart.Serial_Prefix}` +
-        `${label.metadata.julianDate}` +
-        `${label.metadata.serialNumber}`,
-      julianDate: label.metadata.julianDate,
-      bmsDate: label.metadata.bmsDate,
-      zplSha256: label.metadata.zplSha256,
-      deliveryState,
-      printerMessage: response.message || null,
-      printerError: response.rawError || null,
-    });
+  } finally {
+    finishPrinterBatch();
   }
 
   const allSent = labels.length === quantity && sentCount === quantity;
@@ -226,7 +231,11 @@ const executeAndLogBatch = async ({
   });
 
   const printerStatus = lastSuccessfulResponse
-    ? await getPrinterStatusAfterSend(printer, lastSuccessfulResponse)
+    ? getPrinterStatusForReceipt(
+        printer,
+        lastSuccessfulResponse,
+        printerStatusBeforeSend,
+      )
     : undefined;
 
   return {
@@ -299,10 +308,11 @@ async function sendToPrinter(
   }
 }
 
-const getPrinterStatusAfterSend = async (
+const getPrinterStatusForReceipt = (
   printer: PrinterConfig,
   response: ConnectionResult,
-): Promise<PrinterStatusResult | undefined> => {
+  statusBeforeSend: PrinterStatusResult,
+): PrinterStatusResult | undefined => {
   if (!response.status) {
     return undefined;
   }
@@ -317,7 +327,7 @@ const getPrinterStatusAfterSend = async (
     };
   }
 
-  return queryPrinterStatus(printer).catch(() => undefined);
+  return statusBeforeSend;
 };
 
 export default function SetupLabelHandlers(): void {
@@ -438,6 +448,7 @@ export default function SetupLabelHandlers(): void {
         quantity,
         labels: result.labels,
         printer,
+        printerStatusBeforeSend: printerBeforeReservation,
       });
     } catch (error) {
       const errorMsg =
@@ -587,6 +598,7 @@ export default function SetupLabelHandlers(): void {
         quantity,
         labels: result.labels,
         printer,
+        printerStatusBeforeSend: printerBeforeSend,
         selectedDate: date,
       });
     } catch (error) {
