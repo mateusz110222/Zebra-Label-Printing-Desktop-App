@@ -3,12 +3,7 @@ import { constants } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client, type ClientOptions } from "ldapts";
-import {
-  appendAuditLog,
-  clearAuditSession,
-  getAuditActor,
-  setAuditSession,
-} from "../audit/AuditLog";
+import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "../audit/AuditLog";
 import {
   buildBindUser,
   buildUserSearchFilter,
@@ -17,7 +12,7 @@ import {
   isSecureLdapUrl,
   parseBoolean,
   parsePositiveTimeout,
-  redactSecret,
+  redactSecret
 } from "./LdapAuth";
 import { t } from "i18next";
 import { isMainRendererAuthorized } from "./IsAutorized";
@@ -56,7 +51,6 @@ const getClientOptions = async (ldapUrl: string): Promise<ClientOptions> => {
     process.env.LDAP_CONNECT_TIMEOUT_MS,
     5000,
   );
-  // Keep this runtime-configurable and do not inherit the legacy build-time false default.
   const rejectUnauthorized = parseBoolean(
     process.env["LDAP_TLS_REJECT_UNAUTHORIZED"],
     true,
@@ -264,7 +258,9 @@ export default function HandleLogin(): void {
           error instanceof Error ? error.message : "backend.auth.AUTH_UNKNOWN";
         const errorMsg = redactSecret(unsafeErrorMsg, password);
         const userMessage = getAuthenticationErrorMessage(errorMsg);
-        const isKnownAuthError = userMessage !== "backend.auth.AUTH_ERROR";
+        const shouldIncludeRawError =
+          userMessage === "backend.auth.AUTH_ERROR" ||
+          userMessage === "backend.auth.AUTH_TLS_CERTIFICATE";
 
         await appendAuditLog({
           category: "auth",
@@ -277,7 +273,7 @@ export default function HandleLogin(): void {
         return {
           status: false,
           message: userMessage,
-          rawError: isKnownAuthError ? undefined : errorMsg,
+          rawError: shouldIncludeRawError ? errorMsg : undefined,
         };
       } finally {
         await safeUnbind(client);

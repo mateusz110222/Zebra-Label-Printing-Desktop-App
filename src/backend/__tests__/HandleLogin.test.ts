@@ -977,7 +977,11 @@ describe("HandleLogin", () => {
 
       expect(response.message).toBe(expectedMessage);
 
-      expect(response.rawError).toBeUndefined();
+      if (expectedMessage === "backend.auth.AUTH_TLS_CERTIFICATE") {
+        expect(response.rawError).toBe(`LdapErr: ${ldapError}`);
+      } else {
+        expect(response.rawError).toBeUndefined();
+      }
 
       expect(mocks.appendAuditLog).toHaveBeenCalledWith(
         expect.objectContaining({
