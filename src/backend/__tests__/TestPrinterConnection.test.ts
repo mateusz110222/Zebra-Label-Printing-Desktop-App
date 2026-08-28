@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 
   appendAuditLog: vi.fn(),
   canViewAuditLogs: vi.fn(() => true),
+  canConfigurePrinter: vi.fn(() => true),
   checkAuditLogWritable: vi.fn(),
 
   app: {
@@ -93,6 +94,7 @@ vi.mock("../PrinterConnections/USBConnection", () => ({
 vi.mock("../audit/AuditLog", () => ({
   appendAuditLog: mocks.appendAuditLog,
   canViewAuditLogs: mocks.canViewAuditLogs,
+  canConfigurePrinter: mocks.canConfigurePrinter,
   checkAuditLogWritable: mocks.checkAuditLogWritable,
 }));
 
@@ -132,6 +134,8 @@ describe("TestPrinterConnection", () => {
     mocks.isMainRendererAuthorized.mockReturnValue(true);
 
     mocks.canViewAuditLogs.mockReturnValue(true);
+
+    mocks.canConfigurePrinter.mockReturnValue(true);
 
     mocks.storeGet.mockReturnValue(ipCandidate);
 
@@ -187,7 +191,37 @@ describe("TestPrinterConnection", () => {
     expect(mocks.appendAuditLog).not.toHaveBeenCalled();
   });
 
-  it("allows a user without audit access to test the printer connection", async () => {
+  it("rejects candidate printer test when user lacks canConfigurePrinter permission", async () => {
+    mocks.canConfigurePrinter.mockReturnValue(false);
+
+    const result = await getHandler()(createEvent(), ipCandidate);
+
+    expect(result).toEqual({
+      status: false,
+      message: "backend.audit.unauthorized",
+    });
+
+    expect(mocks.ipConnection).not.toHaveBeenCalled();
+  });
+
+  it("rejects candidate with invalid IP port", async () => {
+    const invalidCandidate: PrinterConfig = {
+      type: "IP",
+      ip: "10.0.0.1",
+      port: 999999, // invalid port
+    };
+
+    const result = await getHandler()(createEvent(), invalidCandidate);
+
+    expect(result).toEqual({
+      status: false,
+      message: "backend.config.invalid_ip_port",
+    });
+
+    expect(mocks.ipConnection).not.toHaveBeenCalled();
+  });
+
+  it("allows a user without audit access to test the stored printer connection", async () => {
     mocks.canViewAuditLogs.mockReturnValue(false);
 
     mocks.ipConnection.mockResolvedValue({
@@ -196,7 +230,7 @@ describe("TestPrinterConnection", () => {
       message: "backend.printer.ready",
     });
 
-    const result = await getHandler()(createEvent(), ipCandidate);
+    const result = await getHandler()(createEvent());
 
     expect(result.status).toBe(true);
 
@@ -467,12 +501,13 @@ describe("TestPrinterConnection", () => {
     });
   });
 
-  it("returns unknown_connection for an unsupported printer type", async () => {
-    const invalidCandidate = {
+  it("returns unknown_connection for an unsupported printer type in stored config", async () => {
+    const invalidConfig = {
       type: "UNKNOWN",
     } as unknown as PrinterConfig;
+    mocks.storeGet.mockReturnValue(invalidConfig);
 
-    const result = await getHandler()(createEvent(), invalidCandidate);
+    const result = await getHandler()(createEvent());
 
     expect(mocks.ipConnection).not.toHaveBeenCalled();
     expect(mocks.comConnection).not.toHaveBeenCalled();

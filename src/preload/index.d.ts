@@ -115,10 +115,6 @@ declare global {
         message?: string;
       }>;
 
-      GetTemplateEditAccess: () => Promise<{
-        status: boolean;
-      }>;
-
       // Printing
       PrintLabel: (payload: {
         part: PartPayload;
@@ -234,6 +230,7 @@ declare global {
           department: string;
           title: string;
           canEdit: boolean;
+          canConfigurePrinter: boolean;
         };
         rawError?: string;
       }>;
@@ -261,7 +258,25 @@ declare global {
         rawError?: string;
       }>;
 
+      LogRendererError: (errorInfo: {
+        message: string;
+        stack?: string;
+        componentStack?: string;
+      }) => Promise<void>;
+
       // Events
+      OnPrinterStatusChanged: (
+        callback: (status: {
+          status: boolean;
+          reachable: boolean;
+          ready: boolean;
+          detailsAvailable: boolean;
+          data?: PrinterStatusDetails;
+          message?: string;
+          rawError?: string;
+        }) => void,
+      ) => () => void;
+
       OnUpdateAvailable: (callback: () => void) => () => void;
 
       OnDownloadProgress: (
@@ -269,8 +284,6 @@ declare global {
       ) => () => void;
 
       OnUpdateDownloaded: (callback: () => void) => () => void;
-
-      RemoveAllListeners: (channel: string) => void;
     };
   }
 
@@ -288,7 +301,8 @@ declare global {
   interface DatabasePayload {
     host: string;
     user: string;
-    password: string;
+    password?: string;
+    hasPassword?: boolean;
     database: string;
   }
 

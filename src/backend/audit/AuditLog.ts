@@ -7,6 +7,7 @@ import { getAuditActor } from "./AuditSession";
 
 export {
   AUDIT_SESSION_TTL_MS,
+  canConfigurePrinter,
   canViewAuditLogs,
   clearAuditSession,
   getAuditActor,
@@ -293,17 +294,6 @@ export const checkAuditLogWritable = async (): Promise<AuditStorageStatus> => {
     };
   }
 };
-
-export const getAuditStorageStatus = (): AuditStorageStatus => ({
-  status: lastWriteError === null,
-  path: getLogsDirectory(),
-  message:
-    lastWriteError === null
-      ? "backend.audit.storage_ready"
-      : "backend.audit.storage_unavailable",
-  lastFailureAt: lastWriteFailureAt,
-  rawError: lastWriteError || undefined,
-});
 
 const INTERNAL_ACTIONS = new Set([
   "TEST_LABEL_DATA_PREPARED",

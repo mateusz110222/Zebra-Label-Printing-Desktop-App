@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  LoadingWrapper,
-  SystemHealthViewSkeleton,
-} from "@renderer/components/common";
+import { LoadingWrapper, SystemHealthViewSkeleton } from "@renderer/components/common";
+import { extractError } from "@renderer/utils/errorUtils";
 
 const statusColor = (ok: boolean): string =>
   ok
@@ -38,9 +36,8 @@ export function SystemHealthView(): React.JSX.Element {
       }
       setHealth(response.data);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : t("health.load_error"),
-      );
+      const { message: errMessage } = extractError(caught);
+      setError(errMessage || t("health.load_error"));
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { BsFileEarmarkCode, BsPrinter, BsSave } from "react-icons/bs";
+import { FiRefreshCw } from "react-icons/fi";
 import { useLabelEdit } from "../hooks/useLabelEdit";
 import { CriticalErrorState, LoadingWrapper } from "@renderer/components";
 import { useTranslation } from "react-i18next";
@@ -8,6 +9,27 @@ import { StatusBanner } from "@renderer/components/common";
 export function LabelEditView(): React.JSX.Element {
   const { t } = useTranslation();
   const { data, actions } = useLabelEdit();
+
+  // Ctrl+S / Cmd+S save shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void actions.handleSave();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [actions]);
+
+  // Memoize lines and character stats to optimize editor performance
+  const { lineCount, charCount } = useMemo(() => {
+    return {
+      lineCount: data.parsedData ? data.parsedData.split("\n").length : 0,
+      charCount: data.parsedData ? data.parsedData.length : 0,
+    };
+  }, [data.parsedData]);
 
   if (data.criticalError) {
     return (
@@ -91,9 +113,9 @@ export function LabelEditView(): React.JSX.Element {
             <button
               onClick={actions.handleSave}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md shadow-indigo-200 dark:shadow-none font-medium text-sm active:scale-95"
-              title={t("common.save")}
+              title={`${t("common.save")} (Ctrl+S)`}
             >
-              <BsSave size={18} />
+              <BsSave size={16} />
               <span>{t("common.save")}</span>
             </button>
 
@@ -102,7 +124,7 @@ export function LabelEditView(): React.JSX.Element {
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-400"
               title={t("label_editor.refresh")}
             >
-              <BsPrinter size={20} />
+              <FiRefreshCw size={18} />
             </button>
           </div>
         </header>
@@ -118,12 +140,10 @@ export function LabelEditView(): React.JSX.Element {
               <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
                 <span>
                   {t("label_editor.lines", {
-                    count: data.parsedData.split("\n").length,
+                    count: lineCount,
                   })}
                 </span>
-                <span>
-                  {t("label_editor.chars", { count: data.parsedData.length })}
-                </span>
+                <span>{t("label_editor.chars", { count: charCount })}</span>
               </div>
             </div>
 

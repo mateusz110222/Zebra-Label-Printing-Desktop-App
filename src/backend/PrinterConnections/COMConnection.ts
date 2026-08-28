@@ -1,8 +1,5 @@
 import { SerialPort } from "serialport";
-import {
-  ConnectionResult,
-  PrinterConnectionBase,
-} from "../printer/PrinterConnectionBase";
+import { ConnectionResult, PrinterConnectionBase } from "../printer/PrinterConnectionBase";
 import { PrinterConfig } from "../utils/store";
 
 class COMConnectionImpl extends PrinterConnectionBase {
@@ -35,11 +32,11 @@ class COMConnectionImpl extends PrinterConnectionBase {
       );
 
       if (!portInfo) {
-        const availablePorts = ports.map((p) => p.path).join(", ") || "brak";
+        const availablePorts = ports.map((p) => p.path).join(", ") || "none";
         return {
           status: false,
           message: "backend.printer.com_not_found",
-          rawError: `Dostępne: [${availablePorts}]`,
+          rawError: `Available ports: [${availablePorts}]`,
         };
       }
 

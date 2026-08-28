@@ -1,18 +1,20 @@
 import { ipcMain } from "electron";
 import mysql from "mysql2/promise";
-import {
-  appendAuditLog,
-  canViewAuditLogs,
-  checkAuditLogWritable,
-} from "../audit/AuditLog";
-import { closeDatabase } from "./DatabaseConfig";
+import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import { closeDatabase, getMysqlSslOptions } from "./DatabaseConfig";
 import { DatabaseConfig, store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
-const normalizeConfig = (input: DatabaseConfig): DatabaseConfig => ({
+const normalizeConfig = (
+  input: DatabaseConfig,
+  existingPassword?: string,
+): DatabaseConfig => ({
   host: input.host?.trim(),
   user: input.user?.trim(),
-  password: input.password || "",
+  password:
+    input.password && input.password.length > 0
+      ? input.password
+      : existingPassword || "",
   database: input.database?.trim(),
 });
 
@@ -26,14 +28,13 @@ const isValidDatabaseInput = (input: unknown): input is DatabaseConfig => {
   return (
     typeof config.host === "string" &&
     typeof config.user === "string" &&
-    typeof config.password === "string" &&
+    (typeof config.password === "string" || config.password === undefined) &&
     typeof config.database === "string" &&
     config.host.trim().length > 0 &&
     config.host.length <= 255 &&
     config.user.trim().length > 0 &&
     config.user.length <= 128 &&
-    config.password.length > 0 &&
-    config.password.length <= 1024 &&
+    (config.password === undefined || config.password.length <= 1024) &&
     config.database.trim().length > 0 &&
     config.database.length <= 128
   );
@@ -44,17 +45,16 @@ const validateConfig = (config: DatabaseConfig): boolean =>
 
 export default function SaveDatabaseConfig(): void {
   ipcMain.handle("get-database-config", () => {
-    const config = store.get("database");
+    const config = store.get("database") || {};
     return {
       status: true,
-      data: canViewAuditLogs()
-        ? config
-        : {
-            host: config.host || "",
-            user: config.user || "",
-            password: "",
-            database: config.database || "",
-          },
+      data: {
+        host: config.host || "",
+        user: config.user || "",
+        password: "",
+        hasPassword: Boolean(config.password && config.password.length > 0),
+        database: config.database || "",
+      },
     };
   });
 
@@ -75,7 +75,8 @@ export default function SaveDatabaseConfig(): void {
         };
       }
 
-      const config = normalizeConfig(input || {});
+      const previousConfig = { ...store.get("database") };
+      const config = normalizeConfig(input || {}, previousConfig.password);
       if (!validateConfig(config)) {
         return { status: false, message: "backend.config.invalid_database" };
       }
@@ -89,15 +90,17 @@ export default function SaveDatabaseConfig(): void {
         };
       }
 
-      const previousConfig = { ...store.get("database") };
       let testConnection: mysql.Connection | null = null;
       try {
+        const sslOptions = getMysqlSslOptions();
+
         testConnection = await mysql.createConnection({
           host: config.host,
           user: config.user,
           password: config.password,
           database: config.database,
           connectTimeout: 5000,
+          ...(sslOptions ? { ssl: sslOptions } : {}),
         });
         await testConnection.query("SELECT 1");
         await testConnection.end();

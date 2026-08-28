@@ -32,12 +32,12 @@ export default function ConnectionDisplayCard({
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
-      <div className="p-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+      <div className="p-6 sm:p-8">
+        <div className="flex items-start justify-between gap-6 min-h-[112px]">
+          <div className="flex items-start gap-6">
             {/* Connection icon */}
             <div
-              className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner ${
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
                 connectionType === "IP"
                   ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400"
                   : connectionType === "COM"
@@ -55,38 +55,36 @@ export default function ConnectionDisplayCard({
             </div>
 
             {/* Connection details */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+            <div className="pt-0.5">
+              <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
                 {t("config_view.active_connection")}
               </h3>
               {connectionType === "IP" ? (
                 <div>
-                  <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono tracking-tight">
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-mono">
                     {ipAddress}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-2">
-                    <span className="text-sm">{t("config_view.port")}:</span>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 flex items-center gap-2">
+                    <span>{t("config_view.port")}:</span>
                     <span className="font-mono">{port}</span>
                   </p>
                 </div>
               ) : connectionType === "COM" ? (
                 <div>
-                  <p className="text-3xl font-bold text-slate-800 dark:text-slate-100 font-mono tracking-tight">
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-100 font-mono">
                     {comPort}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1 flex items-center gap-2">
-                    <span className="text-sm">
-                      {t("config_view.baud_rate")}:
-                    </span>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 flex items-center gap-2">
+                    <span>{t("config_view.baud_rate")}:</span>
                     <span className="font-mono">{baudRate}</span>
                   </p>
                 </div>
               ) : (
                 <div>
-                  <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight break-all">
+                  <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-100 break-all">
                     {usbPrinterName}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">
+                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
                     {t("config_view.usb_windows_queue")}
                   </p>
                 </div>
@@ -95,9 +93,10 @@ export default function ConnectionDisplayCard({
           </div>
 
           {/* Status badge */}
-          <div className="hidden md:block">
-            <span className="inline-flex items-center rounded-full bg-green-50 dark:bg-green-900/30 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30">
-              ● {t("config_view.configured")}
+          <div className="hidden md:flex items-center self-center shrink-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 dark:bg-green-900/30 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+              {t("config_view.configured")}
             </span>
           </div>
         </div>
@@ -105,6 +104,7 @@ export default function ConnectionDisplayCard({
         {/* Actions */}
         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-4">
           <button
+            type="button"
             onClick={onTest}
             disabled={isProcessing}
             className="group flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-slate-200 dark:border-slate-600 hover:border-indigo-200 dark:hover:border-indigo-700 transition-all duration-200"
@@ -137,6 +137,7 @@ export default function ConnectionDisplayCard({
 
           {canEdit && (
             <button
+              type="button"
               onClick={onEdit}
               className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-all active:scale-95"
             >

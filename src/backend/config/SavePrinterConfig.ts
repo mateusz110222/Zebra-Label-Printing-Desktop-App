@@ -1,17 +1,14 @@
 import { ipcMain } from "electron";
-import {
-  appendAuditLog,
-  canViewAuditLogs,
-  checkAuditLogWritable,
-} from "../audit/AuditLog";
+import { appendAuditLog, canConfigurePrinter, checkAuditLogWritable } from "../audit/AuditLog";
 import { PrinterConfig, store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
+import { refreshAndBroadcastPrinterStatus } from "../printer/PrinterStatusService";
 
 export default function SavePrinterConfig(): void {
   ipcMain.handle(
     "save-printer-config",
     async (event, config: PrinterConfig) => {
-      if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+      if (!isMainRendererAuthorized(event) || !canConfigurePrinter()) {
         return { status: false, message: "backend.audit.unauthorized" };
       }
       try {
@@ -76,6 +73,8 @@ export default function SavePrinterConfig(): void {
             message: "backend.audit.storage_unavailable",
           };
         }
+
+        void refreshAndBroadcastPrinterStatus().catch(() => undefined);
 
         return { status: true, message: "backend.config.save_success" };
       } catch (error) {

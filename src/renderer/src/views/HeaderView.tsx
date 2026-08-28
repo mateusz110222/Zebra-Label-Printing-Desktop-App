@@ -1,63 +1,20 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useTranslation } from "react-i18next";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { SettingsMenuView } from "@renderer/views/SettingsMenuView";
 import { BsPrinter } from "react-icons/bs";
-import { extractError } from "@renderer/utils/errorUtils";
+import { usePrinterStatus } from "@renderer/context/PrinterStatusContext";
 
 export function HeaderView(): React.JSX.Element {
   const { t } = useTranslation();
   const { isLoggedIn, login, logout } = useAuth();
-
-  const [isOnline, SetisOnline] = useState<boolean>(false);
-  const [message, Setmessage] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [rawError, setRawError] = useState<string>("");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const GetPrinterStatus = async (): Promise<void> => {
-      try {
-        const response = await window.api.GetPrinterStatus();
-
-        if (!isMounted) return;
-
-        SetisOnline(response.status);
-
-        Setmessage(
-          response.message ||
-            (response.status ? "header.connected" : "header.disconnected"),
-        );
-
-        setRawError(response.rawError ?? "");
-      } catch (error) {
-        const extractedError = extractError(error);
-
-        if (!isMounted) return;
-
-        SetisOnline(false);
-        Setmessage("backend.printer.status_error");
-
-        setRawError(extractedError.message);
-
-        console.error("[HeaderView] GetPrinterStatus failed:", error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    GetPrinterStatus();
-
-    const intervalId = setInterval(GetPrinterStatus, 30 * 1000);
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [t]);
+  const {
+    isOnline,
+    statusMessage: message,
+    isLoading,
+    rawError,
+  } = usePrinterStatus();
 
   return (
     <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 px-6 py-3 shadow-sm dark:shadow-slate-900/50 z-50 relative">

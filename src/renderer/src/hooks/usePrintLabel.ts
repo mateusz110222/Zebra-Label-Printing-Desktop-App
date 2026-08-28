@@ -4,6 +4,32 @@ import { Part, PartOption, UiMessage } from "../types";
 import { extractError } from "../utils/errorUtils";
 
 const PREVIEW_DEBOUNCE_MS = 300;
+const MAX_PREVIEW_CACHE_SIZE = 25;
+
+const setPreviewInLruCache = (
+  cache: Map<string, string>,
+  key: string,
+  value: string,
+): void => {
+  if (cache.has(key)) {
+    cache.delete(key);
+  } else if (cache.size >= MAX_PREVIEW_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) cache.delete(oldestKey);
+  }
+  cache.set(key, value);
+};
+
+const getPreviewFromLruCache = (
+  cache: Map<string, string>,
+  key: string,
+): string | undefined => {
+  if (!cache.has(key)) return undefined;
+  const value = cache.get(key)!;
+  cache.delete(key);
+  cache.set(key, value);
+  return value;
+};
 
 const getPartOptionValue = (part: Part): string =>
   JSON.stringify([
@@ -62,7 +88,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const [serialNumber, setSerialNumber] = useState<string>("");
   const [lastPrintSummary, setLastPrintSummary] =
     useState<PrintLabelResult | null>(null);
-  const previewCache = useRef<Record<string, string>>({});
+  const previewCache = useRef<Map<string, string>>(new Map());
   const previewRequestId = useRef(0);
   const previewDebounceTimer = useRef<number | null>(null);
   const printInProgress = useRef(false);
@@ -164,7 +190,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       }
     };
 
-    fetchParts();
+    void fetchParts();
     return () => {
       isMounted = false;
     };
@@ -197,9 +223,10 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         date,
         serialNumber,
       ].join("|");
-      if (previewCache.current[cacheKey]) {
+      const cached = getPreviewFromLruCache(previewCache.current, cacheKey);
+      if (cached) {
         if (requestId !== previewRequestId.current) return;
-        setPreviewImage(previewCache.current[cacheKey]);
+        setPreviewImage(cached);
         setStatus((prev) => ({
           ...prev,
           isPreviewLoading: false,
@@ -216,7 +243,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       if (requestId !== previewRequestId.current) return;
 
       if (response.status && response.data) {
-        previewCache.current[cacheKey] = response.data;
+        setPreviewInLruCache(previewCache.current, cacheKey, response.data);
         setPreviewImage(response.data);
         setStatus((prev) => ({ ...prev, uiMessage: null }));
       } else {

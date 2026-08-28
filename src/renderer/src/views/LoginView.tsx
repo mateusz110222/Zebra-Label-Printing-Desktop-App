@@ -44,20 +44,21 @@ export function LoginView(): React.JSX.Element {
 
       const FullName = response.data.FullName;
       const CanEdit = response.data.canEdit;
+      const canConfigurePrinter = response.data.canConfigurePrinter;
 
       setUiMessage({
         type: "success",
         text: t(response.message || ""),
       });
 
-      setLogin(FullName, CanEdit);
+      setLogin(FullName, CanEdit, canConfigurePrinter);
       navigate("/");
     } catch (error) {
-      const { message } = extractError(error);
+      const { message, details } = extractError(error);
       setUiMessage({
         type: "error",
         text: t(message),
-        details: String(error),
+        details: details || message,
       });
     } finally {
       loginInProgress.current = false;

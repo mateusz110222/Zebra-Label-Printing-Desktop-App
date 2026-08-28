@@ -4,10 +4,8 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { getTemplatesPath } from "./TemplatePaths";
 import { PrinterConfig, store } from "../utils/store";
-import {
-  PrinterStatusResult,
-  queryPrinterStatus,
-} from "../printer/PrinterStatus";
+import { PrinterStatusResult } from "../printer/PrinterStatus";
+import { queryPrinterStatusSingleFlight } from "../printer/PrinterStatusService";
 import { getDatabase } from "../config/DatabaseConfig";
 import { checkAuditLogWritable } from "../audit/AuditLog";
 
@@ -25,8 +23,6 @@ interface DuplicateFamilyRow extends RowDataPacket {
   name: string;
   count: string | number;
 }
-
-const PRINTER_RETRY_DELAY_MS = 1000;
 
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,14 +46,14 @@ export const isAccessDenied = (rawError?: string): boolean => {
 const checkPrinterWithRetry = async (
   printerConfig: PrinterConfig,
 ): Promise<PrinterStatusResult> => {
-  let result = await queryPrinterStatus(printerConfig);
+  let result = await queryPrinterStatusSingleFlight(printerConfig);
 
   if (!isAccessDenied(result.rawError)) {
     return result;
   }
 
-  await sleep(PRINTER_RETRY_DELAY_MS);
-  result = await queryPrinterStatus(printerConfig);
+  await sleep(1000);
+  result = await queryPrinterStatusSingleFlight(printerConfig);
   return result;
 };
 

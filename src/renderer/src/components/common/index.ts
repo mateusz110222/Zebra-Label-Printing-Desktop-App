@@ -8,3 +8,4 @@ export {
   PageSkeleton,
   LoadingWrapper,
 } from "./SkeletonLoader";
+export { AppErrorBoundary } from "./ErrorBoundary";

@@ -1,11 +1,4 @@
-import React, {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiCheckCircle,
@@ -16,13 +9,11 @@ import {
   FiRefreshCw,
   FiSearch,
   FiShield,
-  FiXCircle,
+  FiXCircle
 } from "react-icons/fi";
 import { useAuth } from "@renderer/context/AuthContext";
-import {
-  AuditLogsViewSkeleton,
-  LoadingWrapper,
-} from "@renderer/components/common";
+import { AuditLogsViewSkeleton, LoadingWrapper } from "@renderer/components/common";
+import { extractError } from "@renderer/utils/errorUtils";
 
 const PAGE_SIZE = 50;
 
@@ -114,6 +105,8 @@ export function AuditLogsView(): React.JSX.Element {
 
   const [dateTo, setDateTo] = useState("");
 
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
   const [isLoading, setIsLoading] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
@@ -154,8 +147,6 @@ export function AuditLogsView(): React.JSX.Element {
 
     setIsLoading(true);
     setMessage("");
-    setEntries([]);
-    setTotal(0);
 
     try {
       const response = await window.api.GetAuditLogs(query);
@@ -178,12 +169,12 @@ export function AuditLogsView(): React.JSX.Element {
         return;
       }
 
-      setMessage(
-        error instanceof Error ? error.message : t("backend.audit.read_error"),
-      );
+      const { message: errMessage } = extractError(error);
+      setMessage(errMessage || t("backend.audit.read_error"));
     } finally {
       if (requestId === loadRequestId.current) {
         setIsLoading(false);
+        setIsInitialLoading(false);
       }
     }
   }, [CanEdit, isLoggedIn, query, t]);
@@ -198,10 +189,21 @@ export function AuditLogsView(): React.JSX.Element {
     };
   }, [loadLogs]);
 
+  // Debounced live search with 350ms pause
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchInput]);
+
   const changeView = (view: HistoryView): void => {
     setActiveView(view);
     setPage(1);
-    setEntries([]);
     setMessage("");
   };
 
@@ -228,11 +230,8 @@ export function AuditLogsView(): React.JSX.Element {
         setMessage(t("audit.export_success"));
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : t("backend.audit.export_error"),
-      );
+      const { message: errMessage } = extractError(error);
+      setMessage(errMessage || t("backend.audit.export_error"));
     } finally {
       setIsExporting(false);
     }
@@ -240,13 +239,17 @@ export function AuditLogsView(): React.JSX.Element {
 
   if (!isLoggedIn || !CanEdit) {
     return (
-      <div className="p-8">
-        <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          <h2 className="text-xl font-bold">
-            {t("audit.access_denied_title")}
-          </h2>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-8 text-center">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <FiShield className="mx-auto mb-4 text-4xl text-slate-400 dark:text-slate-500" />
 
-          <p className="mt-2 text-sm">{t("audit.access_denied_message")}</p>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+            {t("audit.access_restricted_title")}
+          </h3>
+
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            {t("audit.access_restricted_message")}
+          </p>
         </div>
       </div>
     );
@@ -258,7 +261,7 @@ export function AuditLogsView(): React.JSX.Element {
 
   return (
     <LoadingWrapper
-      isLoading={isLoading && entries.length === 0 && !message}
+      isLoading={isInitialLoading}
       skeleton={<AuditLogsViewSkeleton />}
     >
       <div className="min-h-full p-4 text-slate-800 sm:p-6 lg:p-8 dark:text-slate-100">

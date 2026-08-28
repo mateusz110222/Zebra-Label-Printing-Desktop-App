@@ -1,11 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ConfigViewSkeleton,
-  CriticalErrorState,
-  LoadingWrapper,
-  StatusBanner,
-} from "../components/common";
+import { ConfigViewSkeleton, CriticalErrorState, LoadingWrapper, StatusBanner } from "../components/common";
 import {
   ConfigFormCard,
   ConnectionDisplayCard,
@@ -13,14 +8,14 @@ import {
   DatabaseDisplayCard,
   NoConfigCard,
   PartsSourceConfigCard,
-  PartsSourceDisplayCard,
+  PartsSourceDisplayCard
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useConfigView } from "@renderer/hooks";
 
 export function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
-  const { CanEdit } = useAuth();
+  const { CanEdit, canConfigurePrinter } = useAuth();
 
   const { data, status, actions, isPrinterValid, isDatabaseValid } =
     useConfigView();
@@ -124,7 +119,7 @@ export function ConfigView(): React.JSX.Element {
           {/* Printer */}
           {activeTab === "connection" && (
             <>
-              {!data.hasConfig && !CanEdit ? (
+              {!data.hasConfig && !canConfigurePrinter ? (
                 <NoConfigCard
                   titleKey="config_view.printer_access_title"
                   messageKey="config_view.printer_access_message"
@@ -137,7 +132,7 @@ export function ConfigView(): React.JSX.Element {
                   comPort={data.displayedCom}
                   baudRate={data.displayedBaudRate}
                   usbPrinterName={data.displayedUsbPrinter}
-                  canEdit={CanEdit}
+                  canEdit={canConfigurePrinter}
                   isProcessing={status.isPrinterProcessing}
                   onTest={() => actions.handlePrinterAction("TEST")}
                   onEdit={actions.beginPrinterEdit}

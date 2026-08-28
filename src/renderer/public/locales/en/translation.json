@@ -6,7 +6,16 @@
     "save": "Save",
     "test": "Test",
     "close": "Close",
-    "page_not_found": "Page not found"
+    "page_not_found": "Page not found",
+    "unexpected_error": "An unexpected error occurred",
+    "error_boundary_description": "The application encountered an unexpected error and could not continue rendering this view.",
+    "try_again": "Try again",
+    "reload_app": "Reload application",
+    "search": "Search...",
+    "clear": "Clear",
+    "no_search_results": "No search results",
+    "no_search_results_desc": "No items found matching:",
+    "clear_filter": "Clear filter"
   },
   "sidebar": {
     "app_title": "Label Print APP",
@@ -75,7 +84,8 @@
     "block_health_stale": "The system status is outdated and must be checked again.",
     "open_system_health": "Open the System health panel",
     "preview_click_hint": "Click to view label preview",
-    "preview_hide_hint": "Click to hide label preview"
+    "preview_hide_hint": "Click to hide label preview",
+    "parts_config_data_missing": "Missing parts list source configuration data."
   },
   "config_view": {
     "title": "Application Configuration",
@@ -165,7 +175,8 @@
     "save_record": "Save record",
     "load_error": "Failed to load parts list configuration.",
     "save_success": "Parts source configuration saved.",
-    "save_error": "Failed to save parts configuration."
+    "save_error": "Failed to save parts configuration.",
+    "duplicate_record": "A record for this operation and part number already exists."
   },
   "login": {
     "title": "Login",
@@ -286,7 +297,14 @@
       "PART_NOT_FOUND": "No part matching the provided data was found.",
       "PART_AMBIGUOUS": "The provided data matches more than one part.",
       "GET_PARTS_FAIL": "Failed to retrieve the parts list.",
-      "PARTS_FETCH_SUCCESS": "The parts list was retrieved successfully."
+      "PARTS_FETCH_SUCCESS": "The parts list was retrieved successfully.",
+      "INVALID_CONFIG": "Invalid parts source configuration.",
+      "OPERATION_REQUIRED": "Operation name is required.",
+      "LOCAL_PARTS_REQUIRED": "Local parts source requires at least one part in the list.",
+      "PARTS_CONFIG_FETCHED": "Parts source configuration retrieved.",
+      "GET_CONFIG_FAIL": "Failed to retrieve parts configuration.",
+      "SAVE_CONFIG_FAIL": "Failed to save parts configuration.",
+      "PARTS_CONFIG_SAVED": "Parts configuration saved."
     },
     "db": {
       "not_initialized": "Database connection not initialized",
@@ -418,6 +436,8 @@
     "audit_subtitle": "Application events are stored in separate audit-*.jsonl files.",
     "access_denied_title": "Access denied",
     "access_denied_message": "Audit history is available after signing in with an IT-authorized account.",
+    "access_restricted_title": "Restricted access to history",
+    "access_restricted_message": "Please log in with an authorized account to view audit logs and print history.",
     "refresh": "Refresh",
     "export": "Export CSV",
     "exporting": "Exporting...",
@@ -564,5 +584,41 @@
   "label_card": {
     "template_type": "ZPL Template",
     "delete": "Delete"
+  },
+  "health": {
+    "title": "System health",
+    "subtitle": "Detailed readiness check of database, printer, templates, and audit storage.",
+    "refresh": "Refresh",
+    "load_error": "Failed to retrieve system health.",
+    "ok": "OK",
+    "problem": "Problem",
+    "overall": "Overall system status",
+    "healthy": "All components are operating normally",
+    "warning": "Warnings detected",
+    "critical": "Critical errors detected blocking operations",
+    "checked_at": "Checked at",
+    "database": "Database",
+    "target": "Target",
+    "server": "Server",
+    "engine": "Database engine",
+    "transactional": "Transactional (InnoDB)",
+    "not_transactional": "Non-transactional (InnoDB required)",
+    "time_drift": "Server time drift",
+    "duplicates": "Duplicates",
+    "none": "None",
+    "printer": "Printer",
+    "connection": "Connection",
+    "reachable": "Reachable",
+    "unreachable": "Unreachable",
+    "device_status": "Device status",
+    "queue": "Buffer queue",
+    "labels_remaining": "Labels remaining",
+    "templates": "Label templates",
+    "template_count": "Template count",
+    "path": "Path",
+    "audit": "Audit storage",
+    "storage_status": "Storage status",
+    "write_error_details": "Write error details",
+    "last_failure": "Last failure"
   }
 }

@@ -28,6 +28,9 @@ export default defineConfig(({ mode }) => {
         "process.env.LDAP_TLS_ALLOW_LEGACY_SERVER_CERT": JSON.stringify(
           env.LDAP_TLS_ALLOW_LEGACY_SERVER_CERT || "false",
         ),
+        "process.env.LDAP_TLS_SKIP_HOSTNAME_VERIFICATION": JSON.stringify(
+          env.LDAP_TLS_SKIP_HOSTNAME_VERIFICATION || "true",
+        ),
         "process.env.LDAP_CA_CERT_PATH": JSON.stringify(
           env.LDAP_CA_CERT_PATH || "",
         ),
@@ -39,6 +42,9 @@ export default defineConfig(({ mode }) => {
         ),
         "process.env.LDAP_IT_DEPARTMENTS": JSON.stringify(
           env.LDAP_IT_DEPARTMENTS || "IT",
+        ),
+        "process.env.LDAP_UR_DEPARTMENTS": JSON.stringify(
+          env.LDAP_UR_DEPARTMENTS || "",
         ),
         "process.env.PARTS_CONFIG_URL": JSON.stringify(
           env.PARTS_CONFIG_URL || "",
