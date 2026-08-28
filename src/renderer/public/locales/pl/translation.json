@@ -6,7 +6,16 @@
     "save": "Zapisz",
     "test": "Testuj",
     "close": "Zamknij",
-    "page_not_found": "Nie znaleziono strony"
+    "page_not_found": "Nie znaleziono strony",
+    "unexpected_error": "Wystąpił nieoczekiwany błąd",
+    "error_boundary_description": "Aplikacja napotkała nieoczekiwany problem i nie mogła kontynuować tego widoku.",
+    "try_again": "Spróbuj ponownie",
+    "reload_app": "Przeładuj aplikację",
+    "search": "Szukaj...",
+    "clear": "Wyczyść",
+    "no_search_results": "Brak wyników wyszukiwania",
+    "no_search_results_desc": "Nie znaleziono pozycji pasującej do frazy:",
+    "clear_filter": "Wyczyść filtr"
   },
   "sidebar": {
     "app_title": "Label Print APP",
@@ -265,7 +274,11 @@
       "usb_windows_required": "Drukowanie przez USB jest dostępne tylko w systemie Windows.",
       "usb_timeout": "Przekroczono czas oczekiwania na operację drukarki USB.",
       "usb_open_error": "Nie udało się otworzyć kolejki drukarki Windows.",
-      "usb_write_error": "Nie udało się przesłać całych danych etykiety do kolejki drukarki."
+      "usb_write_error": "Nie udało się przesłać całych danych etykiety do kolejki drukarki.",
+      "usb_start_job_error": "Nie udało się rozpocząć zadania wydruku USB w systemie Windows.",
+      "usb_start_page_error": "Nie udało się rozpocząć strony wydruku USB w systemie Windows.",
+      "usb_powershell_error": "Błąd wywołania PowerShell podczas wydruku USB.",
+      "template_empty": "Szablon etykiety jest pusty."
     },
     "parts": {
       "INVALID_SOURCE_CONFIG": "Konfiguracja źródła listy części jest nieprawidłowa.",
@@ -312,6 +325,7 @@
       "database_initialization_failed": "Nie udało się zainicjalizować połączenia z bazą danych."
     },
     "print": {
+      "partial_failure": "Częściowy błąd wysyłania etykiet do drukarki.",
       "generate_error": "Błąd generowania etykiety",
       "invalid_data": "Nieprawidłowe dane części",
       "error": "Błąd drukowania",
@@ -422,6 +436,8 @@
     "audit_subtitle": "Zdarzenia aplikacji są przechowywane w oddzielnych plikach audit-*.jsonl.",
     "access_denied_title": "Brak dostępu",
     "access_denied_message": "Historia audytu jest dostępna po zalogowaniu kontem z uprawnieniami IT.",
+    "access_restricted_title": "Ograniczony dostęp do historii",
+    "access_restricted_message": "Zaloguj się kontem z odpowiednimi uprawnieniami, aby przeglądać rejestr audytu i historię wydruków.",
     "refresh": "Odśwież",
     "export": "Eksportuj CSV",
     "exporting": "Eksportowanie...",
@@ -568,5 +584,41 @@
   "label_card": {
     "template_type": "Szablon ZPL",
     "delete": "Usuń"
+  },
+  "health": {
+    "title": "Stan systemu",
+    "subtitle": "Szczegółowy podgląd gotowości bazy danych, drukarki, szablonów i magazynu audytu.",
+    "refresh": "Odśwież",
+    "load_error": "Nie udało się pobrać stanu systemu.",
+    "ok": "OK",
+    "problem": "Problem",
+    "overall": "Ogólny stan systemu",
+    "healthy": "Wszystkie komponenty działają prawidłowo",
+    "warning": "Wykryto ostrzeżenia",
+    "critical": "Wykryto błędy krytyczne blokujące działanie",
+    "checked_at": "Sprawdzono",
+    "database": "Baza danych",
+    "target": "Cel",
+    "server": "Serwer",
+    "engine": "Silnik bazy",
+    "transactional": "Transakcyjny (InnoDB)",
+    "not_transactional": "Nietransakcyjny (Wymaga InnoDB)",
+    "time_drift": "Różnica czasu z serwerem",
+    "duplicates": "Duplikaty",
+    "none": "Brak",
+    "printer": "Drukarka",
+    "connection": "Połączenie",
+    "reachable": "Osiągalna",
+    "unreachable": "Nieosiągalna",
+    "device_status": "Stan urządzenia",
+    "queue": "Kolejka bufora",
+    "labels_remaining": "Pozostało etykiet",
+    "templates": "Szablony etykiet",
+    "template_count": "Liczba szablonów",
+    "path": "Ścieżka",
+    "audit": "Magazyn audytu",
+    "storage_status": "Stan magazynu",
+    "write_error_details": "Szczegóły błędu zapisu",
+    "last_failure": "Ostatni błąd"
   }
 }

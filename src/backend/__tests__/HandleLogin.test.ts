@@ -110,6 +110,7 @@ interface LoginResponse {
     department: string;
     title: string;
     canEdit: boolean;
+    canConfigurePrinter: boolean;
   };
 
   rawError?: string;
@@ -526,6 +527,36 @@ describe("HandleLogin", () => {
       expect(clientOptions.tlsOptions.secureOptions).toBeUndefined();
     });
 
+    it("skips LDAP certificate hostname matching by default", async () => {
+      await getLoginHandler()(createEvent(), {
+        login: "user",
+        password: "safe-password",
+      });
+
+      const clientOptions = mocks.Client.mock.calls[0][0];
+
+      expect(
+        clientOptions.tlsOptions.checkServerIdentity(
+          "ldap.example.com",
+          {} as never,
+        ),
+      ).toBeUndefined();
+      expect(clientOptions.tlsOptions.rejectUnauthorized).toBe(true);
+    });
+
+    it("can restore strict LDAP hostname matching", async () => {
+      vi.stubEnv("LDAP_TLS_SKIP_HOSTNAME_VERIFICATION", "false");
+
+      await getLoginHandler()(createEvent(), {
+        login: "user",
+        password: "safe-password",
+      });
+
+      const clientOptions = mocks.Client.mock.calls[0][0];
+
+      expect(clientOptions.tlsOptions.checkServerIdentity).toBeUndefined();
+    });
+
     it("loads a relative CA certificate in development", async () => {
       vi.stubEnv("LDAP_CA_CERT_PATH", "certificates/company-ca.pem");
 
@@ -709,10 +740,15 @@ describe("HandleLogin", () => {
           department: "QUALITY",
           title: "Operator",
           canEdit: false,
+          canConfigurePrinter: false,
         },
       });
 
-      expect(mocks.setAuditSession).toHaveBeenCalledWith("Jan Kowalski", false);
+      expect(mocks.setAuditSession).toHaveBeenCalledWith(
+        "Jan Kowalski",
+        false,
+        false,
+      );
 
       expect(mocks.client.unbind).toHaveBeenCalledOnce();
     });
@@ -787,7 +823,11 @@ describe("HandleLogin", () => {
 
       expect(response.data?.canEdit).toBe(true);
 
-      expect(mocks.setAuditSession).toHaveBeenCalledWith("Jan Kowalski", true);
+      expect(mocks.setAuditSession).toHaveBeenCalledWith(
+        "Jan Kowalski",
+        true,
+        true,
+      );
     });
 
     it("grants edit access through exact configured LDAP group", async () => {
@@ -818,7 +858,39 @@ describe("HandleLogin", () => {
 
       expect(response.data?.canEdit).toBe(true);
 
-      expect(mocks.setAuditSession).toHaveBeenCalledWith("Anna Nowak", true);
+      expect(mocks.setAuditSession).toHaveBeenCalledWith(
+        "Anna Nowak",
+        true,
+        true,
+      );
+    });
+
+    it("grants UR access to printer configuration without full edit access", async () => {
+      vi.stubEnv("LDAP_UR_DEPARTMENTS", "Maintenance;UR");
+
+      mocks.client.search.mockResolvedValue({
+        searchEntries: [
+          {
+            displayName: "UR User",
+            department: " maintenance ",
+            memberOf: [],
+          },
+        ],
+        searchReferences: [],
+      });
+
+      const response = await getLoginHandler()(createEvent(), {
+        login: "ur.user",
+        password: "safe-password",
+      });
+
+      expect(response.data?.canEdit).toBe(false);
+      expect(response.data?.canConfigurePrinter).toBe(true);
+      expect(mocks.setAuditSession).toHaveBeenCalledWith(
+        "UR User",
+        false,
+        true,
+      );
     });
 
     it("does not grant edit access for a partial department match", async () => {
@@ -870,7 +942,11 @@ describe("HandleLogin", () => {
 
       expect(response.data?.FullName).toBe("Kowalski Jan");
 
-      expect(mocks.setAuditSession).toHaveBeenCalledWith("Kowalski Jan", false);
+      expect(mocks.setAuditSession).toHaveBeenCalledWith(
+        "Kowalski Jan",
+        false,
+        false,
+      );
     });
 
     it("uses normalized login when displayName and cn are missing", async () => {
@@ -917,6 +993,7 @@ describe("HandleLogin", () => {
           department: "",
           title: "",
           canEdit: false,
+          canConfigurePrinter: false,
         },
       });
     });

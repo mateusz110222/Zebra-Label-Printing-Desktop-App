@@ -163,7 +163,22 @@ const api = {
   ExportAuditLogs: (query: Record<string, unknown>) =>
     ipcRenderer.invoke("export-audit-logs", query),
 
+  LogRendererError: (errorInfo: {
+    message: string;
+    stack?: string;
+    componentStack?: string;
+  }) => ipcRenderer.invoke("log-renderer-error", errorInfo),
+
   // Events
+  OnPrinterStatusChanged: (callback: (status: unknown) => void) => {
+    const sub = (_event: Electron.IpcRendererEvent, data: unknown): void =>
+      callback(data);
+
+    ipcRenderer.on("printer-status", sub);
+
+    return () => ipcRenderer.removeListener("printer-status", sub);
+  },
+
   OnUpdateAvailable: (callback: () => void) => {
     const sub = (): void => callback();
 

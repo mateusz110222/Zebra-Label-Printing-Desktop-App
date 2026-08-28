@@ -5,6 +5,7 @@ export const AUDIT_SESSION_TTL_MS = 30 * 60 * 1000;
 interface UserSession {
   actor: string;
   canViewAudit: boolean;
+  canConfigurePrinter: boolean;
   expiresAt: number;
 }
 
@@ -18,10 +19,15 @@ const getActiveSession = (): UserSession | null => {
   return currentSession;
 };
 
-export const setAuditSession = (actor: string, canViewAudit: boolean): void => {
+export const setAuditSession = (
+  actor: string,
+  canViewAudit: boolean,
+  canConfigurePrinter = canViewAudit,
+): void => {
   currentSession = {
     actor,
     canViewAudit,
+    canConfigurePrinter,
     expiresAt: Date.now() + AUDIT_SESSION_TTL_MS,
   };
 };
@@ -35,3 +41,6 @@ export const getAuditActor = (): string =>
 
 export const canViewAuditLogs = (): boolean =>
   getActiveSession()?.canViewAudit === true;
+
+export const canConfigurePrinter = (): boolean =>
+  getActiveSession()?.canConfigurePrinter === true;

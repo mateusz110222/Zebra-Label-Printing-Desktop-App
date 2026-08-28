@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   AUDIT_SESSION_TTL_MS,
+  canConfigurePrinter,
   canViewAuditLogs,
   clearAuditSession,
   getAuditActor,
-  setAuditSession,
+  setAuditSession
 } from "../audit/AuditSession";
 
 const mocks = vi.hoisted(() => ({
@@ -70,6 +71,19 @@ describe("AuditSession", () => {
       expect(canViewAuditLogs()).toBe(false);
 
       expect(getAuditActor()).toBe("Operator");
+    });
+
+    it("can grant printer configuration without audit access", () => {
+      setAuditSession("UR User", false, true);
+
+      expect(canViewAuditLogs()).toBe(false);
+      expect(canConfigurePrinter()).toBe(true);
+    });
+
+    it("grants printer configuration to IT by default", () => {
+      setAuditSession("IT User", true);
+
+      expect(canConfigurePrinter()).toBe(true);
     });
 
     it("replaces the previous session", () => {
@@ -316,6 +330,20 @@ describe("AuditSession", () => {
       vi.advanceTimersByTime(AUDIT_SESSION_TTL_MS);
 
       expect(canViewAuditLogs()).toBe(false);
+    });
+  });
+
+  describe("canConfigurePrinter", () => {
+    it("returns false without an active session", () => {
+      expect(canConfigurePrinter()).toBe(false);
+    });
+
+    it("returns false after the UR session expires", () => {
+      setAuditSession("UR User", false, true);
+
+      vi.advanceTimersByTime(AUDIT_SESSION_TTL_MS);
+
+      expect(canConfigurePrinter()).toBe(false);
     });
   });
 });

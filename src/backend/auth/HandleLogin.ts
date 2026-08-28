@@ -10,6 +10,7 @@ import {
   getLdapAttributeValues,
   isLdapUserAuthorized,
   isSecureLdapUrl,
+  ldapCompatibilityTlsOptions,
   parseBoolean,
   parsePositiveTimeout,
   redactSecret
@@ -30,6 +31,7 @@ interface LoginResponse {
     department: string;
     title: string;
     canEdit: boolean;
+    canConfigurePrinter: boolean;
   };
   rawError?: string;
 }
@@ -59,6 +61,10 @@ const getClientOptions = async (ldapUrl: string): Promise<ClientOptions> => {
     process.env.LDAP_TLS_ALLOW_LEGACY_SERVER_CERT,
     false,
   );
+  const skipHostnameVerification = parseBoolean(
+    process.env.LDAP_TLS_SKIP_HOSTNAME_VERIFICATION,
+    true,
+  );
   const configuredCaPath = process.env.LDAP_CA_CERT_PATH?.trim();
   const ca = configuredCaPath
     ? await readFile(resolveCaCertificatePath(configuredCaPath), "utf8")
@@ -74,6 +80,7 @@ const getClientOptions = async (ldapUrl: string): Promise<ClientOptions> => {
       ...(allowLegacyServerCertificate
         ? { secureOptions: constants.SSL_OP_LEGACY_SERVER_CONNECT }
         : {}),
+      ...ldapCompatibilityTlsOptions(skipHostnameVerification),
     },
   };
 };
@@ -228,6 +235,11 @@ export default function HandleLogin(): void {
           departments: process.env.LDAP_IT_DEPARTMENTS,
           groupDn: process.env.LDAP_IT_GROUP_DN,
         });
+        const canConfigurePrinter =
+          canEdit ||
+          isLdapUserAuthorized(department, userData.memberOf, {
+            departments: process.env.LDAP_UR_DEPARTMENTS,
+          });
         const loginAuditPersisted = await appendAuditLog({
           category: "auth",
           action: "LOGIN",
@@ -241,7 +253,7 @@ export default function HandleLogin(): void {
             message: "backend.audit.storage_unavailable",
           };
         }
-        setAuditSession(fullName, canEdit);
+        setAuditSession(fullName, canEdit, canConfigurePrinter);
 
         return {
           status: true,
@@ -251,6 +263,7 @@ export default function HandleLogin(): void {
             department,
             title,
             canEdit,
+            canConfigurePrinter,
           },
         };
       } catch (error) {

@@ -3,16 +3,13 @@ import { useTranslation } from "react-i18next";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
-import {
-  CriticalErrorState,
-  LoadingWrapper,
-  StatusBanner,
-  SubmitButton,
-} from "../components/common";
+import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
 import { useTheme } from "@renderer/hooks/useThemeContext";
+import { usePrinterStatus } from "@renderer/context/PrinterStatusContext";
+import { extractError } from "@renderer/utils/errorUtils";
 
 const HEALTH_TTL_MS = 45_000;
 
@@ -22,6 +19,8 @@ export function PrintView(): React.JSX.Element {
   const navigate = useNavigate();
 
   const { data, status, actions, isValid } = usePrintLabel("print");
+  const { ready: livePrinterReady, statusMessage: livePrinterMessage } =
+    usePrinterStatus();
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [healthIsLoading, setHealthIsLoading] = useState(true);
   const [healthError, setHealthError] = useState("");
@@ -58,9 +57,8 @@ export function PrintView(): React.JSX.Element {
       );
     } catch (caught) {
       if (requestId !== healthRequestId.current) return;
-      setHealthError(
-        caught instanceof Error ? caught.message : t("health.load_error"),
-      );
+      const { message: errMessage } = extractError(caught);
+      setHealthError(errMessage || t("health.load_error"));
       setHealthIsStale(true);
     } finally {
       if (requestId === healthRequestId.current) setHealthIsLoading(false);
@@ -84,7 +82,8 @@ export function PrintView(): React.JSX.Element {
     data.lastPrintSummary?.printerReady === false &&
     !(
       verifiedPostPrintSummary === data.lastPrintSummary &&
-      health?.printer.ready === true
+      health?.printer.ready === true &&
+      livePrinterReady
     );
   const auditWarningBlocksPrint =
     data.lastPrintSummary?.auditPersisted === false;
@@ -117,7 +116,8 @@ export function PrintView(): React.JSX.Element {
       status.uiMessage !== null &&
       data.lastPrintSummary?.printerReady === false &&
       verifiedPostPrintSummary === data.lastPrintSummary &&
-      health?.printer.ready === true;
+      health?.printer.ready === true &&
+      livePrinterReady;
 
     if (printerRecovered) {
       clearUiMessage();
@@ -127,6 +127,7 @@ export function PrintView(): React.JSX.Element {
     data.lastPrintSummary,
     verifiedPostPrintSummary,
     health?.printer.ready,
+    livePrinterReady,
     clearUiMessage,
   ]);
 
@@ -138,6 +139,7 @@ export function PrintView(): React.JSX.Element {
     !healthError &&
     health.database.status &&
     health.printer.ready &&
+    livePrinterReady &&
     health.templates.status &&
     health.audit.status;
   const blockingReasons = [
@@ -169,8 +171,8 @@ export function PrintView(): React.JSX.Element {
                 data.lastPrintSummary?.printerStatusMessage ||
                   "print_view.printer_status_not_confirmed",
               )
-            : !health.printer.ready
-              ? t(health.printer.message)
+            : !health.printer.ready || !livePrinterReady
+              ? t(livePrinterMessage || health.printer.message)
               : null,
           !health.templates.status ? t("print_view.block_templates") : null,
           !health.audit.status ? t("print_view.block_audit") : null,
@@ -181,17 +183,40 @@ export function PrintView(): React.JSX.Element {
                 data.lastPrintSummary?.printerStatusMessage ||
                   "print_view.printer_status_not_confirmed",
               )
-            : null,
+            : !livePrinterReady
+              ? t(
+                  livePrinterMessage ||
+                    "print_view.printer_status_not_confirmed",
+                )
+              : null,
           auditWarningBlocksPrint ? t("print_view.block_audit") : null,
         ],
-  ]
-    .flat()
-    .filter((reason): reason is string => Boolean(reason));
+  ].flat();
   const uniqueBlockingReasons = [...new Set(blockingReasons)];
   const hasSystemBlockingReason = uniqueBlockingReasons.length > 0;
   const receiptHasWarning =
     data.lastPrintSummary?.printerReady === false ||
     data.lastPrintSummary?.auditPersisted === false;
+
+  const canSubmit = isValid && systemAllowsPrint && !status.isPrinting;
+
+  // Keyboard shortcut Ctrl+Enter / Ctrl+P
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "Enter" || e.key.toLowerCase() === "p")
+      ) {
+        if (canSubmit) {
+          e.preventDefault();
+          void actions.handlePrint();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canSubmit, actions]);
 
   if (status.criticalError) {
     return (
@@ -314,7 +339,7 @@ export function PrintView(): React.JSX.Element {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                if (isValid && systemAllowsPrint) void actions.handlePrint();
+                if (canSubmit) void actions.handlePrint();
               }}
             >
               <div className="p-4 sm:p-6 lg:p-8">

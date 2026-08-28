@@ -1,14 +1,10 @@
 import React from "react";
-import {
-  HashRouter as Router,
-  Navigate,
-  Route,
-  Routes,
-} from "react-router-dom";
+import { HashRouter as Router, Navigate, Route, Routes } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { PrinterStatusProvider } from "./context/PrinterStatusContext";
 
 import {
   AuditLogsView,
@@ -19,7 +15,7 @@ import {
   LoginView,
   PrintView,
   ReprintView,
-  SystemHealthView,
+  SystemHealthView
 } from "./views";
 
 function ItProtectedRoute({
@@ -37,28 +33,33 @@ function App(): React.JSX.Element {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<LayoutView />}>
-              <Route path="/" element={<PrintView />} />
-              <Route path="/login" element={<LoginView />} />
-              <Route path="templates" element={<LabelsFormatsView />} />
-              <Route path="config" element={<ConfigView />} />
+        <PrinterStatusProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<LayoutView />}>
+                <Route path="/" element={<PrintView />} />
+                <Route path="/login" element={<LoginView />} />
+                <Route path="templates" element={<LabelsFormatsView />} />
+                <Route path="config" element={<ConfigView />} />
+                <Route
+                  path="reprint"
+                  element={
+                    <ItProtectedRoute>
+                      <ReprintView />
+                    </ItProtectedRoute>
+                  }
+                />
+                <Route path="history" element={<AuditLogsView />} />
+                <Route path="health" element={<SystemHealthView />} />
+              </Route>
+              <Route path="/preview" element={<LabelEditView />} />
               <Route
-                path="reprint"
-                element={
-                  <ItProtectedRoute>
-                    <ReprintView />
-                  </ItProtectedRoute>
-                }
+                path="*"
+                element={<div>{t("common.page_not_found")}</div>}
               />
-              <Route path="history" element={<AuditLogsView />} />
-              <Route path="health" element={<SystemHealthView />} />
-            </Route>
-            <Route path="/preview" element={<LabelEditView />} />
-            <Route path="*" element={<div>{t("common.page_not_found")}</div>} />
-          </Routes>
-        </Router>
+            </Routes>
+          </Router>
+        </PrinterStatusProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 
   appendAuditLog: vi.fn(),
   checkAuditLogWritable: vi.fn(),
-  canViewAuditLogs: vi.fn(() => true),
+  canConfigurePrinter: vi.fn(() => true),
 }));
 
 const createEvent = (): IpcMainInvokeEvent => ({}) as IpcMainInvokeEvent;
@@ -51,7 +51,7 @@ vi.mock("../utils/store", () => ({
 vi.mock("../audit/AuditLog", () => ({
   appendAuditLog: mocks.appendAuditLog,
   checkAuditLogWritable: mocks.checkAuditLogWritable,
-  canViewAuditLogs: mocks.canViewAuditLogs,
+  canConfigurePrinter: mocks.canConfigurePrinter,
 }));
 
 vi.mock("../auth/IsAutorized", () => ({
@@ -83,7 +83,7 @@ describe("SavePrinterConfig", () => {
 
     mocks.isMainRendererAuthorized.mockReturnValue(true);
 
-    mocks.canViewAuditLogs.mockReturnValue(true);
+    mocks.canConfigurePrinter.mockReturnValue(true);
 
     mocks.storeGet.mockImplementation((key: string) => {
       if (key === "printer") {
@@ -129,7 +129,7 @@ describe("SavePrinterConfig", () => {
       message: "backend.audit.unauthorized",
     });
 
-    expect(mocks.canViewAuditLogs).not.toHaveBeenCalled();
+    expect(mocks.canConfigurePrinter).not.toHaveBeenCalled();
 
     expect(mocks.checkAuditLogWritable).not.toHaveBeenCalled();
 
@@ -140,8 +140,8 @@ describe("SavePrinterConfig", () => {
     expect(mocks.appendAuditLog).not.toHaveBeenCalled();
   });
 
-  it("rejects a user without IT audit permission", async () => {
-    mocks.canViewAuditLogs.mockReturnValue(false);
+  it("rejects a user without printer configuration permission", async () => {
+    mocks.canConfigurePrinter.mockReturnValue(false);
 
     const response = await getHandler()(createEvent(), {
       type: "IP",

@@ -27,6 +27,11 @@ export const parseBoolean = (
   return fallback;
 };
 
+export const ldapCompatibilityTlsOptions = (
+  skipHostnameVerification: boolean,
+): { checkServerIdentity?: () => undefined } =>
+  skipHostnameVerification ? { checkServerIdentity: () => undefined } : {};
+
 export const isSecureLdapUrl = (value: string): boolean => {
   try {
     const url = new URL(value);

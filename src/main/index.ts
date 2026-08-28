@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { join } from "path";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 
@@ -9,8 +9,12 @@ import GetUsbPrinters from "../backend/printer/GetUsbPrinters";
 import TestPrinterConnection from "../backend/printer/TestPrinterConnection";
 import SavePrinterConfig from "../backend/config/SavePrinterConfig";
 import GetPrinterConfig from "../backend/config/GetPrinterConfig";
+import SetupPrinterStatusHandlers, {
+  startPrinterStatusPoller,
+  stopPrinterStatusPoller
+} from "../backend/printer/PrinterStatusService";
+import { isPrintQueueBusy, waitForPrintQueueIdle } from "../backend/printer/PrinterActivity";
 import HandleLogin from "../backend/auth/HandleLogin";
-import IsOnline from "../backend/system/IsOnline";
 import GetLabelPreview from "../backend/preview/GetLabelPreview";
 import { closeDatabase } from "../backend/config/DatabaseConfig";
 import GetLabelsFormats from "../backend/parts/GetLabelsFormats";
@@ -27,16 +31,22 @@ import {
   getRendererEntryUrl,
   isAllowedExternalUrl,
   isAllowedPreviewUrl,
-  isRendererDocumentUrl,
+  isRendererDocumentUrl
 } from "../backend/preview/PreviewWindowPolicy";
-import {
-  installExtension,
-  REACT_DEVELOPER_TOOLS,
-} from "electron-devtools-installer";
+import { installExtension, REACT_DEVELOPER_TOOLS } from "electron-devtools-installer";
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception in main process:", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection in main process:", reason);
+});
 
 app.enableSandbox();
 
-let mainWindow: BrowserWindow;
+let mainWindow: BrowserWindow | null = null;
+let isShuttingDown = false;
 
 const openExternalUrl = (url: string): void => {
   if (!isAllowedExternalUrl(url)) return;
@@ -46,7 +56,7 @@ const openExternalUrl = (url: string): void => {
   });
 };
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
   const rendererEntryUrl = getRendererEntryUrl(
     app.isPackaged,
     process.env["ELECTRON_RENDERER_URL"],
@@ -79,8 +89,10 @@ function createWindow(): void {
   });
 
   mainWindow.once("ready-to-show", () => {
-    mainWindow.maximize();
-    mainWindow.show();
+    if (mainWindow) {
+      mainWindow.maximize();
+      mainWindow.show();
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -137,6 +149,7 @@ function createWindow(): void {
 
   mainWindow.webContents.once("destroyed", () => {
     clearAuditSession();
+    mainWindow = null;
   });
 
   mainWindow.webContents.on("did-create-window", (childWindow, details) => {
@@ -144,6 +157,10 @@ function createWindow(): void {
       childWindow.destroy();
       return;
     }
+
+    childWindow.once("ready-to-show", () => {
+      childWindow.show();
+    });
 
     childWindow.webContents.on("will-navigate", (event, url) => {
       if (isAllowedPreviewUrl(url, rendererEntryUrl)) return;
@@ -158,65 +175,119 @@ function createWindow(): void {
     });
   });
 
-  if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-    mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
-  } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+  try {
+    if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+      await mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
+    } else {
+      await mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    }
+  } catch (error) {
+    console.error("Failed to load renderer UI:", error);
   }
 }
 
-GetParts();
-PartsConfigHandler();
-PrintLabel();
-TestPrinterConnection();
-SavePrinterConfig();
-GetPrinterConfig();
-GetSerialPorts();
-GetUsbPrinters();
-void IsOnline();
-GetGithubVersions();
-HandleLogin();
-GetLabelPreview();
-GetLabelsFormats();
-SettingsHandler();
-ChildWindowHandlers();
-AuditLogHandlers();
-SaveDatabaseConfig();
-SystemHealthHandler();
+// Single Instance Lock
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-app.whenReady().then(() => {
-  void installExtension(REACT_DEVELOPER_TOOLS);
-  electronApp.setAppUserModelId("com.electron");
-
-  session.defaultSession.setPermissionCheckHandler(() => {
-    return false;
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
   });
 
-  session.defaultSession.setPermissionRequestHandler(
-    (_webContents, _permission, callback) => {
-      callback(false);
-    },
-  );
+  // Initialize Backend Handlers
+  GetParts();
+  PartsConfigHandler();
+  PrintLabel();
+  TestPrinterConnection();
+  SavePrinterConfig();
+  GetPrinterConfig();
+  SetupPrinterStatusHandlers();
+  GetSerialPorts();
+  GetUsbPrinters();
+  GetGithubVersions();
+  HandleLogin();
+  GetLabelPreview();
+  GetLabelsFormats();
+  SettingsHandler();
+  ChildWindowHandlers();
+  AuditLogHandlers();
+  SaveDatabaseConfig();
+  SystemHealthHandler();
 
-  app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
+  ipcMain.handle("log-renderer-error", (_event, errorInfo) => {
+    console.error("[Renderer Error via IPC]", errorInfo);
   });
 
-  createWindow();
-  UpdatesHandler(mainWindow);
+  app
+    .whenReady()
+    .then(async () => {
+      if (!app.isPackaged) {
+        try {
+          await installExtension(REACT_DEVELOPER_TOOLS);
+        } catch (error) {
+          console.error("Failed to install React Developer Tools:", error);
+        }
+      }
 
-  app.on("activate", function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      electronApp.setAppUserModelId("com.electron");
+
+      session.defaultSession.setPermissionCheckHandler(() => false);
+      session.defaultSession.setPermissionRequestHandler(
+        (_webContents, _permission, callback) => {
+          callback(false);
+        },
+      );
+
+      app.on("browser-window-created", (_, window) => {
+        optimizer.watchWindowShortcuts(window);
+      });
+
+      await createWindow();
+      if (mainWindow) {
+        UpdatesHandler(mainWindow);
+      }
+
+      startPrinterStatusPoller(5000);
+
+      app.on("activate", function () {
+        if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+      });
+    })
+    .catch((err) => {
+      console.error("Failed during app initialization:", err);
+    });
+
+  app.on("window-all-closed", async () => {
+    await closeDatabase().catch(() => undefined);
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
   });
-});
 
-app.on("window-all-closed", async () => {
-  await closeDatabase();
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
+  app.on("before-quit", async (event) => {
+    if (isShuttingDown) return;
 
-app.on("before-quit", async () => {
-  await closeDatabase();
-});
+    event.preventDefault();
+    isShuttingDown = true;
+
+    try {
+      stopPrinterStatusPoller();
+      if (isPrintQueueBusy()) {
+        console.log("Waiting for pending print queue before quit...");
+        await waitForPrintQueueIdle(15000);
+      }
+      await closeDatabase().catch((e) =>
+        console.error("Database close error on quit:", e),
+      );
+    } catch (err) {
+      console.error("Error during graceful shutdown:", err);
+    } finally {
+      app.quit();
+    }
+  });
+}

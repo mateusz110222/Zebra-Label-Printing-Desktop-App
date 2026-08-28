@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Part } from "../types";
+import { usePrinterStatus } from "../context/PrinterStatusContext";
+import { extractError } from "../utils/errorUtils";
 
 interface useLabelEditResponse {
   data: {
@@ -27,6 +29,12 @@ interface useLabelEditResponse {
 
 export function useLabelEdit(): useLabelEditResponse {
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
+  const {
+    isOnline,
+    statusMessage: message,
+    isLoading: isOnlineLoading,
+  } = usePrinterStatus();
 
   const nameParam = searchParams.get("name");
   const dataParam = searchParams.get("data");
@@ -47,12 +55,8 @@ export function useLabelEdit(): useLabelEditResponse {
   const [cleanName, setCleanName] = useState<string>(nameParam || "");
   const [parsedData, setParsedData] = useState<string>(getInitialParsedData);
   const [criticalError, setCriticalError] = useState<string | null>(null);
-  const { t } = useTranslation();
   const [previewImage, setPreviewImage] = useState<string>("");
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const [isOnline, SetisOnline] = useState<boolean>(false);
-  const [message, Setmessage] = useState<string>("");
-  const [isOnlineLoading, setisOnlineLoading] = useState<boolean>(true);
   const [isZPLLoading, setIsZPLLoading] = useState<boolean>(true);
   const [uiMessage, setUiMessage] = useState<{
     type: "success" | "error";
@@ -67,39 +71,23 @@ export function useLabelEdit(): useLabelEditResponse {
       .toLocaleLowerCase();
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const fetchPrinterStatus = async (): Promise<void> => {
-      try {
-        const response = await window.api.GetPrinterStatus();
-        if (isMounted) {
-          SetisOnline(response.status);
-          Setmessage(
-            response.message ||
-              (response.status ? "header.connected" : "header.disconnected"),
-          );
-        }
-      } catch (error) {
-        console.error(error);
-        if (isMounted) {
-          SetisOnline(false);
-          Setmessage(t("header.status_error"));
-        }
-      } finally {
-        setisOnlineLoading(false);
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
     };
-
-    fetchPrinterStatus();
-    const intervalId = setInterval(fetchPrinterStatus, 5000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(intervalId);
-    };
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -130,7 +118,7 @@ export function useLabelEdit(): useLabelEditResponse {
       }
     };
 
-    fetchZPL();
+    void fetchZPL();
 
     return () => {
       isMounted = false;
@@ -202,7 +190,7 @@ export function useLabelEdit(): useLabelEditResponse {
       }
     };
 
-    findExamplePart();
+    void findExamplePart();
     return () => {
       isMounted = false;
     };
@@ -254,12 +242,9 @@ export function useLabelEdit(): useLabelEditResponse {
       } catch (error) {
         if (isMounted) {
           console.error("Preview failed:", error);
+          const { message: errMessage } = extractError(error);
           setPreviewImage("");
-          setPreviewError(
-            error instanceof Error
-              ? error.message
-              : t("backend.print.generate_error"),
-          );
+          setPreviewError(errMessage || t("backend.print.generate_error"));
         }
       }
     };
@@ -281,7 +266,7 @@ export function useLabelEdit(): useLabelEditResponse {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      updatePreview(parsedData);
+      void updatePreview(parsedData);
     }, 500);
 
     return () => {
@@ -305,12 +290,20 @@ export function useLabelEdit(): useLabelEditResponse {
         templateName,
         parsedData,
       );
+      if (!isMountedRef.current) return;
+
       if (response.status) {
         setUiMessage({
           type: "success",
           text: t("config_view.save_success"),
         });
-        setTimeout(() => setUiMessage(null), 3000);
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(() => {
+          saveTimerRef.current = null;
+          if (isMountedRef.current) {
+            setUiMessage(null);
+          }
+        }, 3000);
       } else {
         setUiMessage({
           type: "error",
@@ -321,14 +314,22 @@ export function useLabelEdit(): useLabelEditResponse {
       }
     } catch (error) {
       console.error(error);
-      setUiMessage({
-        type: "error",
-        text: t("config_view.save_error"),
-      });
+      if (isMountedRef.current) {
+        setUiMessage({
+          type: "error",
+          text: t("config_view.save_error"),
+        });
+      }
     }
   };
 
-  const dismissUiMessage = (): void => setUiMessage(null);
+  const dismissUiMessage = (): void => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    setUiMessage(null);
+  };
 
   return {
     data: {
