@@ -29,20 +29,21 @@ export function PrintView(): React.JSX.Element {
     useState<PrintLabelResult | null>(null);
   const healthRequestId = useRef(0);
   const healthExpiryTimer = useRef<number | null>(null);
+  const postPrintVerificationPendingRef = useRef(false);
 
   const clearUiMessage = actions.clearUiMessage;
-  const refreshHealth = useCallback(async (): Promise<void> => {
+  const refreshHealth = useCallback(async (): Promise<boolean> => {
     const requestId = ++healthRequestId.current;
     setHealthIsLoading(true);
 
     try {
       const response = await window.api.GetSystemHealth();
-      if (requestId !== healthRequestId.current) return;
+      if (requestId !== healthRequestId.current) return false;
 
       if (!response.status || !response.data) {
         setHealthError(t(response.message || "health.load_error"));
         setHealthIsStale(true);
-        return;
+        return false;
       }
 
       setHealth(response.data);
@@ -55,11 +56,13 @@ export function PrintView(): React.JSX.Element {
         () => setHealthIsStale(true),
         HEALTH_TTL_MS,
       );
+      return true;
     } catch (caught) {
-      if (requestId !== healthRequestId.current) return;
+      if (requestId !== healthRequestId.current) return false;
       const { message: errMessage } = extractError(caught);
       setHealthError(errMessage || t("health.load_error"));
       setHealthIsStale(true);
+      return false;
     } finally {
       if (requestId === healthRequestId.current) setHealthIsLoading(false);
     }
@@ -67,7 +70,9 @@ export function PrintView(): React.JSX.Element {
 
   useEffect(() => {
     const initialRefresh = window.setTimeout(() => void refreshHealth(), 0);
-    const interval = window.setInterval(() => void refreshHealth(), 30_000);
+    const interval = window.setInterval(() => {
+      if (!postPrintVerificationPendingRef.current) void refreshHealth();
+    }, 30_000);
     return () => {
       healthRequestId.current += 1;
       window.clearTimeout(initialRefresh);
@@ -95,19 +100,32 @@ export function PrintView(): React.JSX.Element {
     postPrintWarning && verifiedPostPrintSummary !== data.lastPrintSummary;
 
   useEffect(() => {
+    postPrintVerificationPendingRef.current = postPrintVerificationPending;
+  }, [postPrintVerificationPending]);
+
+  useEffect(() => {
     if (!postPrintWarning) return;
     const summaryToVerify = data.lastPrintSummary;
     let active = true;
-    const refreshTimer = window.setTimeout(() => {
-      void refreshHealth().finally(() => {
-        if (!active) return;
+    let retryTimer: number | null = null;
 
+    const verifyHealth = async (): Promise<void> => {
+      const responseApplied = await refreshHealth();
+      if (!active) return;
+
+      if (responseApplied) {
         setVerifiedPostPrintSummary(summaryToVerify);
-      });
-    }, 0);
+        return;
+      }
+
+      retryTimer = window.setTimeout(() => void verifyHealth(), 5_000);
+    };
+
+    const refreshTimer = window.setTimeout(() => void verifyHealth(), 0);
     return () => {
       active = false;
       window.clearTimeout(refreshTimer);
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
   }, [data.lastPrintSummary, postPrintWarning, refreshHealth]);
 
@@ -135,6 +153,7 @@ export function PrintView(): React.JSX.Element {
 
   const systemAllowsPrint =
     health !== null &&
+    !healthIsLoading &&
     !effectiveHealthIsStale &&
     !healthError &&
     health.database.status &&
@@ -191,7 +210,9 @@ export function PrintView(): React.JSX.Element {
               : null,
           auditWarningBlocksPrint ? t("print_view.block_audit") : null,
         ],
-  ].flat();
+  ]
+    .flat()
+    .filter((reason): reason is string => Boolean(reason));
   const uniqueBlockingReasons = [...new Set(blockingReasons)];
   const hasSystemBlockingReason = uniqueBlockingReasons.length > 0;
   const receiptHasWarning =

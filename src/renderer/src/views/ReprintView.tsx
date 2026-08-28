@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
-import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+  SubmitButton,
+} from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
