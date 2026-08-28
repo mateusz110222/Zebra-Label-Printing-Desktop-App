@@ -451,6 +451,17 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
       );
       expect(mocks.finishPrinterBatch).toHaveBeenCalledOnce();
       expect(mocks.queryPrinterStatus).toHaveBeenCalledOnce();
+
+      const [lockStartedAt] = mocks.beginPrinterBatch.mock.invocationCallOrder;
+      const [serialReservedAt] =
+        mocks.generatePrintZPL.mock.invocationCallOrder;
+      const [auditPersistedAt] = mocks.appendAuditLog.mock.invocationCallOrder;
+      const [lockReleasedAt] =
+        mocks.finishPrinterBatch.mock.invocationCallOrder;
+
+      expect(lockStartedAt).toBeLessThan(serialReservedAt);
+      expect(serialReservedAt).toBeLessThan(auditPersistedAt);
+      expect(auditPersistedAt).toBeLessThan(lockReleasedAt);
     });
 
     it("checks printer readiness before reserving a normal-print serial", async () => {

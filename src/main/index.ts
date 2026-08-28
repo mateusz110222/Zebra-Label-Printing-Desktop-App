@@ -35,7 +35,7 @@ import {
 } from "../backend/preview/PreviewWindowPolicy";
 import { installExtension, REACT_DEVELOPER_TOOLS } from "electron-devtools-installer";
 
-process.on("uncaughtException", (error) => {
+process.on("uncaughtExceptionMonitor", (error) => {
   console.error("Uncaught exception in main process:", error);
 });
 
@@ -56,7 +56,7 @@ const openExternalUrl = (url: string): void => {
   });
 };
 
-async function createWindow(): Promise<void> {
+function createWindow(): void {
   const rendererEntryUrl = getRendererEntryUrl(
     app.isPackaged,
     process.env["ELECTRON_RENDERER_URL"],
@@ -175,15 +175,14 @@ async function createWindow(): Promise<void> {
     });
   });
 
-  try {
-    if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-      await mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
-    } else {
-      await mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
-    }
-  } catch (error) {
+  const rendererLoad =
+    is.dev && process.env["ELECTRON_RENDERER_URL"]
+      ? mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"])
+      : mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+
+  void rendererLoad.catch((error) => {
     console.error("Failed to load renderer UI:", error);
-  }
+  });
 }
 
 // Single Instance Lock
@@ -247,7 +246,7 @@ if (!gotSingleInstanceLock) {
         optimizer.watchWindowShortcuts(window);
       });
 
-      await createWindow();
+      createWindow();
       if (mainWindow) {
         UpdatesHandler(mainWindow);
       }
@@ -255,7 +254,7 @@ if (!gotSingleInstanceLock) {
       startPrinterStatusPoller(5000);
 
       app.on("activate", function () {
-        if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
       });
     })
     .catch((err) => {

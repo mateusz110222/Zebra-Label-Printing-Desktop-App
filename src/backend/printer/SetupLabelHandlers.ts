@@ -134,50 +134,44 @@ const executeAndLogBatch = async ({
 
   let lastSuccessfulResponse: ConnectionResult | undefined;
 
-  const finishPrinterBatch = await beginPrinterBatch(printerStatusBeforeSend);
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i];
 
-  try {
-    for (let i = 0; i < labels.length; i++) {
-      const label = labels[i];
+    let response: ConnectionResult;
 
-      let response: ConnectionResult;
-
-      try {
-        response = await sendToPrinter(label.zpl, printer);
-      } catch (error) {
-        response = {
-          status: false,
-          message: "backend.printer.error",
-          rawError: error instanceof Error ? error.message : String(error),
-        };
-      }
-
-      const deliveryState: DeliveryState = response.status ? "sent" : "failed";
-
-      if (deliveryState === "sent") {
-        sentCount++;
-        lastSuccessfulResponse = response;
-      } else {
-        failedCount++;
-      }
-
-      labelResults.push({
-        batchPosition: i + 1,
-        serialNumber: label.metadata.serialNumber,
-        fullSerialNumber:
-          `${canonicalPart.Serial_Prefix}` +
-          `${label.metadata.julianDate}` +
-          `${label.metadata.serialNumber}`,
-        julianDate: label.metadata.julianDate,
-        bmsDate: label.metadata.bmsDate,
-        zplSha256: label.metadata.zplSha256,
-        deliveryState,
-        printerMessage: response.message || null,
-        printerError: response.rawError || null,
-      });
+    try {
+      response = await sendToPrinter(label.zpl, printer);
+    } catch (error) {
+      response = {
+        status: false,
+        message: "backend.printer.error",
+        rawError: error instanceof Error ? error.message : String(error),
+      };
     }
-  } finally {
-    finishPrinterBatch();
+
+    const deliveryState: DeliveryState = response.status ? "sent" : "failed";
+
+    if (deliveryState === "sent") {
+      sentCount++;
+      lastSuccessfulResponse = response;
+    } else {
+      failedCount++;
+    }
+
+    labelResults.push({
+      batchPosition: i + 1,
+      serialNumber: label.metadata.serialNumber,
+      fullSerialNumber:
+        `${canonicalPart.Serial_Prefix}` +
+        `${label.metadata.julianDate}` +
+        `${label.metadata.serialNumber}`,
+      julianDate: label.metadata.julianDate,
+      bmsDate: label.metadata.bmsDate,
+      zplSha256: label.metadata.zplSha256,
+      deliveryState,
+      printerMessage: response.message || null,
+      printerError: response.rawError || null,
+    });
   }
 
   const allSent = labels.length === quantity && sentCount === quantity;
@@ -349,6 +343,8 @@ export default function SetupLabelHandlers(): void {
       };
     }
 
+    let finishPrinterBatch: (() => void) | undefined;
+
     try {
       const auditStorage = await checkAuditLogWritable();
 
@@ -420,6 +416,7 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
+      finishPrinterBatch = await beginPrinterBatch(printerBeforeReservation);
       const result = await generatePrintZPL(canonicalPart, quantity);
 
       if (!result.status || !result.labels) {
@@ -471,6 +468,8 @@ export default function SetupLabelHandlers(): void {
           ? "backend.audit.storage_ready"
           : "backend.audit.storage_unavailable",
       };
+    } finally {
+      finishPrinterBatch?.();
     }
   });
 
@@ -493,6 +492,8 @@ export default function SetupLabelHandlers(): void {
         message: "backend.print.invalid_quantity",
       };
     }
+
+    let finishPrinterBatch: (() => void) | undefined;
 
     try {
       const auditStorage = await checkAuditLogWritable();
@@ -565,6 +566,7 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
+      finishPrinterBatch = await beginPrinterBatch(printerBeforeSend);
       const result = await generateReprintZPL(
         canonicalPart,
         date,
@@ -622,6 +624,8 @@ export default function SetupLabelHandlers(): void {
           ? "backend.audit.storage_ready"
           : "backend.audit.storage_unavailable",
       };
+    } finally {
+      finishPrinterBatch?.();
     }
   });
 }
