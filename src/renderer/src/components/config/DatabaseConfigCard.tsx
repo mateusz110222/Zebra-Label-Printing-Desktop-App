@@ -15,6 +15,7 @@ interface DatabaseConfigCardProps {
   isValid: boolean;
   onSave: () => void;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 export default function DatabaseConfigCard({
@@ -30,28 +31,48 @@ export default function DatabaseConfigCard({
   isValid,
   onSave,
   onCancel,
+  onDirtyChange,
 }: DatabaseConfigCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const [initialSignature] = React.useState(() =>
+    JSON.stringify({ dbHost, dbUser, dbPass, dbName }),
+  );
+  const isDirty =
+    JSON.stringify({ dbHost, dbUser, dbPass, dbName }) !== initialSignature;
+  const validationClass =
+    "mt-2 text-xs font-medium text-red-600 dark:text-red-400";
+
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  React.useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
-      <div className="p-8">
+      <div className="p-6 sm:p-8">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-6 flex items-center">
           <FiDatabase className="mr-3 text-indigo-500" />
           {t("config_view.database_title")}
         </h3>
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           {/* Host field */}
           <div className="group">
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
               {t("config_view.db_host")}
             </label>
             <input
+              aria-invalid={!dbHost.trim()}
               className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               value={dbHost}
               onChange={(e) => onDbHostChange(e.target.value)}
               placeholder={t("config_view.db_host_placeholder")}
             />
+            {!dbHost.trim() && (
+              <p className={validationClass}>
+                {t("config_view.validation_required")}
+              </p>
+            )}
           </div>
 
           {/* User field */}
@@ -60,11 +81,17 @@ export default function DatabaseConfigCard({
               {t("config_view.db_user")}
             </label>
             <input
+              aria-invalid={!dbUser.trim()}
               className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               value={dbUser}
               onChange={(e) => onDbUserChange(e.target.value)}
               placeholder={t("config_view.db_user_placeholder")}
             />
+            {!dbUser.trim() && (
+              <p className={validationClass}>
+                {t("config_view.validation_required")}
+              </p>
+            )}
           </div>
 
           {/* Password field */}
@@ -87,21 +114,27 @@ export default function DatabaseConfigCard({
               {t("config_view.db_name")}
             </label>
             <input
+              aria-invalid={!dbName.trim()}
               className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               value={dbName}
               onChange={(e) => onDbNameChange(e.target.value)}
               placeholder={t("config_view.db_name_placeholder")}
             />
+            {!dbName.trim() && (
+              <p className={validationClass}>
+                {t("config_view.validation_required")}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       {/* Form actions */}
-      <div className="p-8 pt-0">
-        <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+      <div className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95 sm:px-8">
+        <div className="flex items-center justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {t("config_view.cancel")}
           </button>

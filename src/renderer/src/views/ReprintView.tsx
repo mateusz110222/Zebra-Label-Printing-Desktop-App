@@ -3,12 +3,7 @@ import { useTranslation } from "react-i18next";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
-import {
-  CriticalErrorState,
-  LoadingWrapper,
-  StatusBanner,
-  SubmitButton,
-} from "../components/common";
+import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
 import { selectStyles } from "@renderer/config";
@@ -25,7 +20,9 @@ export function ReprintView(): React.JSX.Element {
   const { ready: livePrinterReady, statusMessage: livePrinterMessage } =
     usePrinterStatus();
 
-  const canSubmit = isValid && livePrinterReady && !status.isPrinting;
+  const printerAllowsPrint =
+    data.hasAssignedPrinter && (data.usesMultiplePrinters || livePrinterReady);
+  const canSubmit = isValid && printerAllowsPrint && !status.isPrinting;
 
   // Keyboard shortcut Ctrl+Enter / Ctrl+P
   useEffect(() => {
@@ -58,9 +55,17 @@ export function ReprintView(): React.JSX.Element {
   return (
     <LoadingWrapper isLoading={status.isLoading}>
       <div className="min-h-full p-4 sm:p-6 lg:p-8 font-sans text-slate-800 dark:text-slate-100 flex flex-col">
-        <div className="max-w-4xl w-full m-auto">
+        <div className="max-w-5xl w-full mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+              {t("reprint.title")}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+              {t("reprint.subtitle")}
+            </p>
+          </div>
           {/* Printer Offline Banner */}
-          {!livePrinterReady && (
+          {!data.usesMultiplePrinters && !livePrinterReady && (
             <div
               role="alert"
               className="mb-4 rounded-xl border-2 border-red-500 bg-red-50 p-4 text-red-950 shadow-sm dark:border-red-600 dark:bg-red-950/50 dark:text-red-100"
@@ -130,6 +135,7 @@ export function ReprintView(): React.JSX.Element {
                 {data.selectedPart && (
                   <PartDetailsCard
                     part={data.selectedPart}
+                    assignedPrinter={data.assignedPrinter}
                     quantity={data.labelQuantity}
                     onQuantityChange={actions.handleQuantityChange}
                     onQuantityBlur={actions.handleQuantityBlur}
@@ -156,15 +162,19 @@ export function ReprintView(): React.JSX.Element {
                 <p className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
                   {!data.selectedPart
                     ? t("print_view.select_part_first")
-                    : !livePrinterReady
-                      ? t("header.printer_offline")
-                      : t("print_view.ready_to_print")}
+                    : !data.date || !data.serialNumber.trim()
+                      ? t("reprint.complete_details")
+                      : !data.hasAssignedPrinter
+                        ? t("backend.printer.format_not_assigned")
+                        : !data.usesMultiplePrinters && !livePrinterReady
+                          ? t("header.printer_offline")
+                          : t("print_view.ready_to_print")}
                 </p>
                 <SubmitButton
                   isLoading={status.isPrinting}
                   isDisabled={!canSubmit}
                   loadingText={t("print_view.printing")}
-                  text={t("print_view.print_label")}
+                  text={t("reprint.print_label")}
                 />
               </div>
             </form>

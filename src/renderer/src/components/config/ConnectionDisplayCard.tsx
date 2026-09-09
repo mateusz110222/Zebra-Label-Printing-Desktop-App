@@ -4,6 +4,7 @@ import { FiPlay, FiPrinter, FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
 
 interface ConnectionDisplayCardProps {
+  printerName: string;
   connectionType: "IP" | "COM" | "USB";
   ipAddress: string;
   port: string;
@@ -17,6 +18,7 @@ interface ConnectionDisplayCardProps {
 }
 
 export default function ConnectionDisplayCard({
+  printerName,
   connectionType,
   ipAddress,
   port,
@@ -57,7 +59,7 @@ export default function ConnectionDisplayCard({
             {/* Connection details */}
             <div className="pt-0.5">
               <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1">
-                {t("config_view.active_connection")}
+                {t("config_view.printer_name")}: {printerName}
               </h3>
               {connectionType === "IP" ? (
                 <div>

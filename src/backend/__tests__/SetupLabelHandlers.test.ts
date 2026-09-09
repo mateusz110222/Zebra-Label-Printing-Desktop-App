@@ -841,6 +841,64 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
   });
 
   describe("COM and USB printing", () => {
+    it("routes a label format to its assigned printer", async () => {
+      const assignedPrinter = {
+        name: "LINE_B",
+        type: "COM",
+        comPort: "COM8",
+        baudRate: 115200,
+      };
+
+      mocks.storeGet.mockImplementation((key: string) => {
+        if (key === "printers") return [ipPrinter, assignedPrinter];
+        if (key === "printerRouting") {
+          return {
+            mode: "multiple",
+            formatAssignments: { "16x13": "LINE_B" },
+          };
+        }
+        return ipPrinter;
+      });
+
+      const result = await getHandler("print-label")(createEvent(), {
+        part,
+        quantity: 1,
+      });
+
+      expect(mocks.comConnection).toHaveBeenCalledWith(
+        assignedPrinter,
+        "^XA^XZ",
+      );
+      expect(mocks.ipConnection).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ status: true, deliveryStatus: "sent" });
+    });
+
+    it("blocks printing when the format points to a missing printer", async () => {
+      mocks.storeGet.mockImplementation((key: string) => {
+        if (key === "printers") return [ipPrinter];
+        if (key === "printerRouting") {
+          return {
+            mode: "multiple",
+            formatAssignments: { "16x13": "MISSING" },
+          };
+        }
+        return ipPrinter;
+      });
+
+      const result = await getHandler("print-label")(createEvent(), {
+        part,
+        quantity: 1,
+      });
+
+      expect(result).toMatchObject({
+        status: false,
+        message: "backend.printer.assigned_not_found",
+        rawError: "MISSING",
+      });
+      expect(mocks.queryPrinterStatus).not.toHaveBeenCalled();
+      expect(mocks.generatePrintZPL).not.toHaveBeenCalled();
+    });
+
     it("sends a normal print through COM connection", async () => {
       mocks.storeGet.mockReturnValue(comPrinter);
 

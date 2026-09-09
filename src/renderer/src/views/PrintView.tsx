@@ -32,46 +32,51 @@ export function PrintView(): React.JSX.Element {
   const postPrintVerificationPendingRef = useRef(false);
 
   const clearUiMessage = actions.clearUiMessage;
-  const refreshHealth = useCallback(async (): Promise<boolean> => {
-    const requestId = ++healthRequestId.current;
-    setHealthIsLoading(true);
+  const refreshHealth = useCallback(
+    async (showLoading = true): Promise<boolean> => {
+      const requestId = ++healthRequestId.current;
+      if (showLoading) setHealthIsLoading(true);
 
-    try {
-      const response = await window.api.GetSystemHealth();
-      if (requestId !== healthRequestId.current) return false;
+      try {
+        const response = await window.api.GetSystemHealth();
+        if (requestId !== healthRequestId.current) return false;
 
-      if (!response.status || !response.data) {
-        setHealthError(t(response.message || "health.load_error"));
+        if (!response.status || !response.data) {
+          setHealthError(t(response.message || "health.load_error"));
+          setHealthIsStale(true);
+          return false;
+        }
+
+        setHealth(response.data);
+        setHealthError("");
+        setHealthIsStale(false);
+        if (healthExpiryTimer.current !== null) {
+          window.clearTimeout(healthExpiryTimer.current);
+        }
+        healthExpiryTimer.current = window.setTimeout(
+          () => setHealthIsStale(true),
+          HEALTH_TTL_MS,
+        );
+        return true;
+      } catch (caught) {
+        if (requestId !== healthRequestId.current) return false;
+        const { message: errMessage } = extractError(caught);
+        setHealthError(errMessage || t("health.load_error"));
         setHealthIsStale(true);
         return false;
+      } finally {
+        if (showLoading && requestId === healthRequestId.current) {
+          setHealthIsLoading(false);
+        }
       }
-
-      setHealth(response.data);
-      setHealthError("");
-      setHealthIsStale(false);
-      if (healthExpiryTimer.current !== null) {
-        window.clearTimeout(healthExpiryTimer.current);
-      }
-      healthExpiryTimer.current = window.setTimeout(
-        () => setHealthIsStale(true),
-        HEALTH_TTL_MS,
-      );
-      return true;
-    } catch (caught) {
-      if (requestId !== healthRequestId.current) return false;
-      const { message: errMessage } = extractError(caught);
-      setHealthError(errMessage || t("health.load_error"));
-      setHealthIsStale(true);
-      return false;
-    } finally {
-      if (requestId === healthRequestId.current) setHealthIsLoading(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   useEffect(() => {
     const initialRefresh = window.setTimeout(() => void refreshHealth(), 0);
     const interval = window.setInterval(() => {
-      if (!postPrintVerificationPendingRef.current) void refreshHealth();
+      if (!postPrintVerificationPendingRef.current) void refreshHealth(false);
     }, 30_000);
     return () => {
       healthRequestId.current += 1;
@@ -84,6 +89,7 @@ export function PrintView(): React.JSX.Element {
   }, [refreshHealth]);
 
   const printerWarningBlocksPrint =
+    !data.usesMultiplePrinters &&
     data.lastPrintSummary?.printerReady === false &&
     !(
       verifiedPostPrintSummary === data.lastPrintSummary &&
@@ -110,7 +116,7 @@ export function PrintView(): React.JSX.Element {
     let retryTimer: number | null = null;
 
     const verifyHealth = async (): Promise<void> => {
-      const responseApplied = await refreshHealth();
+      const responseApplied = await refreshHealth(false);
       if (!active) return;
 
       if (responseApplied) {
@@ -157,8 +163,7 @@ export function PrintView(): React.JSX.Element {
     !effectiveHealthIsStale &&
     !healthError &&
     health.database.status &&
-    health.printer.ready &&
-    livePrinterReady &&
+    (data.usesMultiplePrinters || (health.printer.ready && livePrinterReady)) &&
     health.templates.status &&
     health.audit.status;
   const blockingReasons = [
@@ -185,29 +190,34 @@ export function PrintView(): React.JSX.Element {
                   ? t("print_view.block_database_duplicates")
                   : t("print_view.block_database_time")
             : null,
-          printerWarningBlocksPrint
-            ? t(
-                data.lastPrintSummary?.printerStatusMessage ||
-                  "print_view.printer_status_not_confirmed",
-              )
-            : !health.printer.ready || !livePrinterReady
-              ? t(livePrinterMessage || health.printer.message)
-              : null,
+          !data.hasAssignedPrinter
+            ? t("backend.printer.format_not_assigned")
+            : printerWarningBlocksPrint
+              ? t(
+                  data.lastPrintSummary?.printerStatusMessage ||
+                    "print_view.printer_status_not_confirmed",
+                )
+              : !data.usesMultiplePrinters &&
+                  (!health.printer.ready || !livePrinterReady)
+                ? t(livePrinterMessage || health.printer.message)
+                : null,
           !health.templates.status ? t("print_view.block_templates") : null,
           !health.audit.status ? t("print_view.block_audit") : null,
         ]
       : [
-          printerWarningBlocksPrint
-            ? t(
-                data.lastPrintSummary?.printerStatusMessage ||
-                  "print_view.printer_status_not_confirmed",
-              )
-            : !livePrinterReady
+          !data.hasAssignedPrinter
+            ? t("backend.printer.format_not_assigned")
+            : printerWarningBlocksPrint
               ? t(
-                  livePrinterMessage ||
+                  data.lastPrintSummary?.printerStatusMessage ||
                     "print_view.printer_status_not_confirmed",
                 )
-              : null,
+              : !data.usesMultiplePrinters && !livePrinterReady
+                ? t(
+                    livePrinterMessage ||
+                      "print_view.printer_status_not_confirmed",
+                  )
+                : null,
           auditWarningBlocksPrint ? t("print_view.block_audit") : null,
         ],
   ]
@@ -219,7 +229,12 @@ export function PrintView(): React.JSX.Element {
     data.lastPrintSummary?.printerReady === false ||
     data.lastPrintSummary?.auditPersisted === false;
 
-  const canSubmit = isValid && systemAllowsPrint && !status.isPrinting;
+  const canSubmit =
+    isValid &&
+    data.hasAssignedPrinter &&
+    systemAllowsPrint &&
+    !status.isPrinting;
+  const currentStep = !data.selectedPart ? 1 : data.previewImage ? 3 : 2;
 
   // Keyboard shortcut Ctrl+Enter / Ctrl+P
   useEffect(() => {
@@ -252,7 +267,15 @@ export function PrintView(): React.JSX.Element {
   return (
     <LoadingWrapper isLoading={status.isLoading}>
       <div className="min-h-full p-4 sm:p-6 lg:p-8 font-sans text-slate-800 dark:text-slate-100 flex flex-col">
-        <div className="max-w-4xl w-full m-auto">
+        <div className="max-w-5xl w-full mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+              {t("print_view.title")}
+            </h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
+              {t("print_view.subtitle")}
+            </p>
+          </div>
           {!systemAllowsPrint && (
             <div
               role="alert"
@@ -364,6 +387,50 @@ export function PrintView(): React.JSX.Element {
               }}
             >
               <div className="p-4 sm:p-6 lg:p-8">
+                <ol
+                  aria-label={t("print_view.title")}
+                  className="mb-8 grid grid-cols-3 gap-2"
+                >
+                  {[
+                    t("print_view.step_select"),
+                    t("print_view.step_preview"),
+                    t("print_view.step_print"),
+                  ].map((label, index) => {
+                    const number = index + 1;
+                    const isActive = number === currentStep;
+                    const isComplete = number < currentStep;
+
+                    return (
+                      <li
+                        key={label}
+                        aria-current={isActive ? "step" : undefined}
+                        className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-semibold sm:text-sm ${
+                          isActive
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                            : isComplete
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                              : "border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
+                            isActive
+                              ? "bg-indigo-600 text-white"
+                              : isComplete
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                          }`}
+                        >
+                          {isComplete ? "✓" : number}
+                        </span>
+                        <span className="hidden truncate sm:inline">
+                          {label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+
                 {/* Part Selection */}
                 <div className="mb-6">
                   <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-100 mb-2">
@@ -388,6 +455,7 @@ export function PrintView(): React.JSX.Element {
                 {data.selectedPart && (
                   <PartDetailsCard
                     part={data.selectedPart}
+                    assignedPrinter={data.assignedPrinter}
                     quantity={data.labelQuantity}
                     onQuantityChange={actions.handleQuantityChange}
                     onQuantityBlur={actions.handleQuantityBlur}

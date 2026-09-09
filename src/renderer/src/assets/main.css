@@ -2,6 +2,95 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Scrollbars shared by the application shell and scrollable panels. */
+:root {
+  --scrollbar-track: #475569;
+  --scrollbar-thumb: #e2e8f0;
+  --scrollbar-thumb-hover: #c7d2fe;
+}
+
+.dark {
+  --scrollbar-track: #334155;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #e0e7ff;
+}
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-track:vertical {
+  margin-block: 8px;
+}
+
+*::-webkit-scrollbar-track:horizontal {
+  margin-inline: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 3px solid var(--scrollbar-track);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:decrement,
+*::-webkit-scrollbar-button:vertical:increment,
+*::-webkit-scrollbar-button:horizontal:decrement,
+*::-webkit-scrollbar-button:horizontal:increment {
+  display: none !important;
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+}
+
+.app-scrollbar,
+.custom-scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+/* Hide native number input spin buttons in favor of custom styled steppers */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+:where(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}
+
 @keyframes shimmer {
   0% {
     background-position: 200% 0;

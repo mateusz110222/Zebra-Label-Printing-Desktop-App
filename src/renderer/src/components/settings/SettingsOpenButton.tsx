@@ -1,6 +1,7 @@
 import { BiPowerOff } from "react-icons/bi";
 import { HiBars3 } from "react-icons/hi2";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 interface ButtonsProps {
   updateStatus: string;
@@ -11,8 +12,12 @@ export default function SettingsOpenButton({
   updateStatus,
   onClick,
 }: ButtonsProps): React.JSX.Element {
+  const { t } = useTranslation();
   return (
     <button
+      type="button"
+      aria-label={t("settings.open_menu")}
+      title={t("settings.open_menu")}
       onClick={onClick}
       className={`p-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 relative
           ${

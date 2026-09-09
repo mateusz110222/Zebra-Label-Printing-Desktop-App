@@ -17,6 +17,7 @@ interface useLabelEditResponse {
     isOnline: boolean;
     isOnlineLoading: boolean;
     isZPLLoading: boolean;
+    isDirty: boolean;
     uiMessage: { type: "success" | "error"; text: string } | null;
   };
   actions: {
@@ -63,6 +64,8 @@ export function useLabelEdit(): useLabelEditResponse {
     text: string;
   } | null>(null);
   const [examplePart, setExamplePart] = useState<Part | null>(null);
+  const [savedName, setSavedName] = useState(nameParam || "");
+  const [savedContent, setSavedContent] = useState(getInitialParsedData);
 
   const normalizeFormatName = (value: unknown): string =>
     String(value ?? "")
@@ -102,6 +105,7 @@ export function useLabelEdit(): useLabelEditResponse {
         const response = await window.api.GetLabelZPL(cleanName);
         if (isMounted) {
           if (response.status && response.data) {
+            setSavedContent(response.data);
             setParsedData(response.data);
           } else if (!response.status) {
             console.error(response);
@@ -293,6 +297,8 @@ export function useLabelEdit(): useLabelEditResponse {
       if (!isMountedRef.current) return;
 
       if (response.status) {
+        setSavedName(templateName);
+        setSavedContent(parsedData);
         setUiMessage({
           type: "success",
           text: t("config_view.save_success"),
@@ -343,6 +349,8 @@ export function useLabelEdit(): useLabelEditResponse {
       isOnline,
       isOnlineLoading,
       isZPLLoading,
+      isDirty:
+        cleanName.trim() !== savedName.trim() || parsedData !== savedContent,
       uiMessage,
     },
     actions: {

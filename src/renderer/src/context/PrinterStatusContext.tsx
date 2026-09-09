@@ -10,6 +10,9 @@ export interface PrinterStatusState {
   detailsAvailable: boolean;
   details?: PrinterStatusDetails;
   isLoading: boolean;
+  printerMode: "single" | "multiple";
+  totalPrinters: number;
+  readyPrinters: number;
   refreshStatus: () => Promise<void>;
 }
 
@@ -21,6 +24,9 @@ const defaultState: PrinterStatusState = {
   ready: false,
   detailsAvailable: false,
   isLoading: true,
+  printerMode: "single",
+  totalPrinters: 0,
+  readyPrinters: 0,
   refreshStatus: async () => undefined,
 };
 
@@ -40,6 +46,9 @@ export function PrinterStatusProvider({
       ready: false,
       detailsAvailable: false,
       isLoading: true,
+      printerMode: "single",
+      totalPrinters: 0,
+      readyPrinters: 0,
     },
   );
 
@@ -52,6 +61,9 @@ export function PrinterStatusProvider({
       data?: PrinterStatusDetails;
       message?: string;
       rawError?: string;
+      printerMode?: "single" | "multiple";
+      totalPrinters?: number;
+      readyPrinters?: number;
     }): void => {
       setState({
         isOnline: Boolean(res.status),
@@ -64,6 +76,9 @@ export function PrinterStatusProvider({
           (res.status ? "header.connected" : "header.disconnected"),
         rawError: res.rawError || "",
         isLoading: false,
+        printerMode: res.printerMode || "single",
+        totalPrinters: res.totalPrinters ?? 0,
+        readyPrinters: res.readyPrinters ?? 0,
       });
     },
     [],

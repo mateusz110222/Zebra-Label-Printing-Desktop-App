@@ -266,25 +266,14 @@ interface LoadingWrapperProps {
   isLoading: boolean;
   skeleton?: React.ReactNode;
   children: React.ReactNode;
-  minDisplayTime?: number;
 }
 
 export function LoadingWrapper({
   isLoading,
   skeleton = <PageSkeleton />,
   children,
-  minDisplayTime = 200,
 }: LoadingWrapperProps): React.JSX.Element {
-  const [elapsed, setElapsed] = React.useState(false);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setElapsed(true);
-    }, minDisplayTime);
-    return () => clearTimeout(timer);
-  }, [minDisplayTime]);
-
-  if (isLoading || !elapsed) {
+  if (isLoading) {
     return <>{skeleton}</>;
   }
 

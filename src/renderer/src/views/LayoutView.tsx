@@ -10,7 +10,7 @@ export function LayoutView(): React.JSX.Element {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <HeaderView />
 
-        <main className="flex-1 h-full overflow-y-auto">
+        <main className="app-scrollbar flex-1 h-full overflow-y-auto">
           <Outlet />
         </main>
       </div>

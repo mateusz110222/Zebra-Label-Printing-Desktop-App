@@ -57,6 +57,9 @@ interface UsePrintLabelData {
   options: PartOption[];
   previewImage: string | null;
   lastPrintSummary: PrintLabelResult | null;
+  assignedPrinter: string;
+  usesMultiplePrinters: boolean;
+  hasAssignedPrinter: boolean;
 }
 
 interface UsePrintLabelActions {
@@ -88,6 +91,11 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
   const [serialNumber, setSerialNumber] = useState<string>("");
   const [lastPrintSummary, setLastPrintSummary] =
     useState<PrintLabelResult | null>(null);
+  const [printerRouting, setPrinterRouting] = useState<PrinterRoutingConfig>({
+    mode: "single",
+    formatAssignments: {},
+  });
+  const [defaultPrinterName, setDefaultPrinterName] = useState("");
   const previewCache = useRef<Map<string, string>>(new Map());
   const previewRequestId = useRef(0);
   const previewDebounceTimer = useRef<number | null>(null);
@@ -118,7 +126,12 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
           return;
         }
 
-        const partsConfigResponse = await window.api.GetPartsConfig();
+        const [partsConfigResponse, routingResponse, printerResponse] =
+          await Promise.all([
+            window.api.GetPartsConfig(),
+            window.api.GetPrinterRoutingConfig(),
+            window.api.GetPrinterConfig(),
+          ]);
 
         if (!partsConfigResponse.status || !partsConfigResponse.data) {
           setStatus((prev) => ({
@@ -130,6 +143,21 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
         }
 
         const partsConfig = partsConfigResponse.data;
+        if (routingResponse.status && routingResponse.data) {
+          setPrinterRouting(routingResponse.data);
+        }
+        if (printerResponse.status && printerResponse.data) {
+          const printer = printerResponse.data;
+          setDefaultPrinterName(
+            printer.name ||
+              (printer.type === "IP"
+                ? `${printer.ip}:${printer.port}`
+                : printer.type === "COM"
+                  ? printer.comPort
+                  : printer.usbPrinterName) ||
+              "",
+          );
+        }
         const selectedOperation = partsConfig.operation
           .trim()
           .toLocaleLowerCase();
@@ -476,6 +504,24 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
     labelQuantity >= 1 &&
     (mode !== "reprint" || (date.trim() !== "" && serialNumber.trim() !== ""));
 
+  const usesMultiplePrinters = printerRouting.mode === "multiple";
+  const assignedPrinterName = selectedPart
+    ? Object.entries(printerRouting.formatAssignments)
+        .find(
+          ([format]) =>
+            format.trim().toLocaleUpperCase() ===
+            selectedPart.Label_Format.trim().toLocaleUpperCase(),
+        )?.[1]
+        ?.trim() || ""
+    : "";
+  const hasAssignedPrinter =
+    !usesMultiplePrinters || assignedPrinterName !== "";
+  const assignedPrinter = selectedPart
+    ? usesMultiplePrinters
+      ? assignedPrinterName || t("print_view.printer_not_assigned")
+      : defaultPrinterName || t("print_view.default_printer")
+    : t("print_view.default_printer");
+
   return {
     data: {
       parts,
@@ -492,6 +538,9 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
       date,
       serialNumber,
       lastPrintSummary,
+      assignedPrinter,
+      usesMultiplePrinters,
+      hasAssignedPrinter,
     },
     status,
     actions: {

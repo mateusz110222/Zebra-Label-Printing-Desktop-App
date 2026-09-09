@@ -67,14 +67,15 @@ export function SidebarView(): React.JSX.Element {
   ];
 
   return (
-    <aside className="w-[clamp(11rem,20vw,15rem)] bg-slate-900 dark:bg-slate-950 text-white flex flex-col h-full border-r border-slate-700/50 shadow-2xl z-20">
+    <aside className="z-20 flex h-full w-16 shrink-0 flex-col border-r border-slate-700/50 bg-slate-900 text-white shadow-2xl dark:bg-slate-950 xl:w-60">
       <div className="h-16 flex items-center justify-center border-b border-slate-800 dark:border-slate-900 bg-slate-900 dark:bg-slate-950 sticky top-0 z-30 shadow-sm px-4">
-        <h1 className="text-base lg:text-lg font-bold tracking-wider text-slate-100 truncate">
+        <span className="font-bold text-indigo-400 xl:hidden">LP</span>
+        <h1 className="hidden truncate text-lg font-bold tracking-wider text-slate-100 xl:block">
           {t("sidebar.app_title")}
         </h1>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto custom-scrollbar">
+      <nav className="custom-scrollbar flex-1 space-y-1.5 overflow-y-auto p-2 xl:p-3">
         {menuItems.map((item) => {
           const isDisabled = item.protected && (!isLoggedIn || !CanEdit);
           const Icon = item.icon;
@@ -85,21 +86,23 @@ export function SidebarView(): React.JSX.Element {
               to={item.path}
               onClick={(e) => isDisabled && e.preventDefault()}
               aria-disabled={isDisabled}
+              aria-label={item.name}
+              title={item.name}
               className={({ isActive }) =>
-                `flex items-center gap-3 w-full text-left px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium
+                `flex items-center justify-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium xl:justify-start xl:px-3.5
                 ${
                   isDisabled
-                    ? "opacity-40 cursor-not-allowed pointer-events-none text-slate-500"
+                    ? "cursor-not-allowed text-slate-600"
                     : isActive
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/30 translate-x-1"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 dark:hover:bg-slate-900 hover:translate-x-1"
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/30"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/80 dark:hover:bg-slate-900"
                 }`
               }
             >
               <Icon className="text-lg shrink-0" />
-              <span className="truncate">{item.name}</span>
+              <span className="hidden truncate xl:block">{item.name}</span>
               {isDisabled && (
-                <span className="ml-auto text-[10px] uppercase font-bold bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                <span className="ml-auto hidden rounded border border-slate-700 bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500 xl:block">
                   {t("sidebar.locked")}
                 </span>
               )}
@@ -108,7 +111,7 @@ export function SidebarView(): React.JSX.Element {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-800 dark:border-slate-900 text-xs text-slate-600 dark:text-slate-500 text-center">
+      <div className="hidden border-t border-slate-800 p-4 text-center text-xs text-slate-400 dark:border-slate-900 xl:block">
         &copy; {new Date().getFullYear()} BorgWarner
         <br />
         {t("sidebar.dev_info")}

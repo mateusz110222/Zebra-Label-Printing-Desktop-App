@@ -21,14 +21,16 @@ interface useLabelsFormatsResponse {
   };
 }
 
+let labelsFormatsCache: LabelFormatsResponse[] | null = null;
+
 export function useLabelsFormats(): useLabelsFormatsResponse {
   const { t } = useTranslation();
   const { CanEdit } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(labelsFormatsCache === null);
   const [criticalError, setCriticalError] = useState<string | undefined>("");
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
   const [labelsFormats, setLabelsFormats] = useState<LabelFormatsResponse[]>(
-    [],
+    labelsFormatsCache || [],
   );
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
         if (!response.status) {
           setCriticalError(response.message || String(response));
         } else if (response.data) {
+          labelsFormatsCache = response.data;
           setLabelsFormats(response.data);
         }
       } catch (error) {
@@ -93,6 +96,9 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
         setLabelsFormats((formats) =>
           formats.filter((format) => format.name !== formatName),
         );
+        labelsFormatsCache =
+          labelsFormatsCache?.filter((format) => format.name !== formatName) ||
+          null;
         setUiMessage({ type: "success", text: t("label_formats.deleted") });
         return;
       }

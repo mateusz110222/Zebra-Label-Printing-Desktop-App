@@ -4,8 +4,8 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { getTemplatesPath } from "./TemplatePaths";
 import { PrinterConfig, store } from "../utils/store";
-import { PrinterStatusResult } from "../printer/PrinterStatus";
-import { queryPrinterStatusSingleFlight } from "../printer/PrinterStatusService";
+import { PrinterStatusResult, queryPrinterStatus } from "../printer/PrinterStatus";
+import { getConfiguredPrinters, getPrinterName, getPrinterRoutingConfig } from "../printer/PrinterConfigs";
 import { getDatabase } from "../config/DatabaseConfig";
 import { checkAuditLogWritable } from "../audit/AuditLog";
 
@@ -46,16 +46,23 @@ export const isAccessDenied = (rawError?: string): boolean => {
 const checkPrinterWithRetry = async (
   printerConfig: PrinterConfig,
 ): Promise<PrinterStatusResult> => {
-  let result = await queryPrinterStatusSingleFlight(printerConfig);
+  let result = await queryPrinterStatus(printerConfig);
 
   if (!isAccessDenied(result.rawError)) {
     return result;
   }
 
   await sleep(1000);
-  result = await queryPrinterStatusSingleFlight(printerConfig);
+  result = await queryPrinterStatus(printerConfig);
   return result;
 };
+
+const getPrinterTarget = (printerConfig: PrinterConfig): string =>
+  printerConfig.type === "IP"
+    ? `${printerConfig.ip || "?"}:${printerConfig.port || "?"}`
+    : printerConfig.type === "COM"
+      ? `${printerConfig.comPort || "?"}@${printerConfig.baudRate || 9600}`
+      : printerConfig.usbPrinterName || "?";
 
 export default function SystemHealthHandler(): void {
   ipcMain.handle("get-system-health", async () => {
@@ -63,16 +70,36 @@ export default function SystemHealthHandler(): void {
 
     const dbConfig = store.get("database");
     const printerConfig = store.get("printer");
+    const printerMode = getPrinterRoutingConfig().mode;
+    const configuredPrinters = getConfiguredPrinters();
+    const printersToCheck =
+      printerMode === "multiple" && configuredPrinters.length > 0
+        ? configuredPrinters
+        : [printerConfig];
+    const activePrinterName = getPrinterName(printerConfig);
 
-    const [printer, templates, database, audit] = await Promise.all([
-      checkPrinterWithRetry(printerConfig).catch(
-        (error): PrinterStatusResult => ({
-          status: false,
-          reachable: false,
-          ready: false,
-          detailsAvailable: false,
-          message: "backend.printer.error",
-          rawError: error instanceof Error ? error.message : String(error),
+    const [printers, templates, database, audit] = await Promise.all([
+      Promise.all(
+        printersToCheck.map(async (configuredPrinter) => {
+          const status = await checkPrinterWithRetry(configuredPrinter).catch(
+            (error): PrinterStatusResult => ({
+              status: false,
+              reachable: false,
+              ready: false,
+              detailsAvailable: false,
+              message: "backend.printer.error",
+              rawError: error instanceof Error ? error.message : String(error),
+            }),
+          );
+
+          const name = getPrinterName(configuredPrinter);
+          return {
+            ...status,
+            name,
+            active: name === activePrinterName,
+            type: configuredPrinter.type,
+            target: getPrinterTarget(configuredPrinter),
+          };
         }),
       ),
 
@@ -208,13 +235,20 @@ export default function SystemHealthHandler(): void {
       checkAuditLogWritable(),
     ]);
 
+    const printer =
+      printers.find((candidate) => candidate.active) || printers[0];
+    const allPrintersReady =
+      printers.length > 0 && printers.every((candidate) => candidate.ready);
+    const allPrintersReachable =
+      printers.length > 0 && printers.every((candidate) => candidate.reachable);
+
     const overallStatus =
-      database.status && printer.ready && templates.status && audit.status
+      database.status && allPrintersReady && templates.status && audit.status
         ? "healthy"
         : !database.status ||
             !templates.status ||
             !audit.status ||
-            !printer.reachable
+            !allPrintersReachable
           ? "error"
           : "warning";
 
@@ -224,16 +258,9 @@ export default function SystemHealthHandler(): void {
         overallStatus,
         checkedAt,
         database,
-        printer: {
-          ...printer,
-          type: printerConfig.type,
-          target:
-            printerConfig.type === "IP"
-              ? `${printerConfig.ip || "?"}:${printerConfig.port || "?"}`
-              : printerConfig.type === "COM"
-                ? `${printerConfig.comPort || "?"}@${printerConfig.baudRate || 9600}`
-                : printerConfig.usbPrinterName || "?",
-        },
+        printerMode,
+        printer,
+        printers,
         templates,
         audit,
       },

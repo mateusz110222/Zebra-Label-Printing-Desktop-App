@@ -1,22 +1,35 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { FiHardDrive, FiServer } from "react-icons/fi";
+import { FiFileText, FiHardDrive, FiServer } from "react-icons/fi";
 
 interface PartsSourceDisplayCardProps {
   source: "server" | "local";
-  operation: string;
+  server: string;
+  configPath: string;
   canEdit: boolean;
   onEdit: () => void;
 }
 
 export default function PartsSourceDisplayCard({
   source,
-  operation,
+  server,
+  configPath,
   canEdit,
   onEdit,
 }: PartsSourceDisplayCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const isServer = source === "server";
+  const serverAddress = (() => {
+    if (!server.trim()) return "—";
+    try {
+      const url = new URL(
+        /^https?:\/\//i.test(server) ? server : `http://${server}`,
+      );
+      return url.hostname || server;
+    } catch {
+      return server.replace(/^https?:\/\//i, "").split("/")[0] || server;
+    }
+  })();
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -35,13 +48,19 @@ export default function PartsSourceDisplayCard({
                 {t("parts_config.title")}
               </h3>
               <div>
-                <p className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
-                  {t(`parts_config.source_${source}_title`)}
+                <p className="break-all font-mono text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100 sm:text-3xl">
+                  {isServer
+                    ? serverAddress
+                    : t(`parts_config.source_${source}_title`)}
                 </p>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 flex items-center gap-2">
-                  <span>{t("parts_config.operation")}:</span>
-                  <span className="font-mono">{operation || "—"}</span>
-                </p>
+                {isServer && (
+                  <p className="mt-2 flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                    <FiFileText className="shrink-0 text-indigo-500" />
+                    <span className="break-all font-mono">
+                      {configPath || "—"}
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
           </div>

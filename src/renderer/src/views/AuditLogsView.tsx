@@ -517,6 +517,20 @@ const translateAuditDetailValue = (
   value: unknown,
   t: HistoryTableProps["t"],
 ): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).join(", ");
+  }
+
+  if (isRecord(value)) {
+    return Object.entries(value)
+      .map(([itemKey, itemValue]) => `${itemKey} → ${String(itemValue)}`)
+      .join(", ");
+  }
+
+  if (typeof value === "boolean") {
+    return t(value ? "audit.value_yes" : "audit.value_no");
+  }
+
   if (typeof value !== "string") {
     return value;
   }
@@ -531,6 +545,14 @@ const translateAuditDetailValue = (
     return t(`backend.auth.${value}`, {
       defaultValue: value,
     });
+  }
+
+  if (key === "mode" && (value === "single" || value === "multiple")) {
+    return t(`config_view.printer_mode_${value}`);
+  }
+
+  if (key === "source" && (value === "server" || value === "local")) {
+    return t(`parts_config.source_${value}_title`);
   }
 
   return value;
@@ -577,22 +599,20 @@ function PrintHistoryTable({
   };
 
   return (
-    <table className="w-full min-w-[1250px] text-left text-sm">
+    <table className="w-full min-w-[980px] table-fixed text-left text-sm">
       <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900 dark:text-slate-400">
         <tr>
-          <th className="px-4 py-3">{t("audit.time")}</th>
+          <th className="w-[17%] px-4 py-3">{t("audit.time")}</th>
 
-          <th className="px-4 py-3">{t("audit.result")}</th>
+          <th className="w-[13%] px-4 py-3">{t("audit.result")}</th>
 
-          <th className="px-4 py-3">{t("audit.user")}</th>
+          <th className="w-[14%] px-4 py-3">{t("audit.user")}</th>
 
-          <th className="px-4 py-3">{t("audit.part")}</th>
+          <th className="w-[18%] px-4 py-3">{t("audit.part")}</th>
 
-          <th className="px-4 py-3">{t("audit.serial")}</th>
+          <th className="w-[18%] px-4 py-3">{t("audit.serial")}</th>
 
-          <th className="px-4 py-3">{t("audit.dates_format")}</th>
-
-          <th className="px-4 py-3">{t("audit.printer")}</th>
+          <th className="w-[20%] px-4 py-3">{t("audit.details")}</th>
         </tr>
       </thead>
 
@@ -630,7 +650,7 @@ function PrintHistoryTable({
                   canExpandBatch ? () => toggleBatch(entry.id) : undefined
                 }
               >
-                <td className="whitespace-nowrap px-4 py-3">
+                <td className="overflow-hidden px-4 py-3">
                   <div className="flex items-center gap-2">
                     {canExpandBatch && (
                       <span className="flex h-6 w-6 items-center justify-center rounded text-slate-400">
@@ -643,11 +663,14 @@ function PrintHistoryTable({
                     )}
 
                     <div>
-                      <div className="font-medium">
+                      <div className="whitespace-nowrap font-medium">
                         {new Date(entry.timestamp).toLocaleString(locale)}
                       </div>
 
-                      <div className="mt-1 text-xs text-slate-500">
+                      <div
+                        className="mt-1 truncate text-xs text-slate-500"
+                        title={`${entry.workstation} · v${entry.appVersion}`}
+                      >
                         {entry.workstation} · v{entry.appVersion}
                       </div>
                     </div>
@@ -742,16 +765,14 @@ function PrintHistoryTable({
                       label={t("audit.format")}
                       value={entry.details.labelFormat}
                     />
-                  </div>
-                </td>
-
-                <td className="px-4 py-3">
-                  <div className="font-medium">
-                    {entry.details.printerTarget}
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-500">
-                    {entry.details.printerType}
+                    <Detail
+                      label={t("audit.printer")}
+                      value={entry.details.printerTarget}
+                    />
+                    <Detail
+                      label={t("audit.printer_type")}
+                      value={entry.details.printerType}
+                    />
                   </div>
 
                   {entry.details.printerError && (
@@ -764,7 +785,7 @@ function PrintHistoryTable({
 
               {canExpandBatch && isExpanded && labelsArray && (
                 <tr>
-                  <td colSpan={7} className="bg-slate-950/20 px-6 py-4">
+                  <td colSpan={6} className="bg-slate-950/20 px-6 py-4">
                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
                         <div>
@@ -894,12 +915,25 @@ function PrintHistoryTable({
         })}
 
         {entries.length === 0 && (
-          <EmptyRow isLoading={isLoading} columns={7} t={t} />
+          <EmptyRow isLoading={isLoading} columns={6} t={t} />
         )}
       </tbody>
     </table>
   );
 }
+
+const getAuditActionLabel = (
+  entry: AuditLogEntry,
+  t: HistoryTableProps["t"],
+): string => {
+  if (
+    entry.action === "PRINTER_CONFIG_CHANGED" &&
+    entry.details.deletedPrinter
+  ) {
+    return t("audit.actions.PRINTER_DELETED");
+  }
+  return t(`audit.actions.${entry.action}`, entry.action);
+};
 
 function AuditHistoryTable({
   entries,
@@ -943,7 +977,7 @@ function AuditHistoryTable({
               <StatusBadge status={entry.status} t={t} />
 
               <div className="mt-2 font-semibold">
-                {t(`audit.actions.${entry.action}`, entry.action)}
+                {getAuditActionLabel(entry, t)}
               </div>
             </td>
 

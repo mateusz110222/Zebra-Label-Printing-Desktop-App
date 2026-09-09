@@ -1,6 +1,7 @@
 import React, { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { FiHash, FiLayers, FiPackage } from "react-icons/fi";
+import { FiHash, FiLayers, FiPackage, FiPrinter } from "react-icons/fi";
+import { NumberInput } from "@renderer/components/common";
 
 interface Part {
   Part_Number: string;
@@ -11,6 +12,7 @@ interface Part {
 
 interface PartDetailsCardProps {
   part: Part;
+  assignedPrinter: string;
   quantity: number | "";
   onQuantityChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onQuantityBlur: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -18,6 +20,7 @@ interface PartDetailsCardProps {
 
 const PartDetailsCard = React.memo(function PartDetailsCard({
   part,
+  assignedPrinter,
   quantity,
   onQuantityChange,
   onQuantityBlur,
@@ -25,7 +28,7 @@ const PartDetailsCard = React.memo(function PartDetailsCard({
   const { t } = useTranslation();
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
       {/* Part Number */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
@@ -56,6 +59,21 @@ const PartDetailsCard = React.memo(function PartDetailsCard({
         </div>
       </div>
 
+      {/* Assigned printer */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+          <FiPrinter className="text-blue-600 dark:text-blue-400 text-lg" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            {t("print_view.assigned_printer")}
+          </p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 font-mono truncate">
+            {assignedPrinter}
+          </p>
+        </div>
+      </div>
+
       {/* Quantity */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
@@ -65,15 +83,15 @@ const PartDetailsCard = React.memo(function PartDetailsCard({
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
             {t("print_view.label_quantity")}
           </p>
-          <input
-            type="number"
+          <NumberInput
             value={quantity}
             onChange={onQuantityChange}
             onBlur={onQuantityBlur}
             onFocus={(e) => e.target.select()}
             min={1}
             max={100}
-            className="w-full max-w-20 rounded-lg border-0 py-1.5 px-3 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-700 shadow-sm ring-1 ring-inset ring-slate-300 dark:ring-slate-600 focus:ring-2 focus:ring-inset focus:ring-indigo-600 text-sm font-semibold"
+            containerClassName="relative w-full max-w-24"
+            className="w-full h-10 rounded-xl border border-slate-300 dark:border-slate-700 pl-3.5 pr-9 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 text-sm font-mono font-semibold"
           />
         </div>
       </div>

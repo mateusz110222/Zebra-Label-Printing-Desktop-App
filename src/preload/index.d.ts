@@ -21,6 +21,8 @@ declare global {
   interface PartsConfig {
     source: PartsSource;
     operation: string;
+    server: string;
+    configPath: string;
     localParts: LocalPart[];
   }
 
@@ -37,18 +39,28 @@ declare global {
     rawError?: string;
   }
 
+  type PrinterMode = "single" | "multiple";
+
+  interface PrinterRoutingConfig {
+    mode: PrinterMode;
+    formatAssignments: Record<string, string>;
+  }
+
   type PrinterPayload =
     | {
+        name?: string;
         type: "IP";
         ip: string;
         port?: number;
       }
     | {
+        name?: string;
         type: "COM";
         comPort: string;
         baudRate?: number;
       }
     | {
+        name?: string;
         type: "USB";
         usbPrinterName: string;
       };
@@ -136,6 +148,9 @@ declare global {
         data?: PrinterStatusDetails;
         message?: string;
         rawError?: string;
+        printerMode?: PrinterMode;
+        totalPrinters?: number;
+        readyPrinters?: number;
       }>;
 
       GetSystemHealth: () => Promise<{
@@ -166,12 +181,35 @@ declare global {
       GetPrinterConfig: () => Promise<{
         status: boolean;
         message?: string;
-        data?: PrinterPayload;
+        data?: PrinterPayload & { printers?: PrinterPayload[] };
       }>;
 
       SavePrinterConfig: (payload: PrinterPayload) => Promise<{
         status: boolean;
         message?: string;
+      }>;
+
+      DeletePrinterConfig: (name: string) => Promise<{
+        status: boolean;
+        message?: string;
+      }>;
+
+      SetActivePrinter: (name: string) => Promise<{
+        status: boolean;
+        message?: string;
+        rawError?: string;
+      }>;
+
+      GetPrinterRoutingConfig: () => Promise<{
+        status: boolean;
+        message?: string;
+        data?: PrinterRoutingConfig;
+      }>;
+
+      SavePrinterRoutingConfig: (payload: PrinterRoutingConfig) => Promise<{
+        status: boolean;
+        message?: string;
+        rawError?: string;
       }>;
 
       TestPrinterConnection: (payload?: PrinterPayload) => Promise<{
@@ -274,6 +312,9 @@ declare global {
           data?: PrinterStatusDetails;
           message?: string;
           rawError?: string;
+          printerMode?: PrinterMode;
+          totalPrinters?: number;
+          readyPrinters?: number;
         }) => void,
       ) => () => void;
 
@@ -368,9 +409,27 @@ declare global {
       message: string;
       rawError?: string;
       data?: PrinterStatusDetails;
+      name: string;
+      active: boolean;
       type: "IP" | "COM" | "USB";
       target: string;
     };
+
+    printerMode: "single" | "multiple";
+
+    printers: Array<{
+      status: boolean;
+      reachable: boolean;
+      ready: boolean;
+      detailsAvailable: boolean;
+      message: string;
+      rawError?: string;
+      data?: PrinterStatusDetails;
+      name: string;
+      active: boolean;
+      type: "IP" | "COM" | "USB";
+      target: string;
+    }>;
 
     templates: {
       status: boolean;

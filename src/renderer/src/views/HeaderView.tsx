@@ -14,7 +14,14 @@ export function HeaderView(): React.JSX.Element {
     statusMessage: message,
     isLoading,
     rawError,
+    printerMode,
+    totalPrinters,
+    readyPrinters,
   } = usePrinterStatus();
+  const displayedOnline =
+    printerMode === "multiple"
+      ? totalPrinters > 0 && readyPrinters === totalPrinters
+      : isOnline;
 
   return (
     <header className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600 px-6 py-3 shadow-sm dark:shadow-slate-900/50 z-50 relative">
@@ -24,26 +31,31 @@ export function HeaderView(): React.JSX.Element {
           <div className="group relative flex items-center cursor-help">
             <BsPrinter size={20} className="mr-2" />
             <div className={`relative flex h-3 w-3 mr-2`}>
-              {isOnline && (
+              {displayedOnline && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               )}
               <span
-                className={`relative inline-flex rounded-full h-3 w-3 ${isOnline ? "bg-green-500" : "bg-red-500"}`}
+                className={`relative inline-flex rounded-full h-3 w-3 ${displayedOnline ? "bg-green-500" : "bg-red-500"}`}
               ></span>
             </div>
             <span
-              className={`text-sm font-medium ${isOnline ? "text-slate-700 dark:text-slate-200" : "text-red-600 dark:text-red-400"}`}
+              className={`text-sm font-medium ${displayedOnline ? "text-slate-700 dark:text-slate-200" : "text-red-600 dark:text-red-400"}`}
             >
               {isLoading
                 ? t("header.checking_status")
-                : isOnline
-                  ? t("header.printer_online")
-                  : t("header.printer_offline")}
+                : printerMode === "multiple"
+                  ? t("header.printers_online", {
+                      ready: readyPrinters,
+                      total: totalPrinters,
+                    })
+                  : isOnline
+                    ? t("header.active_printer_online")
+                    : t("header.printer_offline")}
             </span>
             {message && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 hidden group-hover:block w-max max-w-md z-50">
-                <div className="relative bg-slate-800 dark:bg-slate-700 text-white text-xs rounded-md py-2 px-3 shadow-lg">
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-slate-800 dark:border-b-slate-700" />
+              <div className="absolute left-0 top-full z-50 mt-3 hidden w-max max-w-[min(28rem,calc(100vw-6rem))] group-hover:block">
+                <div className="relative rounded-md bg-slate-800 px-3 py-2 text-xs text-white shadow-lg dark:bg-slate-700">
+                  <div className="absolute -top-1.5 left-5 h-0 w-0 border-b-[6px] border-l-[6px] border-r-[6px] border-b-slate-800 border-l-transparent border-r-transparent dark:border-b-slate-700" />
 
                   <div>{t(message)}</div>
 
