@@ -8,6 +8,8 @@ type PartsSource = "server" | "local";
 interface Props {
   source: PartsSource;
   operation: string;
+  server: string;
+  configPath: string;
   parts: LocalPart[];
 
   isProcessing: boolean;
@@ -16,10 +18,13 @@ interface Props {
   onSave: (
     source: PartsSource,
     operation: string,
+    server: string,
+    configPath: string,
     parts: LocalPart[],
   ) => Promise<void>;
 
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const emptyPart = (): LocalPart => ({
@@ -45,17 +50,22 @@ const normalizePart = (part: LocalPart): LocalPart => ({
 export default function PartsSourceConfigCard({
   source,
   operation,
+  server,
+  configPath,
   parts,
   isProcessing,
   canEdit,
   onSave,
   onCancel,
+  onDirtyChange,
 }: Props): React.JSX.Element {
   const { t } = useTranslation();
 
   const [selectedSource, setSelectedSource] = useState<PartsSource>(source);
 
   const [selectedOperation, setSelectedOperation] = useState(operation);
+  const [selectedServer, setSelectedServer] = useState(server);
+  const [selectedConfigPath, setSelectedConfigPath] = useState(configPath);
 
   const [items, setItems] = useState<LocalPart[]>(parts);
 
@@ -68,6 +78,23 @@ export default function PartsSourceConfigCard({
   const [query, setQuery] = useState("");
 
   const normalizedQuery = query.trim().toLowerCase();
+  const [initialSignature] = useState(() =>
+    JSON.stringify({ source, operation, server, configPath, parts }),
+  );
+  const isDirty =
+    JSON.stringify({
+      source: selectedSource,
+      operation: selectedOperation,
+      server: selectedServer,
+      configPath: selectedConfigPath,
+      parts: items,
+    }) !== initialSignature;
+
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  React.useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const visibleItems = useMemo(
     () =>
@@ -82,7 +109,7 @@ export default function PartsSourceConfigCard({
           }
 
           return Object.values(part).some((value) =>
-            value.toLowerCase().includes(normalizedQuery),
+            (value || "").toLowerCase().includes(normalizedQuery),
           );
         }),
     [items, normalizedQuery],
@@ -104,12 +131,15 @@ export default function PartsSourceConfigCard({
   };
 
   const canSaveRecord = Object.values(draft).every(
-    (value) => value.trim().length > 0,
+    (value) => (value || "").trim().length > 0,
   );
 
   const canSaveConfig =
-    selectedOperation.trim().length > 0 &&
-    (selectedSource === "server" || items.length > 0);
+    selectedSource === "server"
+      ? selectedServer.trim().length > 0 && selectedConfigPath.trim().length > 0
+      : items.length > 0;
+  const validationClass =
+    "mt-2 block text-xs font-medium text-red-600 dark:text-red-400";
 
   const openNewRecord = (): void => {
     if (!canEdit) {
@@ -131,6 +161,7 @@ export default function PartsSourceConfigCard({
     setEditingIndex(index);
 
     setDraft({
+      ...emptyPart(),
       ...part,
     });
 
@@ -172,7 +203,13 @@ export default function PartsSourceConfigCard({
       return;
     }
 
-    await onSave(selectedSource, selectedOperation.trim(), items);
+    await onSave(
+      selectedSource,
+      selectedOperation.trim(),
+      selectedServer.trim(),
+      selectedConfigPath.trim(),
+      items,
+    );
   };
 
   return (
@@ -233,6 +270,50 @@ export default function PartsSourceConfigCard({
             </button>
           ))}
         </div>
+
+        {selectedSource === "server" && (
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {t("parts_config.server")}
+              <input
+                aria-invalid={!selectedServer.trim()}
+                value={selectedServer}
+                onChange={(event) => setSelectedServer(event.target.value)}
+                disabled={!canEdit}
+                placeholder={t("parts_config.server_placeholder")}
+                className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 font-mono disabled:bg-slate-100 dark:disabled:bg-slate-900"
+              />
+              <span className="mt-2 block text-xs font-normal text-slate-500 dark:text-slate-400">
+                {t("parts_config.server_hint")}
+              </span>
+              {!selectedServer.trim() && (
+                <span className={validationClass}>
+                  {t("parts_config.validation_required")}
+                </span>
+              )}
+            </label>
+
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {t("parts_config.config_path")}
+              <input
+                aria-invalid={!selectedConfigPath.trim()}
+                value={selectedConfigPath}
+                onChange={(event) => setSelectedConfigPath(event.target.value)}
+                disabled={!canEdit}
+                placeholder="/fis/mantis/custom/config/cgi/lps.json"
+                className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 font-mono disabled:bg-slate-100 dark:disabled:bg-slate-900"
+              />
+              <span className="mt-2 block text-xs font-normal text-slate-500 dark:text-slate-400">
+                {t("parts_config.config_path_hint")}
+              </span>
+              {!selectedConfigPath.trim() && (
+                <span className={validationClass}>
+                  {t("parts_config.validation_required")}
+                </span>
+              )}
+            </label>
+          </div>
+        )}
 
         {selectedSource === "local" && (
           <>
@@ -343,17 +424,22 @@ export default function PartsSourceConfigCard({
                 </tbody>
               </table>
             </div>
+            {items.length === 0 && (
+              <p className={validationClass}>
+                {t("parts_config.validation_local_parts")}
+              </p>
+            )}
           </>
         )}
       </div>
 
-      <div className="p-8 pt-0">
-        <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+      <div className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95 sm:px-8">
+        <div className="flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
             disabled={isProcessing}
-            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-800 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {t("config_view.cancel")}
           </button>
@@ -415,11 +501,17 @@ export default function PartsSourceConfigCard({
                   {t(`parts_config.field_${key}`)}
 
                   <input
-                    value={draft[key]}
+                    aria-invalid={!(draft[key] || "").trim()}
+                    value={draft[key] || ""}
                     onChange={(event) => updateDraft(key, event.target.value)}
                     disabled={!canEdit}
                     className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700"
                   />
+                  {!(draft[key] || "").trim() && (
+                    <span className={validationClass}>
+                      {t("parts_config.validation_required")}
+                    </span>
+                  )}
                 </label>
               ))}
             </div>

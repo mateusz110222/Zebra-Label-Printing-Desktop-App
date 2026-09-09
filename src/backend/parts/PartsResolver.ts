@@ -84,13 +84,6 @@ export const normalizePartsConfig = (
 
   const operation = candidate.operation.trim();
 
-  if (requireCompleteConfig && operation.length === 0) {
-    return {
-      status: false,
-      message: "backend.parts.OPERATION_REQUIRED",
-    };
-  }
-
   const normalizedParts = normalizeParts(candidate.localParts ?? []);
 
   if (!normalizedParts.status) {
@@ -108,11 +101,30 @@ export const normalizePartsConfig = (
     };
   }
 
+  const server =
+    typeof candidate.server === "string"
+      ? candidate.server.trim()
+      : process.env.PARTS_CONFIG_URL || "";
+  const configPath =
+    typeof candidate.configPath === "string"
+      ? candidate.configPath.trim()
+      : process.env.PARTS_CONFIG_FILE || "";
+
+  if (requireCompleteConfig && candidate.source === "server" && !server) {
+    return { status: false, message: "backend.parts.SERVER_REQUIRED" };
+  }
+
+  if (requireCompleteConfig && candidate.source === "server" && !configPath) {
+    return { status: false, message: "backend.parts.CONFIG_PATH_REQUIRED" };
+  }
+
   return {
     status: true,
     data: {
       source: candidate.source,
       operation,
+      server,
+      configPath,
       localParts: normalizedParts.data,
     },
   };
@@ -290,9 +302,27 @@ export async function loadAuthoritativeParts(
         : failure(validated.message, validated.rawError);
     }
 
-    const configUrl = dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
+    const configuredServer = partsConfig.server?.trim();
+    const fallbackUrl = dependencies.configUrl ?? process.env.PARTS_CONFIG_URL;
+    let configUrl = configuredServer || fallbackUrl;
 
-    const configFile = dependencies.configFile ?? process.env.PARTS_CONFIG_FILE;
+    if (configuredServer && !/^https?:\/\//i.test(configuredServer)) {
+      const serverUrl = new URL(`http://${configuredServer}`);
+
+      if (fallbackUrl) {
+        const endpoint = new URL(fallbackUrl);
+        endpoint.hostname = serverUrl.hostname;
+        endpoint.port = serverUrl.port;
+        configUrl = endpoint.href;
+      } else {
+        configUrl = serverUrl.href;
+      }
+    }
+
+    const configFile =
+      partsConfig.configPath?.trim() ||
+      dependencies.configFile ||
+      process.env.PARTS_CONFIG_FILE;
 
     if (!configUrl?.trim()) {
       return failure(

@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiPrinter, FiWifi } from "react-icons/fi";
 import { LuPlug2 } from "react-icons/lu";
+import { NumberInput } from "../common";
 import ConnectionTabs from "./ConnectionTabs";
 
 type ConnectionType = "IP" | "COM" | "USB";
@@ -13,6 +14,8 @@ interface UsbPrinterOption {
 }
 
 interface ConfigFormCardProps {
+  printerName: string;
+  onPrinterNameChange: (value: string) => void;
   connectionType: ConnectionType;
   onConnectionTypeChange: (type: ConnectionType) => void;
   ipAddress: string;
@@ -33,11 +36,14 @@ interface ConfigFormCardProps {
   isValid: boolean;
   onSave: () => void;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200];
 
 export default function ConfigFormCard({
+  printerName,
+  onPrinterNameChange,
   connectionType,
   onConnectionTypeChange,
   ipAddress,
@@ -58,8 +64,51 @@ export default function ConfigFormCard({
   isValid,
   onSave,
   onCancel,
+  onDirtyChange,
 }: ConfigFormCardProps): React.JSX.Element {
   const { t } = useTranslation();
+  const [initialSignature] = React.useState(() =>
+    JSON.stringify({
+      printerName,
+      connectionType,
+      ipAddress,
+      port,
+      selectedCom,
+      baudRate,
+      selectedUsbPrinter,
+    }),
+  );
+  const currentSignature = JSON.stringify({
+    printerName,
+    connectionType,
+    ipAddress,
+    port,
+    selectedCom,
+    baudRate,
+    selectedUsbPrinter,
+  });
+  const isDirty = currentSignature !== initialSignature;
+  const ipIsValid = (() => {
+    const octets = ipAddress.trim().split(".");
+    return (
+      octets.length === 4 &&
+      octets.every(
+        (octet) =>
+          /^\d{1,3}$/.test(octet) && Number(octet) >= 0 && Number(octet) <= 255,
+      )
+    );
+  })();
+  const parsedPort = Number(port);
+  const portIsValid =
+    Number.isInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535;
+  const validationClass =
+    "mt-2 text-xs font-medium text-red-600 dark:text-red-400";
+
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  React.useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -70,8 +119,28 @@ export default function ConfigFormCard({
       />
 
       {/* Form content */}
-      <div className="p-8">
-        <div className="space-y-6">
+      <div className="p-6 sm:p-8">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="group sm:col-span-2">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
+              {t("config_view.printer_name")}
+            </label>
+            <input
+              aria-invalid={!printerName.trim()}
+              className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              value={printerName}
+              onChange={(event) => onPrinterNameChange(event.target.value)}
+              placeholder={t("config_view.printer_name_placeholder")}
+            />
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              {t("config_view.printer_name_hint")}
+            </p>
+            {!printerName.trim() && (
+              <p className={validationClass}>
+                {t("config_view.validation_required")}
+              </p>
+            )}
+          </div>
           {connectionType === "IP" && (
             <>
               {/* IP Address field */}
@@ -84,12 +153,18 @@ export default function ConfigFormCard({
                     <FiWifi className="text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                   </div>
                   <input
+                    aria-invalid={!ipIsValid}
                     className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     value={ipAddress}
                     onChange={(e) => onIpAddressChange(e.target.value)}
                     placeholder={t("config_view.ip_placeholder")}
                   />
                 </div>
+                {!ipIsValid && (
+                  <p className={validationClass}>
+                    {t("config_view.validation_ip")}
+                  </p>
+                )}
               </div>
 
               {/* Port field */}
@@ -97,19 +172,24 @@ export default function ConfigFormCard({
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
                   {t("config_view.port")}
                 </label>
-                <input
+                <NumberInput
+                  aria-invalid={!portIsValid}
                   className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  type="number"
                   value={port}
                   onChange={(e) => onPortChange(e.target.value)}
                   placeholder={t("config_view.port_placeholder")}
                 />
+                {!portIsValid && (
+                  <p className={validationClass}>
+                    {t("config_view.validation_port")}
+                  </p>
+                )}
               </div>
             </>
           )}
 
           {connectionType === "COM" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:col-span-2 sm:grid-cols-2">
               {/* COM Port select */}
               <div className="group">
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
@@ -120,6 +200,7 @@ export default function ConfigFormCard({
                     <LuPlug2 className="text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                   </div>
                   <select
+                    aria-invalid={!selectedCom}
                     className="w-full pl-11 pr-10 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none cursor-pointer"
                     value={selectedCom || ""}
                     onClick={onRefreshPorts}
@@ -153,6 +234,11 @@ export default function ConfigFormCard({
                     </svg>
                   </div>
                 </div>
+                {!selectedCom && (
+                  <p className={validationClass}>
+                    {t("config_view.validation_select")}
+                  </p>
+                )}
               </div>
 
               {/* Baud rate select */}
@@ -193,7 +279,7 @@ export default function ConfigFormCard({
           )}
 
           {connectionType === "USB" && (
-            <div className="group">
+            <div className="group sm:col-span-2">
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">
                 {t("config_view.usb_printer")}
               </label>
@@ -202,6 +288,7 @@ export default function ConfigFormCard({
                   <FiPrinter className="text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
                 </div>
                 <select
+                  aria-invalid={!selectedUsbPrinter}
                   className="w-full pl-11 pr-10 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
                   value={selectedUsbPrinter}
                   onClick={onRefreshUsbPrinters}
@@ -238,17 +325,22 @@ export default function ConfigFormCard({
               <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                 {t("config_view.usb_hint")}
               </p>
+              {!selectedUsbPrinter && (
+                <p className={validationClass}>
+                  {t("config_view.validation_select")}
+                </p>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {/* Form actions */}
-      <div className="p-8 pt-0">
-        <div className="mt-10 pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+      <div className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-800/95 sm:px-8">
+        <div className="flex items-center justify-end gap-3">
           <button
             onClick={onCancel}
-            className="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             {t("config_view.cancel")}
           </button>

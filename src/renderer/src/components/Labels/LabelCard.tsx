@@ -1,6 +1,6 @@
 import React from "react";
 import { BsFileEarmarkCode, BsTrash } from "react-icons/bs";
-import { MdKeyboardArrowUp } from "react-icons/md";
+import { MdKeyboardArrowRight } from "react-icons/md";
 import { LabelFormatsResponse } from "../../types";
 import { useTranslation } from "react-i18next";
 
@@ -47,13 +47,13 @@ export const LabelCard = ({
           </div>
         </div>
 
-        <div className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-          {/* Strzałki */}
-          <MdKeyboardArrowUp size={24} />
+        <div className="flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors group-hover:text-indigo-500 dark:text-indigo-400">
+          <span>{t("label_card.open")}</span>
+          <MdKeyboardArrowRight size={24} />
         </div>
       </div>
       {canManage && onDelete && (
-        <div className="flex justify-end border-t border-slate-100 dark:border-slate-700 px-4 py-2">
+        <div className="flex justify-end border-t border-slate-100 px-4 py-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:border-slate-700">
           <button
             type="button"
             onClick={onDelete}

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  loadAuthoritativeParts,
-  resolveAuthoritativePart,
-} from "../parts/PartsResolver";
+import { loadAuthoritativeParts, normalizePartsConfig, resolveAuthoritativePart } from "../parts/PartsResolver";
 
 const mocks = vi.hoisted(() => ({
   storeGet: vi.fn(),
@@ -70,6 +67,21 @@ describe("PartsResolver", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllEnvs();
+  });
+
+  it("accepts an empty operation so all operations can be shown", () => {
+    const result = normalizePartsConfig({
+      source: "server",
+      operation: "",
+      server: "https://parts.example/api",
+      configPath: "/config/lps.json",
+      localParts: [],
+    });
+
+    expect(result).toMatchObject({
+      status: true,
+      data: { operation: "" },
+    });
   });
 
   describe("loadAuthoritativeParts - local source", () => {
@@ -240,6 +252,38 @@ describe("PartsResolver", () => {
   });
 
   describe("loadAuthoritativeParts - server source", () => {
+    it("uses the configured server and full config file path", async () => {
+      const fetchImpl = vi.fn().mockResolvedValue(
+        createJsonResponse({
+          status: true,
+          data: [partOp10],
+        }),
+      ) as unknown as typeof fetch;
+
+      const result = await loadAuthoritativeParts({
+        readConfig: () => ({
+          source: "server",
+          operation: "Audi",
+          server: "plblofis1.global.borgwarner.net",
+          configPath: "/fis/mantis/custom/config/cgi/lps.json",
+          localParts: [],
+        }),
+        configUrl: "https://old-host.example/router.php?job=GetConfig",
+        configFile: "old.json",
+        fetchImpl,
+      });
+
+      expect(result.status).toBe(true);
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "https://plblofis1.global.borgwarner.net/router.php?job=GetConfig",
+        expect.objectContaining({
+          body: JSON.stringify({
+            file: "/fis/mantis/custom/config/cgi/lps.json",
+          }),
+        }),
+      );
+    });
+
     it("loads and normalizes parts from the server", async () => {
       const fetchImpl = vi.fn().mockResolvedValue(
         createJsonResponse({

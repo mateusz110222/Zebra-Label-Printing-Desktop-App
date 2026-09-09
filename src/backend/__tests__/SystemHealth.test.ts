@@ -31,9 +31,14 @@ interface HealthResponseData {
     detailsAvailable: boolean;
     message: string;
     rawError?: string;
+    name: string;
+    active: boolean;
     type: string;
     target: string;
   };
+
+  printerMode: "single" | "multiple";
+  printers: Array<HealthResponseData["printer"]>;
 
   templates: {
     status: boolean;
@@ -256,6 +261,62 @@ describe("SystemHealthHandler", () => {
     });
 
     expect(response.data.audit.status).toBe(true);
+  });
+
+  it("returns the status of every configured printer in multiple mode", async () => {
+    const activePrinter = {
+      name: "LINE-A",
+      type: "IP" as const,
+      ip: "10.0.0.10",
+      port: 9100,
+    };
+    const secondPrinter = {
+      name: "LINE-B",
+      type: "COM" as const,
+      comPort: "COM4",
+      baudRate: 115200,
+    };
+
+    mocks.storeGet.mockImplementation((key: string) => {
+      if (key === "database") return { host: "db", database: "labels" };
+      if (key === "printer") return activePrinter;
+      if (key === "printers") return [activePrinter, secondPrinter];
+      if (key === "printerRouting") {
+        return { mode: "multiple", formatAssignments: {} };
+      }
+      return undefined;
+    });
+    mocks.queryPrinterStatus.mockImplementation(
+      async (printer: { name?: string }) => ({
+        status: true,
+        reachable: true,
+        ready: printer.name === "LINE-A",
+        detailsAvailable: true,
+        message:
+          printer.name === "LINE-A"
+            ? "backend.printer.ready"
+            : "backend.printer.paused",
+      }),
+    );
+
+    const response = await getHandler()();
+
+    expect(response.data.printerMode).toBe("multiple");
+    expect(response.data.printers).toEqual([
+      expect.objectContaining({
+        name: "LINE-A",
+        active: true,
+        ready: true,
+        target: "10.0.0.10:9100",
+      }),
+      expect.objectContaining({
+        name: "LINE-B",
+        active: false,
+        ready: false,
+        target: "COM4@115200",
+      }),
+    ]);
+    expect(response.data.overallStatus).toBe("warning");
   });
 
   it("returns duplicateFamilies and marks duplicate family names unhealthy", async () => {

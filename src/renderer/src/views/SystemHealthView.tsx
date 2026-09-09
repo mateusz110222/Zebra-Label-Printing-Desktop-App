@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  LoadingWrapper,
-  SystemHealthViewSkeleton,
-} from "@renderer/components/common";
+import { LoadingWrapper, SystemHealthViewSkeleton } from "@renderer/components/common";
 import { extractError } from "@renderer/utils/errorUtils";
+import { FiAlertCircle, FiCheckCircle, FiCopy, FiRefreshCw } from "react-icons/fi";
 
 const statusColor = (ok: boolean): string =>
   ok
@@ -13,12 +11,51 @@ const statusColor = (ok: boolean): string =>
 
 const StatusPill = ({ ok }: { ok: boolean }): React.JSX.Element => {
   const { t } = useTranslation();
+  if (ok) {
+    return (
+      <FiCheckCircle
+        className="text-xl text-emerald-500"
+        aria-label={t("health.ok")}
+        title={t("health.ok")}
+      />
+    );
+  }
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusColor(ok)}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${statusColor(ok)}`}
     >
-      {t(ok ? "health.ok" : "health.problem")}
+      <FiAlertCircle /> {t("health.problem")}
     </span>
+  );
+};
+
+const CopyableValue = ({ value }: { value: string }): React.JSX.Element => {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const copy = async (): Promise<void> => {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="mt-1 flex min-w-0 items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2 dark:bg-slate-900/60">
+      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={value}>
+        {value || "—"}
+      </span>
+      {value && (
+        <button
+          type="button"
+          onClick={() => void copy()}
+          className="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-300"
+          aria-label={t(copied ? "health.copied" : "health.copy")}
+          title={t(copied ? "health.copied" : "health.copy")}
+        >
+          {copied ? <FiCheckCircle /> : <FiCopy />}
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -61,6 +98,14 @@ export function SystemHealthView(): React.JSX.Element {
       : health?.overallStatus === "warning"
         ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
         : "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40";
+  const displayedPrinters = health
+    ? health.printers?.length
+      ? health.printers
+      : [health.printer]
+    : [];
+  const readyPrinterCount = displayedPrinters.filter(
+    (printer) => printer.ready,
+  ).length;
 
   return (
     <LoadingWrapper
@@ -68,11 +113,13 @@ export function SystemHealthView(): React.JSX.Element {
       skeleton={<SystemHealthViewSkeleton />}
     >
       <div className="min-h-full p-4 sm:p-6 lg:p-8 text-slate-800 dark:text-slate-100">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-5xl">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">{t("health.title")}</h1>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                {t("health.title")}
+              </h1>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 sm:text-base">
                 {t("health.subtitle")}
               </p>
             </div>
@@ -80,9 +127,10 @@ export function SystemHealthView(): React.JSX.Element {
               type="button"
               onClick={() => void refresh()}
               disabled={loading}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
             >
-              {loading ? t("common.loading") : t("health.refresh")}
+              <FiRefreshCw className={loading ? "animate-spin" : ""} />
+              {loading ? t("health.refreshing") : t("health.refresh")}
             </button>
           </div>
 
@@ -107,7 +155,7 @@ export function SystemHealthView(): React.JSX.Element {
                 </div>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-5 md:grid-cols-2">
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="font-bold">{t("health.database")}</h2>
@@ -176,55 +224,145 @@ export function SystemHealthView(): React.JSX.Element {
 
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-bold">{t("health.printer")}</h2>
-                    <StatusPill ok={health.printer.ready} />
-                  </div>
-                  <dl className="space-y-3 text-sm">
-                    {!health.printer.ready && health.printer.rawError && (
-                      <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
-                        <dt className="font-semibold">
-                          {t(health.printer.message)}
-                        </dt>
-                        <dd className="mt-1 break-all font-mono text-xs">
-                          {health.printer.rawError}
-                        </dd>
-                      </div>
-                    )}
                     <div>
-                      <dt className="text-slate-500">{t("health.target")}</dt>
-                      <dd className="font-mono">
-                        {health.printer.type}: {health.printer.target}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">
-                        {t("health.connection")}
-                      </dt>
-                      <dd>
+                      <h2 className="font-bold">
                         {t(
-                          health.printer.reachable
-                            ? "health.reachable"
-                            : "health.unreachable",
+                          displayedPrinters.length > 1
+                            ? "health.printers"
+                            : "health.printer",
                         )}
-                      </dd>
+                      </h2>
+                      {displayedPrinters.length > 1 && (
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          {t("health.printers_ready", {
+                            ready: readyPrinterCount,
+                            total: displayedPrinters.length,
+                          })}
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <dt className="text-slate-500">
-                        {t("health.device_status")}
-                      </dt>
-                      <dd>{t(health.printer.message)}</dd>
+                    <StatusPill
+                      ok={
+                        displayedPrinters.length > 0 &&
+                        readyPrinterCount === displayedPrinters.length
+                      }
+                    />
+                  </div>
+                  {displayedPrinters.length > 1 ? (
+                    <div className="space-y-3">
+                      {displayedPrinters.map((printer) => (
+                        <article
+                          key={`${printer.name}-${printer.type}-${printer.target}`}
+                          className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-700 dark:bg-slate-900/50"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="truncate font-semibold">
+                                  {printer.name || printer.target}
+                                </h3>
+                                {printer.active && (
+                                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                    {t("health.active")}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">
+                                {printer.type}: {printer.target}
+                              </p>
+                            </div>
+                            <StatusPill ok={printer.ready} />
+                          </div>
+
+                          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                            <div>
+                              <span className="text-slate-500">
+                                {t("health.connection")}:{" "}
+                              </span>
+                              <span className="font-medium">
+                                {t(
+                                  printer.reachable
+                                    ? "health.reachable"
+                                    : "health.unreachable",
+                                )}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">
+                                {t("health.device_status")}:{" "}
+                              </span>
+                              <span className="font-medium">
+                                {t(printer.message)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {printer.data && (
+                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                              {t("health.queue")}:{" "}
+                              {printer.data.formatsInBuffer} ·{" "}
+                              {t("health.labels_remaining")}:{" "}
+                              {printer.data.labelsRemaining}
+                            </p>
+                          )}
+                          {printer.rawError && (
+                            <p className="mt-2 break-all rounded-lg bg-red-50 p-2 font-mono text-xs text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                              {printer.rawError}
+                            </p>
+                          )}
+                        </article>
+                      ))}
                     </div>
-                    {health.printer.data && (
+                  ) : (
+                    <dl className="space-y-3 text-sm">
+                      {!health.printer.ready && health.printer.rawError && (
+                        <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
+                          <dt className="font-semibold">
+                            {t(health.printer.message)}
+                          </dt>
+                          <dd className="mt-1 break-all font-mono text-xs">
+                            {health.printer.rawError}
+                          </dd>
+                        </div>
+                      )}
                       <div>
-                        <dt className="text-slate-500">{t("health.queue")}</dt>
-                        <dd>
-                          {health.printer.data.formatsInBuffer} /{" "}
-                          {t("health.labels_remaining")}:{" "}
-                          {health.printer.data.labelsRemaining}
+                        <dt className="text-slate-500">{t("health.target")}</dt>
+                        <dd className="font-mono">
+                          {health.printer.type}: {health.printer.target}
                         </dd>
                       </div>
-                    )}
-                  </dl>
+                      <div>
+                        <dt className="text-slate-500">
+                          {t("health.connection")}
+                        </dt>
+                        <dd>
+                          {t(
+                            health.printer.reachable
+                              ? "health.reachable"
+                              : "health.unreachable",
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-slate-500">
+                          {t("health.device_status")}
+                        </dt>
+                        <dd>{t(health.printer.message)}</dd>
+                      </div>
+                      {health.printer.data && (
+                        <div>
+                          <dt className="text-slate-500">
+                            {t("health.queue")}
+                          </dt>
+                          <dd>
+                            {health.printer.data.formatsInBuffer} /{" "}
+                            {t("health.labels_remaining")}:{" "}
+                            {health.printer.data.labelsRemaining}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -255,8 +393,8 @@ export function SystemHealthView(): React.JSX.Element {
                     </div>
                     <div>
                       <dt className="text-slate-500">{t("health.path")}</dt>
-                      <dd className="break-all font-mono text-xs">
-                        {health.templates.path}
+                      <dd>
+                        <CopyableValue value={health.templates.path} />
                       </dd>
                     </div>
                   </dl>
@@ -268,12 +406,14 @@ export function SystemHealthView(): React.JSX.Element {
                     <StatusPill ok={health.audit.status} />
                   </div>
                   <dl className="space-y-3 text-sm">
-                    <div>
-                      <dt className="text-slate-500">
-                        {t("health.storage_status")}
-                      </dt>
-                      <dd>{t(health.audit.message)}</dd>
-                    </div>
+                    {!health.audit.status && (
+                      <div>
+                        <dt className="text-slate-500">
+                          {t("health.storage_status")}
+                        </dt>
+                        <dd>{t(health.audit.message)}</dd>
+                      </div>
+                    )}
                     {health.audit.rawError && (
                       <div className="rounded-lg bg-red-50 p-3 text-red-800 dark:bg-red-950/60 dark:text-red-200">
                         <dt className="font-semibold">
@@ -286,8 +426,8 @@ export function SystemHealthView(): React.JSX.Element {
                     )}
                     <div>
                       <dt className="text-slate-500">{t("health.path")}</dt>
-                      <dd className="break-all font-mono text-xs">
-                        {health.audit.path}
+                      <dd>
+                        <CopyableValue value={health.audit.path} />
                       </dd>
                     </div>
                     {health.audit.lastFailureAt && (

@@ -2,6 +2,13 @@ import { BrowserWindow, ipcMain } from "electron";
 import { type PrinterConfig, store } from "../utils/store";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { setLastKnownPrinterStatus } from "./PrinterActivity";
+import { getConfiguredPrinters, getPrinterName, getPrinterRoutingConfig } from "./PrinterConfigs";
+
+export interface PrinterFleetStatus extends PrinterStatusResult {
+  printerMode: "single" | "multiple";
+  totalPrinters: number;
+  readyPrinters: number;
+}
 
 let inFlightStatusQuery: Promise<PrinterStatusResult> | null = null;
 let pollerIntervalId: NodeJS.Timeout | null = null;
@@ -40,6 +47,41 @@ export const queryPrinterStatusSingleFlight = async (
   return inFlightStatusQuery;
 };
 
+const withFleetStatus = async (
+  activeStatus: PrinterStatusResult,
+): Promise<PrinterFleetStatus> => {
+  const mode = getPrinterRoutingConfig().mode;
+  const configuredPrinters = getConfiguredPrinters();
+  if (mode === "single") {
+    return {
+      ...activeStatus,
+      printerMode: mode,
+      totalPrinters: configuredPrinters.length > 0 ? 1 : 0,
+      readyPrinters: activeStatus.ready ? 1 : 0,
+    };
+  }
+
+  const activePrinter = store.get("printer") as PrinterConfig | undefined;
+  const activeName = activePrinter ? getPrinterName(activePrinter) : "";
+  const statuses = await Promise.all(
+    configuredPrinters.map(async (printer) => {
+      if (getPrinterName(printer) === activeName) return activeStatus;
+      try {
+        return await queryPrinterStatus(printer);
+      } catch {
+        return { ready: false };
+      }
+    }),
+  );
+
+  return {
+    ...activeStatus,
+    printerMode: mode,
+    totalPrinters: configuredPrinters.length,
+    readyPrinters: statuses.filter((status) => status.ready).length,
+  };
+};
+
 export const broadcastPrinterStatus = (status: PrinterStatusResult): void => {
   const windows = BrowserWindow.getAllWindows();
   for (const win of windows) {
@@ -50,8 +92,9 @@ export const broadcastPrinterStatus = (status: PrinterStatusResult): void => {
 };
 
 export const refreshAndBroadcastPrinterStatus =
-  async (): Promise<PrinterStatusResult> => {
-    const status = await queryPrinterStatusSingleFlight();
+  async (): Promise<PrinterFleetStatus> => {
+    const activeStatus = await queryPrinterStatusSingleFlight();
+    const status = await withFleetStatus(activeStatus);
     broadcastPrinterStatus(status);
     return status;
   };
@@ -78,6 +121,7 @@ export const stopPrinterStatusPoller = (): void => {
 
 export default function SetupPrinterStatusHandlers(): void {
   ipcMain.handle("Get-PrinterStatus", async () => {
-    return queryPrinterStatusSingleFlight();
+    const activeStatus = await queryPrinterStatusSingleFlight();
+    return withFleetStatus(activeStatus);
   });
 }

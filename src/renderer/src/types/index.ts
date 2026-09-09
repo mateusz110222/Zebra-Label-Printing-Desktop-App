@@ -24,12 +24,20 @@ export interface UiMessage {
 export type ConnectionType = "IP" | "COM" | "USB";
 
 export interface PrinterConfig {
+  name?: string;
   type: ConnectionType;
   ip?: string;
   port?: number;
   comPort?: string;
   baudRate?: number;
   usbPrinterName?: string;
+}
+
+export type PrinterMode = "single" | "multiple";
+
+export interface PrinterRoutingConfig {
+  mode: PrinterMode;
+  formatAssignments: Record<string, string>;
 }
 
 export interface UsbPrinterInfo {

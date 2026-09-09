@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ConnectionType, LocalPart, UiMessage, UsbPrinterInfo } from "../types";
+import { ConnectionType, LocalPart, PrinterConfig, PrinterMode, UiMessage, UsbPrinterInfo } from "../types";
 import { extractError } from "../utils/errorUtils";
 import { useAuth } from "../context/AuthContext";
 
 type PartsSource = "server" | "local";
 
 interface UseConfigData {
+  printerName: string;
+  printers: PrinterConfig[];
+  printerMode: PrinterMode;
+  formatAssignments: Record<string, string>;
+  availableLabelFormats: string[];
   connectionType: ConnectionType;
   ipAddress: string;
   port: string;
@@ -34,6 +39,8 @@ interface UseConfigData {
 
   partsSource: PartsSource;
   partsOperation: string;
+  partsServer: string;
+  partsConfigPath: string;
   localParts: LocalPart[];
 }
 
@@ -42,11 +49,13 @@ interface UseConfigStatus {
   isPrinterProcessing: boolean;
   isDatabaseProcessing: boolean;
   isPartsProcessing: boolean;
+  isRoutingProcessing: boolean;
   criticalError: string | null;
   uiMessage: UiMessage | null;
 }
 
 interface UseConfigActions {
+  setPrinterName: (name: string) => void;
   setConnectionType: (type: ConnectionType) => void;
   setIpAddress: (ip: string) => void;
   setPort: (port: string) => void;
@@ -58,15 +67,25 @@ interface UseConfigActions {
   handleRefreshUsbPrinters: () => Promise<void>;
 
   handlePrinterAction: (action: "SAVE" | "TEST") => Promise<void>;
+  handlePrinterModeChange: (mode: PrinterMode) => Promise<void>;
+  handleFormatAssignmentsSave: (
+    assignments: Record<string, string>,
+  ) => Promise<void>;
+  refreshLabelFormats: () => Promise<void>;
   handleDatabaseSave: () => Promise<void>;
 
   handlePartsSave: (
     source: PartsSource,
     operation: string,
+    server: string,
+    configPath: string,
     parts: LocalPart[],
   ) => Promise<void>;
 
   beginPrinterEdit: () => void;
+  beginAddPrinter: () => void;
+  selectPrinter: (name: string) => Promise<void>;
+  deletePrinter: (name: string) => Promise<void>;
   cancelPrinterEdit: () => void;
 
   beginDatabaseEdit: () => void;
@@ -92,6 +111,7 @@ interface UseConfigViewReturn {
 }
 
 interface PrinterDraft {
+  printerName: string;
   connectionType: ConnectionType;
   ipAddress: string;
   port: string;
@@ -110,10 +130,13 @@ interface DatabaseDraft {
 interface PartsDraft {
   source: PartsSource;
   operation: string;
+  server: string;
+  configPath: string;
   localParts: LocalPart[];
 }
 
 const DEFAULT_PRINTER_DRAFT: PrinterDraft = {
+  printerName: "",
   connectionType: "IP",
   ipAddress: "",
   port: "9100",
@@ -132,8 +155,18 @@ const DEFAULT_DATABASE_DRAFT: DatabaseDraft = {
 const DEFAULT_PARTS_DRAFT: PartsDraft = {
   source: "server",
   operation: "",
+  server: "",
+  configPath: "",
   localParts: [],
 };
+
+const getPrinterDisplayName = (printer: PrinterConfig): string =>
+  printer.name?.trim() ||
+  (printer.type === "IP"
+    ? `${printer.ip || ""}:${printer.port ?? 9100}`
+    : printer.type === "COM"
+      ? printer.comPort || ""
+      : printer.usbPrinterName || "");
 
 export function useConfigView(): UseConfigViewReturn {
   const { t } = useTranslation();
@@ -144,6 +177,15 @@ export function useConfigView(): UseConfigViewReturn {
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Printer
+  const [printerName, setPrinterName] = useState("");
+  const [printers, setPrinters] = useState<PrinterConfig[]>([]);
+  const [printerMode, setPrinterMode] = useState<PrinterMode>("single");
+  const [formatAssignments, setFormatAssignments] = useState<
+    Record<string, string>
+  >({});
+  const [availableLabelFormats, setAvailableLabelFormats] = useState<string[]>(
+    [],
+  );
   const [connectionType, setConnectionType] = useState<ConnectionType>("IP");
   const [ipAddress, setIpAddress] = useState("");
   const [port, setPort] = useState("9100");
@@ -165,12 +207,15 @@ export function useConfigView(): UseConfigViewReturn {
   // Parts
   const [partsSource, setPartsSource] = useState<PartsSource>("server");
   const [partsOperation, setPartsOperation] = useState("");
+  const [partsServer, setPartsServer] = useState("");
+  const [partsConfigPath, setPartsConfigPath] = useState("");
   const [localParts, setLocalParts] = useState<LocalPart[]>([]);
 
   // Processing
   const [isPrinterProcessing, setIsPrinterProcessing] = useState(false);
   const [isDatabaseProcessing, setIsDatabaseProcessing] = useState(false);
   const [isPartsProcessing, setIsPartsProcessing] = useState(false);
+  const [isRoutingProcessing, setIsRoutingProcessing] = useState(false);
 
   // Editing
   const [isPrinterEditing, setIsPrinterEditing] = useState(false);
@@ -187,6 +232,7 @@ export function useConfigView(): UseConfigViewReturn {
   const savedPartsDraft = useRef<PartsDraft>(DEFAULT_PARTS_DRAFT);
 
   const applyPrinterDraft = (draft: PrinterDraft): void => {
+    setPrinterName(draft.printerName);
     setConnectionType(draft.connectionType);
     setIpAddress(draft.ipAddress);
     setPort(draft.port);
@@ -208,6 +254,8 @@ export function useConfigView(): UseConfigViewReturn {
   const applyPartsDraft = (draft: PartsDraft): void => {
     setPartsSource(draft.source);
     setPartsOperation(draft.operation);
+    setPartsServer(draft.server);
+    setPartsConfigPath(draft.configPath);
     setLocalParts(draft.localParts);
   };
 
@@ -224,12 +272,16 @@ export function useConfigView(): UseConfigViewReturn {
           configResponse,
           dbConfigResponse,
           partsConfigResponse,
+          routingResponse,
+          partsResponse,
         ] = await Promise.all([
           window.api.GetSerialPorts(),
           window.api.GetUsbPrinters(),
           window.api.GetPrinterConfig(),
           window.api.GetDatabaseConfig(),
           window.api.GetPartsConfig(),
+          window.api.GetPrinterRoutingConfig(),
+          window.api.GetParts(),
         ]);
 
         if (!isMounted) return;
@@ -242,10 +294,46 @@ export function useConfigView(): UseConfigViewReturn {
           setUsbPrinters(usbPrintersResp.data);
         }
 
+        if (routingResponse.status && routingResponse.data) {
+          setPrinterMode(routingResponse.data.mode);
+          setFormatAssignments(routingResponse.data.formatAssignments);
+        }
+
+        if (partsResponse.status && Array.isArray(partsResponse.data)) {
+          setAvailableLabelFormats(
+            Array.from(
+              new Set(
+                partsResponse.data
+                  .map((part) => part.Label_Format?.trim())
+                  .filter((format): format is string => Boolean(format)),
+              ),
+            ).sort((first, second) => first.localeCompare(second)),
+          );
+        }
+
         if (configResponse.status && configResponse.data) {
           const cfg = configResponse.data;
 
+          const configuredPrintersRaw = Array.isArray(cfg.printers)
+            ? cfg.printers
+            : [cfg];
+          const configuredPrinters = configuredPrintersRaw.map((printer) => ({
+            ...printer,
+            name: getPrinterDisplayName(printer),
+          }));
+          setPrinters(configuredPrinters);
+
+          const isIpValid = cfg.type === "IP" && cfg.ip;
+          const isComValid = cfg.type === "COM" && cfg.comPort;
+          const isUsbValid = cfg.type === "USB" && cfg.usbPrinterName;
+          const hasConfiguredTarget = Boolean(
+            isIpValid || isComValid || isUsbValid,
+          );
+
           const printerDraft: PrinterDraft = {
+            printerName: hasConfiguredTarget
+              ? cfg.name || getPrinterDisplayName(cfg)
+              : "",
             connectionType: cfg.type,
             ipAddress: cfg.type === "IP" ? cfg.ip : "",
             port: cfg.type === "IP" ? (cfg.port ?? 9100).toString() : "9100",
@@ -257,13 +345,7 @@ export function useConfigView(): UseConfigViewReturn {
           savedPrinterDraft.current = printerDraft;
           applyPrinterDraft(printerDraft);
 
-          const isIpValid = cfg.type === "IP" && cfg.ip;
-
-          const isComValid = cfg.type === "COM" && cfg.comPort;
-
-          const isUsbValid = cfg.type === "USB" && cfg.usbPrinterName;
-
-          if (isIpValid || isComValid || isUsbValid) {
+          if (hasConfiguredTarget) {
             setHasConfig(true);
             setIsPrinterEditing(false);
           }
@@ -297,6 +379,8 @@ export function useConfigView(): UseConfigViewReturn {
           const partsDraft: PartsDraft = {
             source: config.source,
             operation: config.operation,
+            server: config.server,
+            configPath: config.configPath,
             localParts: config.localParts,
           };
 
@@ -304,7 +388,8 @@ export function useConfigView(): UseConfigViewReturn {
           applyPartsDraft(partsDraft);
 
           setHasPartsConfig(
-            config.operation.trim().length > 0 ||
+            config.server.trim().length > 0 ||
+              config.configPath.trim().length > 0 ||
               config.source === "local" ||
               config.localParts.length > 0,
           );
@@ -348,17 +433,20 @@ export function useConfigView(): UseConfigViewReturn {
       const payload: PrinterPayload =
         connectionType === "IP"
           ? {
+              name: printerName.trim(),
               type: "IP",
               ip: ipAddress,
               port: parseInt(port, 10),
             }
           : connectionType === "COM"
             ? {
+                name: printerName.trim(),
                 type: "COM",
                 comPort: selectedCom,
                 baudRate,
               }
             : {
+                name: printerName.trim(),
                 type: "USB",
                 usbPrinterName: selectedUsbPrinter,
               };
@@ -383,6 +471,7 @@ export function useConfigView(): UseConfigViewReturn {
 
         if (action === "SAVE") {
           const savedDraft: PrinterDraft = {
+            printerName: printerName.trim(),
             connectionType,
             ipAddress,
             port,
@@ -393,6 +482,19 @@ export function useConfigView(): UseConfigViewReturn {
 
           savedPrinterDraft.current = savedDraft;
           applyPrinterDraft(savedDraft);
+
+          const savedConfig = payload as PrinterConfig;
+          setPrinters((current) => {
+            const key = (savedConfig.name || "").toLocaleUpperCase();
+            const index = current.findIndex(
+              (printer) => (printer.name || "").toLocaleUpperCase() === key,
+            );
+            return index === -1
+              ? [...current, savedConfig]
+              : current.map((printer, printerIndex) =>
+                  printerIndex === index ? savedConfig : printer,
+                );
+          });
 
           setHasConfig(true);
           setIsPrinterEditing(false);
@@ -418,6 +520,81 @@ export function useConfigView(): UseConfigViewReturn {
     } finally {
       setIsPrinterProcessing(false);
     }
+  };
+
+  const savePrinterRouting = async (
+    mode: PrinterMode,
+    assignments: Record<string, string>,
+  ): Promise<boolean> => {
+    setIsRoutingProcessing(true);
+    setUiMessage(null);
+    try {
+      const response = await window.api.SavePrinterRoutingConfig({
+        mode,
+        formatAssignments: assignments,
+      });
+      if (!response.status) {
+        setUiMessage({
+          type: "error",
+          text: t(response.message || "backend.config.save_fail"),
+          details: response.rawError,
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      const { message } = extractError(error);
+      setUiMessage({ type: "error", text: t(message) });
+      return false;
+    } finally {
+      setIsRoutingProcessing(false);
+    }
+  };
+
+  const handlePrinterModeChange = async (mode: PrinterMode): Promise<void> => {
+    if (mode === printerMode) return;
+    if (await savePrinterRouting(mode, formatAssignments)) {
+      setPrinterMode(mode);
+      setUiMessage({
+        type: "success",
+        text: t("backend.config.printer_routing_saved"),
+      });
+    }
+  };
+
+  const handleFormatAssignmentsSave = async (
+    assignments: Record<string, string>,
+  ): Promise<void> => {
+    if (await savePrinterRouting("multiple", assignments)) {
+      setPrinterMode("multiple");
+      setFormatAssignments(assignments);
+      setUiMessage({
+        type: "success",
+        text: t("backend.config.printer_routing_saved"),
+      });
+    }
+  };
+
+  const refreshLabelFormats = async (): Promise<void> => {
+    const response = await window.api.GetParts();
+    if (!response.status || !Array.isArray(response.data)) {
+      setUiMessage({
+        type: "error",
+        text: t("parts_config.formats_load_error"),
+        details: response.message ? t(response.message) : undefined,
+      });
+      return;
+    }
+
+    setAvailableLabelFormats(
+      Array.from(
+        new Set(
+          response.data
+            .map((part) => part.Label_Format?.trim())
+            .filter((format): format is string => Boolean(format)),
+        ),
+      ).sort((first, second) => first.localeCompare(second)),
+    );
   };
 
   const handleDatabaseSave = async (): Promise<void> => {
@@ -472,6 +649,8 @@ export function useConfigView(): UseConfigViewReturn {
   const handlePartsSave = async (
     source: PartsSource,
     operation: string,
+    server: string,
+    configPath: string,
     parts: LocalPart[],
   ): Promise<void> => {
     if (!CanEdit) return;
@@ -483,6 +662,8 @@ export function useConfigView(): UseConfigViewReturn {
       const response = await window.api.SavePartsConfig({
         source,
         operation: operation.trim(),
+        server: server.trim(),
+        configPath: configPath.trim(),
         localParts: parts,
       });
 
@@ -499,6 +680,8 @@ export function useConfigView(): UseConfigViewReturn {
       const savedDraft: PartsDraft = {
         source,
         operation: operation.trim(),
+        server: server.trim(),
+        configPath: configPath.trim(),
         localParts: parts.map((part) => ({ ...part })),
       };
 
@@ -506,7 +689,8 @@ export function useConfigView(): UseConfigViewReturn {
       applyPartsDraft(savedDraft);
 
       setHasPartsConfig(
-        savedDraft.operation.length > 0 ||
+        savedDraft.server.length > 0 ||
+          savedDraft.configPath.length > 0 ||
           savedDraft.source === "local" ||
           savedDraft.localParts.length > 0,
       );
@@ -533,6 +717,77 @@ export function useConfigView(): UseConfigViewReturn {
   const cancelPrinterEdit = (): void => {
     applyPrinterDraft(savedPrinterDraft.current);
     setIsPrinterEditing(false);
+  };
+
+  const beginAddPrinter = (): void => {
+    applyPrinterDraft({
+      ...DEFAULT_PRINTER_DRAFT,
+      printerName: "",
+    });
+    setIsPrinterEditing(true);
+  };
+
+  const selectPrinter = async (name: string): Promise<void> => {
+    const selected = printers.find((printer) => printer.name === name);
+    if (!selected) return;
+
+    const response = await window.api.SetActivePrinter(name);
+    if (!response.status) {
+      setUiMessage({
+        type: "error",
+        text: t(response.message || "backend.config.printer_not_found"),
+        details: response.rawError,
+      });
+      return;
+    }
+
+    const draft: PrinterDraft = {
+      printerName: selected.name || "",
+      connectionType: selected.type,
+      ipAddress: selected.type === "IP" ? selected.ip || "" : "",
+      port: selected.type === "IP" ? String(selected.port ?? 9100) : "9100",
+      selectedCom: selected.type === "COM" ? selected.comPort || "" : "",
+      baudRate: selected.type === "COM" ? (selected.baudRate ?? 9600) : 9600,
+      selectedUsbPrinter:
+        selected.type === "USB" ? selected.usbPrinterName || "" : "",
+    };
+
+    savedPrinterDraft.current = draft;
+    applyPrinterDraft(draft);
+    setIsPrinterEditing(false);
+  };
+
+  const deletePrinter = async (name: string): Promise<void> => {
+    const response = await window.api.DeletePrinterConfig(name);
+    if (!response.status) {
+      setUiMessage({
+        type: "error",
+        text: t(response.message || "backend.config.printer_not_found"),
+      });
+      return;
+    }
+
+    const remaining = printers.filter((printer) => printer.name !== name);
+    setPrinters(remaining);
+    setFormatAssignments((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([, printer]) =>
+            printer.toLocaleUpperCase() !== name.toLocaleUpperCase(),
+        ),
+      ),
+    );
+    if (printerName === name) {
+      if (remaining[0]?.name) await selectPrinter(remaining[0].name);
+      else {
+        applyPrinterDraft(DEFAULT_PRINTER_DRAFT);
+        setHasConfig(false);
+      }
+    }
+    setUiMessage({
+      type: "success",
+      text: t("backend.config.printer_deleted"),
+    });
   };
 
   const cancelDatabaseEdit = (): void => {
@@ -577,14 +832,15 @@ export function useConfigView(): UseConfigViewReturn {
   const parsedPort = Number(port);
 
   const isPrinterValid =
-    connectionType === "IP"
+    printerName.trim().length > 0 &&
+    (connectionType === "IP"
       ? isValidIpAddress(ipAddress) &&
         Number.isInteger(parsedPort) &&
         parsedPort >= 1 &&
         parsedPort <= 65535
       : connectionType === "COM"
         ? selectedCom.length > 0
-        : selectedUsbPrinter.trim().length > 0;
+        : selectedUsbPrinter.trim().length > 0);
 
   const isDatabaseValid =
     dbHost.trim().length > 0 &&
@@ -593,6 +849,11 @@ export function useConfigView(): UseConfigViewReturn {
 
   return {
     data: {
+      printerName,
+      printers,
+      printerMode,
+      formatAssignments,
+      availableLabelFormats,
       connectionType,
       ipAddress,
       port,
@@ -620,6 +881,8 @@ export function useConfigView(): UseConfigViewReturn {
 
       partsSource,
       partsOperation,
+      partsServer,
+      partsConfigPath,
       localParts,
     },
 
@@ -628,11 +891,13 @@ export function useConfigView(): UseConfigViewReturn {
       isPrinterProcessing,
       isDatabaseProcessing,
       isPartsProcessing,
+      isRoutingProcessing,
       criticalError,
       uiMessage,
     },
 
     actions: {
+      setPrinterName,
       setConnectionType,
       setIpAddress,
       setPort,
@@ -644,10 +909,16 @@ export function useConfigView(): UseConfigViewReturn {
       handleRefreshUsbPrinters,
 
       handlePrinterAction,
+      handlePrinterModeChange,
+      handleFormatAssignmentsSave,
+      refreshLabelFormats,
       handleDatabaseSave,
       handlePartsSave,
 
       beginPrinterEdit: () => setIsPrinterEditing(true),
+      beginAddPrinter,
+      selectPrinter,
+      deletePrinter,
       cancelPrinterEdit,
 
       beginDatabaseEdit: () => setIsDatabaseEditing(true),

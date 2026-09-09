@@ -8,6 +8,7 @@ import GetSerialPorts from "../backend/printer/GetSerialPorts";
 import GetUsbPrinters from "../backend/printer/GetUsbPrinters";
 import TestPrinterConnection from "../backend/printer/TestPrinterConnection";
 import SavePrinterConfig from "../backend/config/SavePrinterConfig";
+import PrinterRoutingConfigHandler from "../backend/config/PrinterRoutingConfig";
 import GetPrinterConfig from "../backend/config/GetPrinterConfig";
 import SetupPrinterStatusHandlers, {
   startPrinterStatusPoller,
@@ -204,6 +205,7 @@ if (!gotSingleInstanceLock) {
   PrintLabel();
   TestPrinterConnection();
   SavePrinterConfig();
+  PrinterRoutingConfigHandler();
   GetPrinterConfig();
   SetupPrinterStatusHandlers();
   GetSerialPorts();

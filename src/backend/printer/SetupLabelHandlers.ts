@@ -1,5 +1,4 @@
 import { ipcMain } from "electron";
-import { store } from "../utils/store";
 import IpConnection from "../PrinterConnections/IpConnection";
 import COMConnection from "../PrinterConnections/COMConnection";
 import USBConnection from "../PrinterConnections/USBConnection";
@@ -12,6 +11,7 @@ import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { beginPrinterBatch } from "./PrinterActivity";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
+import { findPrinterForLabelFormat } from "./PrinterConfigs";
 
 interface PrinterConfig {
   type: "IP" | "COM" | "USB";
@@ -381,7 +381,26 @@ export default function SetupLabelHandlers(): void {
       }
 
       const canonicalPart = resolvedPart.data;
-      const printer = store.get("printer") as PrinterConfig;
+      const printerResolution = findPrinterForLabelFormat(
+        canonicalPart.Label_Format,
+      );
+      if (!printerResolution.status) {
+        const auditPersisted = await logPrintFailure(
+          "print",
+          canonicalPart,
+          quantity,
+          printerResolution.message,
+          printerResolution.rawError,
+        );
+
+        return {
+          status: false,
+          message: printerResolution.message,
+          rawError: printerResolution.rawError,
+          auditPersisted,
+        };
+      }
+      const printer = printerResolution.printer;
       const printerBeforeReservation = await queryPrinterStatus(printer).catch(
         (error) => ({
           status: false,
@@ -531,7 +550,26 @@ export default function SetupLabelHandlers(): void {
       }
 
       const canonicalPart = resolvedPart.data;
-      const printer = store.get("printer") as PrinterConfig;
+      const printerResolution = findPrinterForLabelFormat(
+        canonicalPart.Label_Format,
+      );
+      if (!printerResolution.status) {
+        const auditPersisted = await logPrintFailure(
+          "reprint",
+          canonicalPart,
+          quantity,
+          printerResolution.message,
+          printerResolution.rawError,
+        );
+
+        return {
+          status: false,
+          message: printerResolution.message,
+          rawError: printerResolution.rawError,
+          auditPersisted,
+        };
+      }
+      const printer = printerResolution.printer;
       const printerBeforeSend = await queryPrinterStatus(printer).catch(
         (error) => ({
           status: false,

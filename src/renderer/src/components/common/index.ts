@@ -9,3 +9,5 @@ export {
   LoadingWrapper,
 } from "./SkeletonLoader";
 export { AppErrorBoundary } from "./ErrorBoundary";
+export { default as ConfirmationModal } from "./ConfirmationModal";
+export { default as NumberInput } from "./NumberInput";

@@ -2,16 +2,19 @@ import { contextBridge, ipcRenderer } from "electron";
 
 type PrinterPayload =
   | {
+      name?: string;
       type: "IP";
       ip: string;
       port?: number;
     }
   | {
+      name?: string;
       type: "COM";
       comPort: string;
       baudRate?: number;
     }
   | {
+      name?: string;
       type: "USB";
       usbPrinterName: string;
     };
@@ -52,6 +55,8 @@ export interface LocalPart {
 export interface PartsConfig {
   source: PartsSource;
   operation: string;
+  server: string;
+  configPath: string;
   localParts: LocalPart[];
 }
 
@@ -66,6 +71,13 @@ export interface SavePartsConfigResponse {
   status: boolean;
   message: string;
   rawError?: string;
+}
+
+export type PrinterMode = "single" | "multiple";
+
+export interface PrinterRoutingConfig {
+  mode: PrinterMode;
+  formatAssignments: Record<string, string>;
 }
 
 const api = {
@@ -121,6 +133,21 @@ const api = {
 
   SavePrinterConfig: (payload: PrinterPayload) =>
     ipcRenderer.invoke("save-printer-config", payload),
+
+  DeletePrinterConfig: (name: string) =>
+    ipcRenderer.invoke("delete-printer-config", name),
+
+  SetActivePrinter: (name: string) =>
+    ipcRenderer.invoke("set-active-printer", name),
+
+  GetPrinterRoutingConfig: (): Promise<{
+    status: boolean;
+    message?: string;
+    data?: PrinterRoutingConfig;
+  }> => ipcRenderer.invoke("get-printer-routing-config"),
+
+  SavePrinterRoutingConfig: (payload: PrinterRoutingConfig) =>
+    ipcRenderer.invoke("save-printer-routing-config", payload),
 
   TestPrinterConnection: (payload?: PrinterPayload) =>
     ipcRenderer.invoke("test-printer-connection", payload),

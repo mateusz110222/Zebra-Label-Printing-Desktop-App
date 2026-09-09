@@ -1,10 +1,11 @@
 import { ipcMain } from "electron";
 import { PrinterConfig, store } from "../utils/store";
+import { getConfiguredPrinters } from "../printer/PrinterConfigs";
 
 interface GetPrinterConfigResponse {
   status: boolean;
   message: string;
-  data: PrinterConfig | [];
+  data: (PrinterConfig & { printers?: PrinterConfig[] }) | [];
 }
 
 export default function GetPrinterConfig(): void {
@@ -16,7 +17,7 @@ export default function GetPrinterConfig(): void {
         return {
           status: true,
           message: "backend.printer.GET_PRINTER_CONFIG_SUCCESS",
-          data: config,
+          data: { ...config, printers: getConfiguredPrinters() },
         };
       } catch (error) {
         const errorMsg =

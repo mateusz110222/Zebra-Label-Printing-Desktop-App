@@ -20,6 +20,8 @@ interface SavePartsConfigResponse {
 const DEFAULT_PARTS_CONFIG: PartsConfig = {
   source: "server",
   operation: "",
+  server: process.env.PARTS_CONFIG_URL || "",
+  configPath: process.env.PARTS_CONFIG_FILE || "",
   localParts: [],
 };
 
@@ -143,6 +145,8 @@ export default function PartsConfigHandler(): void {
         details: {
           source: normalized.data.source,
           operation: normalized.data.operation,
+          server: normalized.data.server,
+          configPath: normalized.data.configPath,
           localPartsCount: normalized.data.localParts.length,
         },
       });
