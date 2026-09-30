@@ -397,6 +397,8 @@ declare global {
       }>;
 
       timeDriftMs: number | null;
+      serverTimeMs: number | null;
+      computerTimeMs: number;
       message: string[];
       rawError?: string;
     };

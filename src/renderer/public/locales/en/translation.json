@@ -20,6 +20,7 @@
   "sidebar": {
     "app_title": "Label Print APP",
     "app_name": "Label Print",
+    "created_by": "Created by",
     "dev_info": "Dev: Mateusz Zieliński",
     "config": "Configuration",
     "history": "History",
@@ -498,6 +499,8 @@
     "transactional": "Transactional (InnoDB)",
     "not_transactional": "Non-transactional (InnoDB required)",
     "time_drift": "Server time drift",
+    "computer_time": "Computer time",
+    "database_time": "Database server time",
     "duplicates": "Duplicates",
     "none": "None",
     "printer": "Printer",

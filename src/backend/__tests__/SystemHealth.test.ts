@@ -20,6 +20,8 @@ interface HealthResponseData {
       count: number;
     }>;
     timeDriftMs: number | null;
+    serverTimeMs: number | null;
+    computerTimeMs: number;
     message: string[];
     rawError?: string;
   };
@@ -242,6 +244,8 @@ describe("SystemHealthHandler", () => {
       engineOk: true,
       duplicateFamilies: [],
       timeDriftMs: 0,
+      serverTimeMs: Date.now(),
+      computerTimeMs: Date.now(),
       message: ["backend.health.database_ok"],
     });
 
@@ -480,6 +484,8 @@ describe("SystemHealthHandler", () => {
     const response = await getHandler()();
 
     expect(response.data.database.timeDriftMs).toBe(45_000);
+    expect(response.data.database.serverTimeMs).toBe(Date.now() - 45_000);
+    expect(response.data.database.computerTimeMs).toBe(Date.now());
 
     expect(response.data.database.status).toBe(false);
 
@@ -487,9 +493,7 @@ describe("SystemHealthHandler", () => {
       "backend.health.database_time_drift",
     );
 
-    expect(response.data.database.rawError).toContain(
-      "Database server time drift: 45 seconds.",
-    );
+    expect(response.data.database.rawError).toBeUndefined();
 
     expect(response.data.overallStatus).toBe("error");
   });
@@ -530,14 +534,13 @@ describe("SystemHealthHandler", () => {
     const response = await getHandler()();
 
     expect(response.data.database.timeDriftMs).toBeNull();
+    expect(response.data.database.serverTimeMs).toBeNull();
 
     expect(response.data.database.message).toContain(
       "backend.health.database_time_unavailable",
     );
 
-    expect(response.data.database.rawError).toContain(
-      "Unable to calculate database server time drift.",
-    );
+    expect(response.data.database.rawError).toBeUndefined();
 
     expect(response.data.overallStatus).toBe("error");
   });

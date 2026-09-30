@@ -60,10 +60,16 @@ const CopyableValue = ({ value }: { value: string }): React.JSX.Element => {
 };
 
 export function SystemHealthView(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [clock, setClock] = useState({ computerTimeMs: 0, monotonicMs: 0 });
+  const [databaseClock, setDatabaseClock] = useState<{
+    serverTimeMs: number;
+    responseDelayMs: number;
+    receivedAtMonoMs: number;
+  } | null>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -74,6 +80,21 @@ export function SystemHealthView(): React.JSX.Element {
         setError(t(response.message || "health.load_error"));
         return;
       }
+      const receivedAtMs = Date.now();
+      const receivedAtMonoMs = performance.now();
+      setDatabaseClock(
+        response.data.database.serverTimeMs === null
+          ? null
+          : {
+              serverTimeMs: response.data.database.serverTimeMs,
+              responseDelayMs: Math.max(
+                0,
+                receivedAtMs - response.data.database.computerTimeMs,
+              ),
+              receivedAtMonoMs,
+            },
+      );
+      setClock({ computerTimeMs: receivedAtMs, monotonicMs: receivedAtMonoMs });
       setHealth(response.data);
     } catch (caught) {
       const { message: errMessage } = extractError(caught);
@@ -91,6 +112,38 @@ export function SystemHealthView(): React.JSX.Element {
       window.clearInterval(interval);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const interval = window.setInterval(
+      () =>
+        setClock({
+          computerTimeMs: Date.now(),
+          monotonicMs: performance.now(),
+        }),
+      1_000,
+    );
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const databaseTimeMs = databaseClock
+    ? databaseClock.serverTimeMs +
+      databaseClock.responseDelayMs +
+      (clock.monotonicMs - databaseClock.receivedAtMonoMs)
+    : null;
+  const formatTime = (timeMs: number): string =>
+    new Date(timeMs).toLocaleString(i18n.language, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  const showTimeError =
+    health?.database.reachable &&
+    (health.database.timeDriftMs === null ||
+      health.database.timeDriftMs > 30_000);
 
   const overallClass =
     health?.overallStatus === "healthy"
@@ -147,7 +200,11 @@ export function SystemHealthView(): React.JSX.Element {
                   {t("health.overall")}
                 </div>
                 <div className="mt-1 text-xl font-bold">
-                  {t(`health.${health.overallStatus}`)}
+                  {t(
+                    health.overallStatus === "error"
+                      ? "health.critical"
+                      : `health.${health.overallStatus}`,
+                  )}
                 </div>
                 <div className="mt-1 text-xs opacity-70">
                   {t("health.checked_at")}:{" "}
@@ -207,6 +264,28 @@ export function SystemHealthView(): React.JSX.Element {
                           : `${Math.round(health.database.timeDriftMs / 1000)} s`}
                       </dd>
                     </div>
+                    {showTimeError && (
+                      <>
+                        <div>
+                          <dt className="text-slate-500">
+                            {t("health.computer_time")}
+                          </dt>
+                          <dd className="font-mono tabular-nums">
+                            {formatTime(clock.computerTimeMs)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-500">
+                            {t("health.database_time")}
+                          </dt>
+                          <dd className="font-mono tabular-nums">
+                            {databaseTimeMs === null
+                              ? "—"
+                              : formatTime(databaseTimeMs)}
+                          </dd>
+                        </div>
+                      </>
+                    )}
                     <div>
                       <dt className="text-slate-500">
                         {t("health.duplicates")}

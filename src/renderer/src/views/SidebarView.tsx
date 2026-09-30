@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@renderer/context/AuthContext";
-import { FiActivity, FiFileText, FiPrinter, FiRepeat, FiShield, FiSliders } from "react-icons/fi";
+import { FiActivity, FiCode, FiFileText, FiPrinter, FiRepeat, FiShield, FiSliders } from "react-icons/fi";
 
 export function SidebarView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -111,13 +111,27 @@ export function SidebarView(): React.JSX.Element {
         })}
       </nav>
 
-      <div className="hidden border-t border-slate-800 p-4 text-center text-xs text-slate-400 dark:border-slate-900 xl:block">
-        &copy; {new Date().getFullYear()} BorgWarner
-        <br />
-        {t("sidebar.dev_info")}
-        {appVersion && (
-          <div className="mt-2 opacity-50 font-mono text-xs">v{appVersion}</div>
-        )}
+      <div className="border-t border-slate-800 p-2 xl:p-3 dark:border-slate-900 bg-slate-900/60 dark:bg-slate-950/60">
+        <div
+          title={`${t("sidebar.created_by")}: Mateusz Zieliński`}
+          className="flex items-center justify-center xl:justify-start gap-2.5 rounded-xl border border-slate-800 bg-slate-800/40 p-2 text-left transition-colors dark:border-slate-800/70 dark:bg-slate-900/40"
+        >
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-400">
+            <FiCode className="text-sm" />
+          </div>
+          <div className="hidden min-w-0 flex-1 xl:block">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {t("sidebar.created_by")}
+            </p>
+            <p className="truncate text-xs font-bold text-slate-100">
+              Mateusz Zieliński
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 hidden text-center text-[10px] text-slate-500 xl:block">
+          &copy; {new Date().getFullYear()} BorgWarner
+          {appVersion && <span className="ml-1.5 font-mono opacity-70">v{appVersion}</span>}
+        </div>
       </div>
     </aside>
   );

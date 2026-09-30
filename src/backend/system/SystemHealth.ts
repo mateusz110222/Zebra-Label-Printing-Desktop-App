@@ -128,6 +128,7 @@ export default function SystemHealthHandler(): void {
                DATABASE() AS databaseName,
                UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3)) * 1000 AS serverTimeMs`,
           );
+          const computerTimeMs = Date.now();
 
           const [[engine]] = await pool.query<EngineRow[]>(
             `SELECT ENGINE
@@ -145,11 +146,15 @@ export default function SystemHealthHandler(): void {
                LIMIT 100`,
           );
 
-          const serverTimeMs = Number(serverInfo?.serverTimeMs);
-
-          const timeDriftMs = Number.isFinite(serverTimeMs)
-            ? Math.abs(Date.now() - serverTimeMs)
+          const parsedServerTimeMs = Number(serverInfo?.serverTimeMs);
+          const serverTimeMs = Number.isFinite(parsedServerTimeMs)
+            ? parsedServerTimeMs
             : null;
+
+          const timeDriftMs =
+            serverTimeMs !== null
+              ? Math.abs(computerTimeMs - serverTimeMs)
+              : null;
 
           const engineName = engine?.ENGINE || null;
 
@@ -183,14 +188,8 @@ export default function SystemHealthHandler(): void {
 
           if (timeDriftMs === null) {
             messages.push("backend.health.database_time_unavailable");
-
-            rawErrors.push("Unable to calculate database server time drift.");
-          } else if (timeDriftMs > 30_000) {
+          } else if (timeDriftMs > 60_000) {
             messages.push("backend.health.database_time_drift");
-
-            rawErrors.push(
-              `Database server time drift: ${Math.round(timeDriftMs / 1000)} seconds.`,
-            );
           }
 
           const databaseStatus = messages.length === 0;
@@ -206,6 +205,8 @@ export default function SystemHealthHandler(): void {
             engineOk,
             duplicateFamilies,
             timeDriftMs,
+            serverTimeMs,
+            computerTimeMs,
 
             message: databaseStatus ? ["backend.health.database_ok"] : messages,
 
@@ -226,6 +227,8 @@ export default function SystemHealthHandler(): void {
             engineOk: false,
             duplicateFamilies: [],
             timeDriftMs: null,
+            serverTimeMs: null,
+            computerTimeMs: Date.now(),
             message: ["backend.health.database_error"],
             rawError,
           };
