@@ -36,7 +36,11 @@ export default function useSettingsMenu(
   const [githubVersion, setGithubVersion] = useState<string>("-");
   const [autoUpdate, setAutoUpdateEnabled] = useState(true);
   const [language, setLanguage] = useState(() => {
-    return localStorage.getItem("language") || "en";
+    try {
+      return localStorage.getItem("language") || "en";
+    } catch {
+      return "en";
+    }
   });
 
   useEffect(() => {
@@ -68,7 +72,7 @@ export default function useSettingsMenu(
     });
 
     const cleanupProgress = window.api.OnDownloadProgress((data) => {
-      setProgressPercent(data.percent);
+      setProgressPercent(Number(data.percent) || 0);
     });
 
     const cleanupDownloaded = window.api.OnUpdateDownloaded(() => {
@@ -103,7 +107,9 @@ export default function useSettingsMenu(
     const fetchVersions = async (): Promise<void> => {
       try {
         const ver = await window.api.GetAppVersion();
-        if (isMounted) setLocalVersion(ver);
+        if (isMounted) {
+          setLocalVersion(typeof ver === "string" && ver ? ver : "0.0.0");
+        }
       } catch (e) {
         console.warn("Failed to get app version", e);
         if (isMounted) setLocalVersion("0.0.0");
@@ -133,13 +139,16 @@ export default function useSettingsMenu(
   }, []);
 
   useEffect(() => {
-    i18n.changeLanguage(language);
+    void i18n.changeLanguage(language);
   }, [language]);
 
-  const handleLanguageChange = async (newLanguage: string): Promise<void> => {
+  const handleLanguageChange = (newLanguage: string): void => {
     setLanguage(newLanguage);
-    localStorage.setItem("language", newLanguage);
-    i18n.changeLanguage(newLanguage);
+    try {
+      localStorage.setItem("language", newLanguage);
+    } catch {
+      // Ignore storage quota or restricted access errors
+    }
   };
 
   const handleCheckForUpdates = async (): Promise<void> => {
@@ -183,6 +192,7 @@ export default function useSettingsMenu(
         );
         return;
       }
+      setErrorMessage("");
       setAutoUpdateEnabled(response.enabled ?? newState);
     } catch (error) {
       const { message } = extractError(error);

@@ -1,9 +1,14 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ConfirmationModal, CriticalErrorState, LoadingWrapper, StatusBanner } from "@renderer/components/common";
+import {
+  ConfirmationModal,
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+} from "@renderer/components/common";
 import { useTranslation } from "react-i18next";
 import { MdOutlinePrint } from "react-icons/md";
 import { BsFileEarmarkX, BsPlusLg } from "react-icons/bs";
-import { FiSearch, FiX } from "react-icons/fi";
+import { FiRefreshCw, FiSearch, FiX } from "react-icons/fi";
 import { useLabelsFormats } from "@renderer/hooks";
 import { LabelCard } from "@renderer/components/Labels/LabelCard";
 
@@ -36,7 +41,7 @@ export function LabelsFormatsView(): React.JSX.Element {
     return (
       <CriticalErrorState
         message={data.criticalError}
-        onRetry={() => window.location.reload()}
+        onRetry={() => void actions.refresh()}
         title={t("config_view.error")}
       />
     );
@@ -63,6 +68,25 @@ export function LabelsFormatsView(): React.JSX.Element {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={data.isRefreshing}
+                onClick={() => {
+                  actions.setUiMessage(null);
+                  void actions.refresh();
+                }}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                <FiRefreshCw
+                  size={16}
+                  className={data.isRefreshing ? "animate-spin" : ""}
+                />
+                {t(
+                  data.isRefreshing
+                    ? "label_formats.refreshing"
+                    : "label_formats.refresh",
+                )}
+              </button>
               <div className="bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 shadow-sm">
                 {t("label_formats.found")}:{" "}
                 <span className="text-indigo-600 dark:text-indigo-400 font-bold">

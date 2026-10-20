@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 interface GithubVersionResponse {
   status: boolean;
@@ -10,7 +11,14 @@ interface GithubVersionResponse {
 export default function GetGithubVersions(): void {
   ipcMain.handle(
     "get-github-version",
-    async (): Promise<GithubVersionResponse> => {
+    async (event): Promise<GithubVersionResponse> => {
+      if (event?.sender && !isMainRendererAuthorized(event)) {
+        return {
+          status: false,
+          message: "backend.audit.unauthorized",
+        };
+      }
+
       const url = process.env.GITHUB_RELEASE_URL;
 
       if (!url) {
@@ -22,7 +30,13 @@ export default function GetGithubVersions(): void {
       }
 
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          headers: {
+            Accept: "application/vnd.github+json",
+            "User-Agent": "Zebra-Label-Printing-Desktop-App",
+          },
+          signal: AbortSignal.timeout(5000),
+        });
 
         if (!response.ok) {
           return {

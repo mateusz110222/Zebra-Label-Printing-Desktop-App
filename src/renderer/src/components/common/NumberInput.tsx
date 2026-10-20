@@ -1,4 +1,11 @@
-import { forwardRef, type InputHTMLAttributes, useCallback, useImperativeHandle, useRef } from "react";
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+} from "react";
+import { useTranslation } from "react-i18next";
 import { LuChevronDown, LuChevronUp } from "react-icons/lu";
 import { computeNextStepperValue } from "@renderer/utils/numberInputUtils";
 
@@ -22,6 +29,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     },
     forwardedRef,
   ) {
+    const { t } = useTranslation();
     const inputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(
@@ -74,7 +82,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           <button
             type="button"
             tabIndex={-1}
-            aria-label="Zwiększ"
+            aria-label={t("common.increase", "Zwiększ")}
             disabled={isActionDisabled}
             onClick={() => changeValue(1)}
             className="flex-1 w-6 flex items-center justify-center rounded text-slate-600 dark:text-slate-200 hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition"
@@ -84,7 +92,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           <button
             type="button"
             tabIndex={-1}
-            aria-label="Zmniejsz"
+            aria-label={t("common.decrease", "Zmniejsz")}
             disabled={isActionDisabled}
             onClick={() => changeValue(-1)}
             className="flex-1 w-6 flex items-center justify-center rounded text-slate-600 dark:text-slate-200 hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition"

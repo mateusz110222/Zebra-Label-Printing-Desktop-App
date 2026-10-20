@@ -6,12 +6,17 @@ import USBConnection from "../PrinterConnections/USBConnection";
 import type { GeneratedLabel } from "../hooks/ZPLService";
 import { generatePrintZPL, generateReprintZPL } from "../hooks/ZPLService";
 import type { ConnectionResult } from "./PrinterConnectionBase";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { beginPrinterBatch } from "./PrinterActivity";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { findPrinterForLabelFormat } from "./PrinterConfigs";
+import { resolveScannedReprint } from "../parts/ScannedReprint";
 
 interface PrinterConfig {
   type: "IP" | "COM" | "USB";
@@ -325,6 +330,31 @@ const getPrinterStatusForReceipt = (
 };
 
 export default function SetupLabelHandlers(): void {
+  ipcMain.handle("lookup-reprint-serial", async (event, serial: unknown) => {
+    if (!isMainRendererAuthorized(event) || !canViewAuditLogs()) {
+      return { status: false, message: "backend.audit.unauthorized" };
+    }
+    try {
+      const result = await resolveScannedReprint(serial);
+      if (!result.status) return result;
+      const printer = findPrinterForLabelFormat(result.data.part.Label_Format);
+      if (!printer.status) return printer;
+      return {
+        status: true,
+        data: {
+          ...result.data,
+          assignedPrinter:
+            printer.printer.name || getPrinterTarget(printer.printer),
+        },
+      };
+    } catch (error) {
+      return {
+        status: false,
+        message: "reprint.scan_lookup_failed",
+        rawError: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
   ipcMain.handle("print-label", async (event, payload) => {
     if (!isMainRendererAuthorized(event)) {
       return {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { LabelFormatsResponse, UiMessage } from "../types";
 import { useTranslation } from "react-i18next";
 import { extractError } from "../utils/errorUtils";
@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 interface useLabelsFormatsResponse {
   data: {
     isLoading: boolean;
+    isRefreshing: boolean;
     criticalError: string | undefined;
     uiMessage: UiMessage | null;
     labelsFormats: LabelFormatsResponse[];
@@ -17,6 +18,7 @@ interface useLabelsFormatsResponse {
     setUiMessage: React.Dispatch<React.SetStateAction<UiMessage | null>>;
     handleCardClick: (formatName: string) => void;
     handleCreateClick: () => void;
+    refresh: () => Promise<void>;
     handleDelete: (formatName: string) => Promise<void>;
   };
 }
@@ -33,35 +35,55 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
     labelsFormatsCache || [],
   );
 
-  useEffect(() => {
-    let isMounted = true;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const mountedRef = useRef(false);
+  const requestRef = useRef(0);
+  const hasLoadedRef = useRef(labelsFormatsCache !== null);
+  const invalidateRequests = useCallback(() => {
+    requestRef.current++;
+  }, []);
 
-    const fetchFormats = async (): Promise<void> => {
-      try {
-        const response = await window.api.GetLabelsFormats();
-
-        if (!isMounted) return;
-
-        if (!response.status) {
-          setCriticalError(response.message || String(response));
-        } else if (response.data) {
-          labelsFormatsCache = response.data;
-          setLabelsFormats(response.data);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        const { message } = extractError(error);
+  const refresh = useCallback(async (): Promise<void> => {
+    const request = ++requestRef.current;
+    setIsRefreshing(true);
+    setCriticalError(undefined);
+    try {
+      const response = await window.api.GetLabelsFormats();
+      if (!mountedRef.current || request !== requestRef.current) return;
+      if (!response.status)
+        throw new Error(
+          response.message || "backend.labels.ERROR_LOADING_TEMPLATES",
+        );
+      labelsFormatsCache = response.data || [];
+      setLabelsFormats(labelsFormatsCache);
+      hasLoadedRef.current = true;
+    } catch (error) {
+      if (!mountedRef.current || request !== requestRef.current) return;
+      const { message } = extractError(error);
+      if (hasLoadedRef.current) {
+        setUiMessage({ type: "error", text: t(message) });
+      } else {
         setCriticalError(t(message));
-      } finally {
-        if (isMounted) setIsLoading(false);
       }
-    };
-    fetchFormats();
-
-    return () => {
-      isMounted = false;
-    };
+    } finally {
+      if (mountedRef.current && request === requestRef.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    }
   }, [t]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const unsubscribe = window.api.OnTemplatesChanged(() => void refresh());
+    const initialRefresh = window.setTimeout(() => void refresh(), 0);
+    return () => {
+      window.clearTimeout(initialRefresh);
+      mountedRef.current = false;
+      invalidateRequests();
+      unsubscribe();
+    };
+  }, [refresh, invalidateRequests]);
 
   const handleCardClick = (formatName: string): void => {
     const params = new URLSearchParams();
@@ -118,6 +140,7 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
   return {
     data: {
       isLoading,
+      isRefreshing,
       criticalError,
       uiMessage,
       labelsFormats,
@@ -128,6 +151,7 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
       setUiMessage,
       handleCardClick,
       handleCreateClick,
+      refresh,
       handleDelete,
     },
   };

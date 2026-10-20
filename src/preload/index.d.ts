@@ -6,6 +6,7 @@ declare global {
     Part_Description: string;
     Serial_Prefix: string;
     Label_Format: string;
+    Operation?: string;
   }
 
   type PartsSource = "server" | "local";
@@ -128,6 +129,18 @@ declare global {
       }>;
 
       // Printing
+      LookupReprintSerial: (serial: string) => Promise<{
+        status: boolean;
+        message?: string;
+        rawError?: string;
+        data?: {
+          part: PartPayload;
+          date: string;
+          serialNumber: string;
+          fullSerialNumber: string;
+          assignedPrinter: string;
+        };
+      }>;
       PrintLabel: (payload: {
         part: PartPayload;
         quantity: number;
@@ -221,7 +234,7 @@ declare global {
       }>;
 
       // App / Settings
-      GetAppVersion: () => Promise<string>;
+      GetAppVersion: () => Promise<string | { status: false; message: string }>;
 
       GetGithubVersion: () => Promise<{
         status: boolean;
@@ -303,6 +316,7 @@ declare global {
       }) => Promise<void>;
 
       // Events
+      OnTemplatesChanged: (callback: () => void) => () => void;
       OnPrinterStatusChanged: (
         callback: (status: {
           status: boolean;
@@ -321,7 +335,7 @@ declare global {
       OnUpdateAvailable: (callback: () => void) => () => void;
 
       OnDownloadProgress: (
-        callback: (data: { percent: number }) => void,
+        callback: (data: { percent: string | number }) => void,
       ) => () => void;
 
       OnUpdateDownloaded: (callback: () => void) => () => void;
@@ -340,6 +354,7 @@ declare global {
   }
 
   interface DatabasePayload {
+    sslMode?: "default" | "required" | "disabled";
     host: string;
     user: string;
     password?: string;
@@ -450,6 +465,27 @@ declare global {
     };
   }
 
+  interface AuditLogDetails {
+    partNumber?: string;
+    description?: string;
+    fullSerialNumber?: string;
+    serialPrefix?: string;
+    serialNumber?: string;
+    julianDate?: string;
+    bmsDate?: string;
+    selectedDate?: string;
+    labelFormat?: string;
+    printerTarget?: string;
+    printerType?: string;
+    printerError?: string;
+    message?: string;
+    deliveryResult?: string;
+    requestedQuantity?: number;
+    sentCount?: number;
+    labels?: unknown[];
+    [key: string]: unknown;
+  }
+
   interface AuditLogEntry {
     id: string;
     timestamp: string;
@@ -464,6 +500,6 @@ declare global {
     workstation: string;
     appVersion: string;
 
-    details: Record<string, string | number | boolean | null>;
+    details: AuditLogDetails;
   }
 }

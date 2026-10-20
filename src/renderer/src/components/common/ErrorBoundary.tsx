@@ -1,6 +1,9 @@
 import { extractError } from "@renderer/utils/errorUtils";
 import React from "react";
-import { ErrorBoundary as ReactErrorBoundary, FallbackProps } from "react-error-boundary";
+import {
+  ErrorBoundary as ReactErrorBoundary,
+  FallbackProps,
+} from "react-error-boundary";
 import { useTranslation } from "react-i18next";
 
 function ErrorFallback({

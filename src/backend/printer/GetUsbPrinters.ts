@@ -1,8 +1,16 @@
 import { ipcMain } from "electron";
 import { listUsbPrinters } from "../PrinterConnections/USBConnection";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 export default function GetUsbPrinters(): void {
-  ipcMain.handle("get-usb-printers", async () => {
+  ipcMain.handle("get-usb-printers", async (event) => {
+    if (event?.sender && !isMainRendererAuthorized(event)) {
+      return {
+        status: false,
+        message: "backend.audit.unauthorized",
+        data: [],
+      };
+    }
     try {
       return {
         status: true,

@@ -27,6 +27,16 @@ export default function UpdatesHandler(
     autoUpdater.autoInstallOnAppQuit = true;
   }
 
+  const sendToWindow = (channel: string, ...args: unknown[]): void => {
+    if (
+      mainWindow &&
+      !mainWindow.isDestroyed?.() &&
+      !mainWindow.webContents?.isDestroyed?.()
+    ) {
+      mainWindow.webContents.send(channel, ...args);
+    }
+  };
+
   const checkForAutomaticUpdate = async (): Promise<void> => {
     if (!store.get("autoUpdate")) return;
 
@@ -43,7 +53,7 @@ export default function UpdatesHandler(
       if (!latestVersion || !currentVersion) return;
 
       if (gt(latestVersion, currentVersion)) {
-        mainWindow.webContents.send("update_available");
+        sendToWindow("update_available");
       }
     } catch (error) {
       log.error("Automatic update check failed:", error);
@@ -142,17 +152,17 @@ export default function UpdatesHandler(
   });
 
   autoUpdater.on("update-available", () => {
-    mainWindow.webContents.send("update_available");
+    sendToWindow("update_available");
   });
 
   autoUpdater.on("download-progress", (progressObj) => {
-    mainWindow.webContents.send("download_progress", {
+    sendToWindow("download_progress", {
       percent: progressObj.percent.toFixed(0),
     });
   });
 
   autoUpdater.on("update-downloaded", () => {
-    mainWindow.webContents.send("update_downloaded");
+    sendToWindow("update_downloaded");
   });
 
   ipcMain.on("restart_app", (event): void => {
@@ -212,7 +222,11 @@ export default function UpdatesHandler(
     }
 
     if (enable) {
-      void autoUpdater.checkForUpdatesAndNotify();
+      void Promise.resolve(autoUpdater.checkForUpdatesAndNotify()).catch(
+        (error) => {
+          log.error("Automatic update check failed:", error);
+        },
+      );
 
       startUpdateInterval();
     } else {

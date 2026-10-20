@@ -1,5 +1,9 @@
 import { ipcMain } from "electron";
-import { appendAuditLog, canViewAuditLogs, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { type PartsConfig, store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { normalizePartsConfig } from "../parts/PartsResolver";

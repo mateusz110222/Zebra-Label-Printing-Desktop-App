@@ -361,6 +361,17 @@ const matchesQuery = (entry: AuditLogEntry, query: AuditLogQuery): boolean => {
   return true;
 };
 
+const shiftIsoDateByDays = (
+  isoDate: string | undefined,
+  deltaDays: number,
+): string | null => {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
+  const parsed = new Date(`${isoDate}T12:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  parsed.setUTCDate(parsed.getUTCDate() + deltaDays);
+  return parsed.toISOString().slice(0, 10);
+};
+
 export const readAuditLogs = async (
   query: AuditLogQuery = {},
 ): Promise<{
@@ -375,12 +386,21 @@ export const readAuditLogs = async (
     recursive: true,
   });
 
-  const filePattern = /^(?:audit|print)-\d{4}-\d{2}(?:-\d{2})?\.jsonl$/;
+  const filePattern = /^(?:audit|print)-(\d{4}-\d{2}(?:-\d{2})?)\.jsonl$/;
+  const minFileDate = shiftIsoDateByDays(query.dateFrom, -1);
+  const maxFileDate = shiftIsoDateByDays(query.dateTo, 1);
 
   const files = (await readdir(getLogsDirectory()))
     .filter((name) => {
-      if (!filePattern.test(name)) {
+      const match = filePattern.exec(name);
+      if (!match) {
         return false;
+      }
+
+      const fileDate = match[1];
+      if (fileDate.length === 10) {
+        if (minFileDate && fileDate < minFileDate) return false;
+        if (maxFileDate && fileDate > maxFileDate) return false;
       }
 
       if (query.scope === "audit") {

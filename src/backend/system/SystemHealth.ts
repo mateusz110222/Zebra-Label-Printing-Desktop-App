@@ -4,10 +4,18 @@ import type { RowDataPacket } from "mysql2/promise";
 
 import { getTemplatesPath } from "./TemplatePaths";
 import { PrinterConfig, store } from "../utils/store";
-import { PrinterStatusResult, queryPrinterStatus } from "../printer/PrinterStatus";
-import { getConfiguredPrinters, getPrinterName, getPrinterRoutingConfig } from "../printer/PrinterConfigs";
+import {
+  PrinterStatusResult,
+  queryPrinterStatus,
+} from "../printer/PrinterStatus";
+import {
+  getConfiguredPrinters,
+  getPrinterName,
+  getPrinterRoutingConfig,
+} from "../printer/PrinterConfigs";
 import { getDatabase } from "../config/DatabaseConfig";
 import { checkAuditLogWritable } from "../audit/AuditLog";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 interface ServerInfoRow extends RowDataPacket {
   serverHostname: string;
@@ -65,7 +73,14 @@ const getPrinterTarget = (printerConfig: PrinterConfig): string =>
       : printerConfig.usbPrinterName || "?";
 
 export default function SystemHealthHandler(): void {
-  ipcMain.handle("get-system-health", async () => {
+  ipcMain.handle("get-system-health", async (event) => {
+    if (event?.sender && !isMainRendererAuthorized(event)) {
+      return {
+        status: false,
+        message: "backend.audit.unauthorized",
+      };
+    }
+
     const checkedAt = new Date().toISOString();
 
     const dbConfig = store.get("database");
@@ -120,7 +135,7 @@ export default function SystemHealthHandler(): void {
 
       (async () => {
         try {
-          const pool = getDatabase();
+          const pool = await getDatabase();
 
           const [[serverInfo]] = await pool.query<ServerInfoRow[]>(
             `SELECT
@@ -188,7 +203,7 @@ export default function SystemHealthHandler(): void {
 
           if (timeDriftMs === null) {
             messages.push("backend.health.database_time_unavailable");
-          } else if (timeDriftMs > 60_000) {
+          } else if (timeDriftMs > 30_000) {
             messages.push("backend.health.database_time_drift");
           }
 

@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
         "process.env.LDAP_LOGIN_DOMAIN": JSON.stringify(
           env.LDAP_LOGIN_DOMAIN || "",
         ),
+        "process.env.LDAP_DOMAIN": JSON.stringify(env.LDAP_DOMAIN || ""),
         "process.env.LDAP_SEARCH_BASE": JSON.stringify(
           env.LDAP_SEARCH_BASE || "",
         ),
@@ -43,8 +44,20 @@ export default defineConfig(({ mode }) => {
         "process.env.LDAP_IT_DEPARTMENTS": JSON.stringify(
           env.LDAP_IT_DEPARTMENTS || "IT",
         ),
+        "process.env.LDAP_IT_GROUP_DN": JSON.stringify(
+          env.LDAP_IT_GROUP_DN || "",
+        ),
         "process.env.LDAP_UR_DEPARTMENTS": JSON.stringify(
           env.LDAP_UR_DEPARTMENTS || "",
+        ),
+        "process.env.MYSQL_TLS_REJECT_UNAUTHORIZED": JSON.stringify(
+          env.MYSQL_TLS_REJECT_UNAUTHORIZED || "false",
+        ),
+        "process.env.MYSQL_SSL_REJECT_UNAUTHORIZED": JSON.stringify(
+          env.MYSQL_SSL_REJECT_UNAUTHORIZED || "false",
+        ),
+        "process.env.MYSQL_CA_CERT_PATH": JSON.stringify(
+          env.MYSQL_CA_CERT_PATH || "",
         ),
         "process.env.PARTS_CONFIG_URL": JSON.stringify(
           env.PARTS_CONFIG_URL || "",

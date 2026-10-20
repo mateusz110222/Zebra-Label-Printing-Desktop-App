@@ -4,7 +4,7 @@ import {
   isPrintQueueBusy,
   resetPrinterActivityForTests,
   runPrinterStatusQuery,
-  waitForPrintQueueIdle
+  waitForPrintQueueIdle,
 } from "../printer/PrinterActivity";
 
 const readyStatus = {

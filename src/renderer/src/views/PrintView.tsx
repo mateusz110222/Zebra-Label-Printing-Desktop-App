@@ -3,10 +3,15 @@ import { useTranslation } from "react-i18next";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
-import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+  SubmitButton,
+} from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
-import { selectStyles } from "@renderer/config";
+import { getSelectStyles } from "@renderer/config";
 import { useTheme } from "@renderer/hooks/useThemeContext";
 import { usePrinterStatus } from "@renderer/context/PrinterStatusContext";
 import { extractError } from "@renderer/utils/errorUtils";
@@ -15,7 +20,7 @@ const HEALTH_TTL_MS = 45_000;
 
 export function PrintView(): React.JSX.Element {
   const { t } = useTranslation();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
 
   const { data, status, actions, isValid } = usePrintLabel("print");
@@ -87,6 +92,23 @@ export function PrintView(): React.JSX.Element {
       }
     };
   }, [refreshHealth]);
+
+  const assignedPrinterHealth =
+    data.usesMultiplePrinters &&
+    data.hasAssignedPrinter &&
+    health?.printers?.length
+      ? health.printers.find(
+          (p) =>
+            (p.name || p.target).trim().toLocaleUpperCase() ===
+            data.assignedPrinter.trim().toLocaleUpperCase(),
+        )
+      : undefined;
+  const assignedPrinterOffline =
+    data.usesMultiplePrinters &&
+    data.selectedPart !== null &&
+    data.hasAssignedPrinter &&
+    assignedPrinterHealth !== undefined &&
+    !assignedPrinterHealth.ready;
 
   const printerWarningBlocksPrint =
     !data.usesMultiplePrinters &&
@@ -163,7 +185,9 @@ export function PrintView(): React.JSX.Element {
     !effectiveHealthIsStale &&
     !healthError &&
     health.database.status &&
-    (data.usesMultiplePrinters || (health.printer.ready && livePrinterReady)) &&
+    (data.usesMultiplePrinters
+      ? !assignedPrinterOffline
+      : health.printer.ready && livePrinterReady) &&
     health.templates.status &&
     health.audit.status;
   const blockingReasons = [
@@ -192,15 +216,17 @@ export function PrintView(): React.JSX.Element {
             : null,
           !data.hasAssignedPrinter
             ? t("backend.printer.format_not_assigned")
-            : printerWarningBlocksPrint
-              ? t(
-                  data.lastPrintSummary?.printerStatusMessage ||
-                    "print_view.printer_status_not_confirmed",
-                )
-              : !data.usesMultiplePrinters &&
-                  (!health.printer.ready || !livePrinterReady)
-                ? t(livePrinterMessage || health.printer.message)
-                : null,
+            : assignedPrinterOffline
+              ? t(assignedPrinterHealth?.message || "header.printer_offline")
+              : printerWarningBlocksPrint
+                ? t(
+                    data.lastPrintSummary?.printerStatusMessage ||
+                      "print_view.printer_status_not_confirmed",
+                  )
+                : !data.usesMultiplePrinters &&
+                    (!health.printer.ready || !livePrinterReady)
+                  ? t(livePrinterMessage || health.printer.message)
+                  : null,
           !health.templates.status ? t("print_view.block_templates") : null,
           !health.audit.status ? t("print_view.block_audit") : null,
         ]
@@ -437,7 +463,6 @@ export function PrintView(): React.JSX.Element {
                     {t("print_view.part_selection")}
                   </label>
                   <Select
-                    key={theme}
                     autoFocus
                     options={data.options}
                     onChange={actions.handleSelectChange}
@@ -447,7 +472,7 @@ export function PrintView(): React.JSX.Element {
                     classNamePrefix="react-select"
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
-                    styles={selectStyles}
+                    styles={getSelectStyles(resolvedTheme === "dark")}
                   />
                 </div>
 

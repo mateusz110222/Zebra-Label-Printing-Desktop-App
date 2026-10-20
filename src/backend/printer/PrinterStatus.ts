@@ -139,6 +139,13 @@ const queryComPrinterStatus = (
     }, 2500);
 
     port.open((error) => {
+      if (settled) {
+        if (port.isOpen) {
+          port.close(() => undefined);
+        }
+        return;
+      }
+
       if (error) {
         clearTimeout(timeout);
 

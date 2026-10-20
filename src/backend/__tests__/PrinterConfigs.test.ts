@@ -41,6 +41,19 @@ describe("printer format routing", () => {
     });
   });
 
+  it("blocks printing in single mode when the default printer is unconfigured", () => {
+    mocks.storeGet.mockImplementation((key: string) =>
+      key === "printerRouting"
+        ? { mode: "single", formatAssignments: {} }
+        : { type: "IP", ip: "", port: 9100 },
+    );
+
+    expect(findPrinterForLabelFormat("16x13")).toEqual({
+      status: false,
+      message: "backend.printer.no_config",
+    });
+  });
+
   it("resolves a format assignment case-insensitively in multiple mode", () => {
     mocks.storeGet.mockImplementation((key: string) => {
       if (key === "printerRouting") {

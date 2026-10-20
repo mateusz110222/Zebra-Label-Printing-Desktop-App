@@ -12,9 +12,12 @@ import PrinterRoutingConfigHandler from "../backend/config/PrinterRoutingConfig"
 import GetPrinterConfig from "../backend/config/GetPrinterConfig";
 import SetupPrinterStatusHandlers, {
   startPrinterStatusPoller,
-  stopPrinterStatusPoller
+  stopPrinterStatusPoller,
 } from "../backend/printer/PrinterStatusService";
-import { isPrintQueueBusy, waitForPrintQueueIdle } from "../backend/printer/PrinterActivity";
+import {
+  isPrintQueueBusy,
+  waitForPrintQueueIdle,
+} from "../backend/printer/PrinterActivity";
 import HandleLogin from "../backend/auth/HandleLogin";
 import GetLabelPreview from "../backend/preview/GetLabelPreview";
 import { closeDatabase } from "../backend/config/DatabaseConfig";
@@ -32,9 +35,12 @@ import {
   getRendererEntryUrl,
   isAllowedExternalUrl,
   isAllowedPreviewUrl,
-  isRendererDocumentUrl
+  isRendererDocumentUrl,
 } from "../backend/preview/PreviewWindowPolicy";
-import { installExtension, REACT_DEVELOPER_TOOLS } from "electron-devtools-installer";
+import {
+  installExtension,
+  REACT_DEVELOPER_TOOLS,
+} from "electron-devtools-installer";
 
 process.on("uncaughtExceptionMonitor", (error) => {
   console.error("Uncaught exception in main process:", error);

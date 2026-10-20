@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 interface DatabaseDisplayCardProps {
+  dbSslMode: "default" | "required" | "disabled";
   dbHost: string;
   dbUser: string;
   dbName: string;
@@ -11,6 +12,7 @@ interface DatabaseDisplayCardProps {
 }
 
 export default function DatabaseDisplayCard({
+  dbSslMode,
   dbHost,
   dbUser,
   dbName,
@@ -47,6 +49,10 @@ export default function DatabaseDisplayCard({
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1 flex items-center gap-2">
                   <span>{t("config_view.db_name")}:</span>
                   <span className="font-mono">{dbName}</span>
+                </p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {t("config_view.db_tls")}:{" "}
+                  {t(`config_view.db_tls_${dbSslMode}`)}
                 </p>
               </div>
             </div>

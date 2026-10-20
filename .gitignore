@@ -55,4 +55,6 @@ Desktop.ini
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-/certs/
+# Certificates (keep directory structure, ignore actual cert files)
+/certs/*
+!/certs/.gitkeep

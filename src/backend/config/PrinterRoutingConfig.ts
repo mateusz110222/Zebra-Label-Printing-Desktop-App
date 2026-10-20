@@ -1,8 +1,16 @@
 import { ipcMain } from "electron";
-import { appendAuditLog, canConfigurePrinter, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canConfigurePrinter,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { getPrinterRoutingConfig } from "../printer/PrinterConfigs";
-import { type PrinterMode, type PrinterRoutingConfig, store } from "../utils/store";
+import {
+  type PrinterMode,
+  type PrinterRoutingConfig,
+  store,
+} from "../utils/store";
 
 const normalizeRouting = (
   value: unknown,

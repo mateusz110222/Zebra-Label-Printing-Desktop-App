@@ -1,4 +1,8 @@
-import { type PrinterConfig, type PrinterRoutingConfig, store } from "../utils/store";
+import {
+  type PrinterConfig,
+  type PrinterRoutingConfig,
+  store,
+} from "../utils/store";
 
 const normalizeKey = (value: string): string =>
   value.trim().toLocaleUpperCase();
@@ -82,7 +86,7 @@ export const findPrinterForLabelFormat = (
 
   if (routing.mode === "single") {
     const printer = store.get("printer") as PrinterConfig | undefined;
-    return printer
+    return printer && isPrinterConfigured(printer)
       ? { status: true, printer }
       : { status: false, message: "backend.printer.no_config" };
   }

@@ -5,11 +5,13 @@ import { FiChevronDown, FiEye, FiPrinter } from "react-icons/fi";
 interface LabelPreviewProps {
   isLoading: boolean;
   previewImage: string | null;
+  notice?: string;
 }
 
 export default function LabelPreview({
   isLoading,
   previewImage,
+  notice,
 }: LabelPreviewProps): React.JSX.Element {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -86,7 +88,7 @@ export default function LabelPreview({
             )}
           </div>
           <p className="my-2 text-center text-xs text-slate-500 dark:text-slate-400">
-            {t("print_view.preview_example_notice")}
+            {notice ?? t("print_view.preview_example_notice")}
           </p>
         </div>
       </div>

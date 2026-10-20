@@ -1,1 +1,1 @@
-export { selectStyles } from "./selectStyles";
+export { getSelectStyles, selectStyles } from "./selectStyles";

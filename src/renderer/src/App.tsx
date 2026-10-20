@@ -1,5 +1,10 @@
 import React from "react";
-import { HashRouter as Router, Navigate, Route, Routes } from "react-router-dom";
+import {
+  HashRouter as Router,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -15,7 +20,7 @@ import {
   LoginView,
   PrintView,
   ReprintView,
-  SystemHealthView
+  SystemHealthView,
 } from "./views";
 
 function ItProtectedRoute({

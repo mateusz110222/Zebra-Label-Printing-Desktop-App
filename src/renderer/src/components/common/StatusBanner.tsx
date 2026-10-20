@@ -62,13 +62,13 @@ export default function StatusBanner({
           </svg>
         )}
       </div>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <h3 className="font-bold text-sm uppercase tracking-wide opacity-90">
           {isSuccess ? t("status_banner.success") : t("status_banner.error")}
         </h3>
         <p className="font-medium mt-1">{message}</p>
         {details && (
-          <p className="mt-2 text-xs font-mono bg-white/50 dark:bg-slate-800/50 p-2 rounded border border-black/5 dark:border-white/10 break-all">
+          <p className="mt-2 whitespace-pre-wrap text-xs font-mono bg-white/50 dark:bg-slate-800/50 p-2 rounded border border-black/5 dark:border-white/10 break-all">
             {details}
           </p>
         )}

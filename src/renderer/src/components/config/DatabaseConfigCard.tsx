@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 
 interface DatabaseConfigCardProps {
+  dbSslMode: "default" | "required" | "disabled";
+  onDbSslModeChange: (value: "default" | "required" | "disabled") => void;
   dbHost: string;
   onDbHostChange: (value: string) => void;
   dbUser: string;
@@ -19,6 +21,8 @@ interface DatabaseConfigCardProps {
 }
 
 export default function DatabaseConfigCard({
+  dbSslMode,
+  onDbSslModeChange,
   dbHost,
   onDbHostChange,
   dbUser,
@@ -35,10 +39,11 @@ export default function DatabaseConfigCard({
 }: DatabaseConfigCardProps): React.JSX.Element {
   const { t } = useTranslation();
   const [initialSignature] = React.useState(() =>
-    JSON.stringify({ dbHost, dbUser, dbPass, dbName }),
+    JSON.stringify({ dbHost, dbUser, dbPass, dbName, dbSslMode }),
   );
   const isDirty =
-    JSON.stringify({ dbHost, dbUser, dbPass, dbName }) !== initialSignature;
+    JSON.stringify({ dbHost, dbUser, dbPass, dbName, dbSslMode }) !==
+    initialSignature;
   const validationClass =
     "mt-2 text-xs font-medium text-red-600 dark:text-red-400";
 
@@ -56,6 +61,42 @@ export default function DatabaseConfigCard({
           {t("config_view.database_title")}
         </h3>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label
+              htmlFor="database-ssl-mode"
+              className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200"
+            >
+              {t("config_view.db_tls")}
+            </label>
+            <select
+              id="database-ssl-mode"
+              value={dbSslMode}
+              disabled={isProcessing}
+              onChange={(event) =>
+                onDbSslModeChange(
+                  event.target.value as DatabaseConfigCardProps["dbSslMode"],
+                )
+              }
+              aria-describedby="database-ssl-hint"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            >
+              {(["default", "required", "disabled"] as const).map((mode) => (
+                <option key={mode} value={mode}>
+                  {t(`config_view.db_tls_${mode}`)}
+                </option>
+              ))}
+            </select>
+            <p
+              id="database-ssl-hint"
+              className="mt-2 text-sm text-slate-500 dark:text-slate-400"
+            >
+              {t(
+                dbSslMode === "disabled"
+                  ? "config_view.db_tls_disabled_hint"
+                  : "config_view.db_tls_hint",
+              )}
+            </p>
+          </div>
           {/* Host field */}
           <div className="group">
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-2">

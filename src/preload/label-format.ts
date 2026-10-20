@@ -19,17 +19,26 @@ const api = {
     ipcRenderer.invoke("get-labelFormat-preview", { zpl: Label_Format }),
 
   GetPrinterStatus: () => ipcRenderer.invoke("Get-PrinterStatus"),
+
   SaveLabelFormat: (name: string, data: string) =>
     ipcRenderer.invoke("save-labelformat", name, data),
+
+  LogRendererError: (errorInfo: {
+    message: string;
+    stack?: string;
+    componentStack?: string;
+  }) => ipcRenderer.invoke("log-renderer-error", errorInfo),
+
+  OnPrinterStatusChanged: (callback: (status: unknown) => void) => {
+    const sub = (_event: Electron.IpcRendererEvent, data: unknown): void =>
+      callback(data);
+    ipcRenderer.on("printer-status", sub);
+    return () => ipcRenderer.removeListener("printer-status", sub);
+  },
 };
 
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld("api", api);
-  } catch (error) {
-    console.error(error);
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.api = api;
+if (!process.contextIsolated) {
+  throw new Error("Context isolation must be enabled");
 }
+
+contextBridge.exposeInMainWorld("api", api);

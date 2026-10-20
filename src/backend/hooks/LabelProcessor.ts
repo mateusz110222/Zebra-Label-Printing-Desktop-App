@@ -1,13 +1,16 @@
+const sanitizeZplFieldValue = (value: string | number): string =>
+  String(value).replace(/[\^~\r\n]/g, " ");
+
 export const fillZplTemplate = (
   template: string,
   data: Record<string, string | number>,
 ): string => {
   if (!template) return "";
-  let zpl = template;
-  Object.keys(data).forEach((key) => {
-    zpl = zpl.replaceAll(`*${key}*`, String(data[key]));
-  });
-  return zpl;
+  return template.replace(/\*([A-Z0-9_]+)\*/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(data, key)
+      ? sanitizeZplFieldValue(data[key])
+      : match,
+  );
 };
 
 export const BASE34_ALPHABET = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";

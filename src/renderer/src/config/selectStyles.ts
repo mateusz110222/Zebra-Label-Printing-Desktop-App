@@ -12,18 +12,16 @@ const isDarkMode = (): boolean => {
   return false;
 };
 
-export const selectStyles: StylesConfig<PartOption, false> = {
+export const getSelectStyles = (
+  dark = isDarkMode(),
+): StylesConfig<PartOption, false> => ({
   control: (base, state) => ({
     ...base,
     borderRadius: "0.5rem",
-    borderColor: state.isFocused
-      ? "#6366f1"
-      : isDarkMode()
-        ? "#475569"
-        : "#e2e8f0",
+    borderColor: state.isFocused ? "#6366f1" : dark ? "#475569" : "#e2e8f0",
     boxShadow: state.isFocused ? "0 0 0 1px #6366f1" : "none",
     padding: "0.25rem",
-    backgroundColor: isDarkMode() ? "#1e293b" : "white",
+    backgroundColor: dark ? "#1e293b" : "white",
     "&:hover": { borderColor: "#6366f1" },
   }),
   option: (base, state) => ({
@@ -31,28 +29,28 @@ export const selectStyles: StylesConfig<PartOption, false> = {
     backgroundColor: state.isSelected
       ? "#6366f1"
       : state.isFocused
-        ? isDarkMode()
+        ? dark
           ? "#334155"
           : "#e0e7ff"
-        : isDarkMode()
+        : dark
           ? "#1e293b"
           : "white",
-    color: state.isSelected ? "white" : isDarkMode() ? "#f1f5f9" : "#1e293b",
+    color: state.isSelected ? "white" : dark ? "#f1f5f9" : "#1e293b",
     cursor: "pointer",
   }),
   singleValue: (base) => ({
     ...base,
-    color: isDarkMode() ? "#f1f5f9" : "#1e293b",
+    color: dark ? "#f1f5f9" : "#1e293b",
   }),
   placeholder: (base) => ({
     ...base,
-    color: isDarkMode() ? "#64748b" : "#94a3b8",
+    color: dark ? "#64748b" : "#94a3b8",
   }),
   menu: (base) => ({
     ...base,
     borderRadius: "0.5rem",
-    backgroundColor: isDarkMode() ? "#1e293b" : "white",
-    border: isDarkMode() ? "1px solid #475569" : "none",
+    backgroundColor: dark ? "#1e293b" : "white",
+    border: dark ? "1px solid #475569" : "none",
     boxShadow:
       "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
   }),
@@ -62,6 +60,8 @@ export const selectStyles: StylesConfig<PartOption, false> = {
   }),
   input: (base) => ({
     ...base,
-    color: isDarkMode() ? "#f1f5f9" : "#1e293b",
+    color: dark ? "#f1f5f9" : "#1e293b",
   }),
-};
+});
+
+export const selectStyles: StylesConfig<PartOption, false> = getSelectStyles();

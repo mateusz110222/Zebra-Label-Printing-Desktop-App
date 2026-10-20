@@ -5,7 +5,7 @@ import {
   ConfirmationModal,
   CriticalErrorState,
   LoadingWrapper,
-  StatusBanner
+  StatusBanner,
 } from "../components/common";
 import {
   ConfigFormCard,
@@ -15,7 +15,7 @@ import {
   FormatPrinterAssignmentsCard,
   NoConfigCard,
   PartsSourceConfigCard,
-  PartsSourceDisplayCard
+  PartsSourceDisplayCard,
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useConfigView } from "@renderer/hooks";
@@ -29,6 +29,7 @@ export function ConfigView(): React.JSX.Element {
 
   const [activeTab, setActiveTab] = useState("connection");
   const [partsConfigVersion, setPartsConfigVersion] = useState(0);
+  const [routingConfigVersion, setRoutingConfigVersion] = useState(0);
   const [printerToDelete, setPrinterToDelete] = useState<string | null>(null);
   const [isDeletingPrinter, setIsDeletingPrinter] = useState(false);
   const [isRoutingDirty, setIsRoutingDirty] = useState(false);
@@ -96,6 +97,9 @@ export function ConfigView(): React.JSX.Element {
     if (activeTab === "connection") actions.cancelPrinterEdit();
     if (activeTab === "database") actions.cancelDatabaseEdit();
     if (activeTab === "parts") cancelPartsSourceEdit();
+    if (activeTab === "printer-routing") {
+      setRoutingConfigVersion((version) => version + 1);
+    }
     setIsRoutingDirty(false);
     setIsPrinterFormDirty(false);
     setIsDatabaseFormDirty(false);
@@ -292,7 +296,7 @@ export function ConfigView(): React.JSX.Element {
                       const name =
                         printer.name ||
                         (printer.type === "IP"
-                          ? `${printer.ip}:${printer.port}`
+                          ? `${printer.ip}:${printer.port ?? 9100}`
                           : printer.type === "COM"
                             ? printer.comPort || "COM"
                             : printer.usbPrinterName || "USB");
@@ -403,7 +407,7 @@ export function ConfigView(): React.JSX.Element {
           {activeTab === "printer-routing" &&
             data.printerMode === "multiple" && (
               <FormatPrinterAssignmentsCard
-                key={JSON.stringify(data.formatAssignments)}
+                key={`${routingConfigVersion}:${JSON.stringify(data.formatAssignments)}`}
                 printers={data.printers}
                 formats={data.availableLabelFormats}
                 assignments={data.formatAssignments}
@@ -425,6 +429,7 @@ export function ConfigView(): React.JSX.Element {
                 />
               ) : !data.isDatabaseEditing && data.hasDatabaseConfig ? (
                 <DatabaseDisplayCard
+                  dbSslMode={data.dbSslMode}
                   dbHost={data.dbHost}
                   dbUser={data.dbUser}
                   dbName={data.dbName}
@@ -433,6 +438,8 @@ export function ConfigView(): React.JSX.Element {
                 />
               ) : (
                 <DatabaseConfigCard
+                  dbSslMode={data.dbSslMode}
+                  onDbSslModeChange={actions.setDbSslMode}
                   dbHost={data.dbHost}
                   onDbHostChange={actions.setDbHost}
                   dbUser={data.dbUser}

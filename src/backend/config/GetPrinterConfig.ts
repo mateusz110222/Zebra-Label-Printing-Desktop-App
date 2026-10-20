@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { PrinterConfig, store } from "../utils/store";
 import { getConfiguredPrinters } from "../printer/PrinterConfigs";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 interface GetPrinterConfigResponse {
   status: boolean;
@@ -11,7 +12,14 @@ interface GetPrinterConfigResponse {
 export default function GetPrinterConfig(): void {
   ipcMain.handle(
     "get-printer-config",
-    async (): Promise<GetPrinterConfigResponse> => {
+    async (event): Promise<GetPrinterConfigResponse> => {
+      if (event?.sender && !isMainRendererAuthorized(event)) {
+        return {
+          status: false,
+          message: "backend.audit.unauthorized",
+          data: [],
+        };
+      }
       try {
         const config: PrinterConfig = store.get("printer");
         return {

@@ -6,7 +6,7 @@ import {
   canViewAuditLogs,
   clearAuditSession,
   getAuditActor,
-  setAuditSession
+  setAuditSession,
 } from "../audit/AuditSession";
 
 const mocks = vi.hoisted(() => ({

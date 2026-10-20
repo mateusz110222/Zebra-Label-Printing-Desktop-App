@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ConnectionType, LocalPart, PrinterConfig, PrinterMode, UiMessage, UsbPrinterInfo } from "../types";
+import {
+  ConnectionType,
+  LocalPart,
+  PrinterConfig,
+  PrinterMode,
+  UiMessage,
+  UsbPrinterInfo,
+} from "../types";
 import { extractError } from "../utils/errorUtils";
 import { useAuth } from "../context/AuthContext";
+
+type DatabaseSslMode = "default" | "required" | "disabled";
 
 type PartsSource = "server" | "local";
 
@@ -36,6 +45,7 @@ interface UseConfigData {
   dbUser: string;
   dbPass: string;
   dbName: string;
+  dbSslMode: DatabaseSslMode;
 
   partsSource: PartsSource;
   partsOperation: string;
@@ -100,6 +110,7 @@ interface UseConfigActions {
   setDbUser: (user: string) => void;
   setDbPass: (pass: string) => void;
   setDbName: (name: string) => void;
+  setDbSslMode: (mode: DatabaseSslMode) => void;
 }
 
 interface UseConfigViewReturn {
@@ -125,6 +136,7 @@ interface DatabaseDraft {
   dbUser: string;
   dbPass: string;
   dbName: string;
+  dbSslMode: DatabaseSslMode;
 }
 
 interface PartsDraft {
@@ -150,6 +162,7 @@ const DEFAULT_DATABASE_DRAFT: DatabaseDraft = {
   dbUser: "",
   dbPass: "",
   dbName: "",
+  dbSslMode: "default",
 };
 
 const DEFAULT_PARTS_DRAFT: PartsDraft = {
@@ -203,6 +216,7 @@ export function useConfigView(): UseConfigViewReturn {
   const [dbUser, setDbUser] = useState("");
   const [dbPass, setDbPass] = useState("");
   const [dbName, setDbName] = useState("");
+  const [dbSslMode, setDbSslMode] = useState<DatabaseSslMode>("default");
 
   // Parts
   const [partsSource, setPartsSource] = useState<PartsSource>("server");
@@ -249,6 +263,7 @@ export function useConfigView(): UseConfigViewReturn {
     setDbUser(draft.dbUser);
     setDbPass(draft.dbPass);
     setDbName(draft.dbName);
+    setDbSslMode(draft.dbSslMode);
   };
 
   const applyPartsDraft = (draft: PartsDraft): void => {
@@ -360,6 +375,7 @@ export function useConfigView(): UseConfigViewReturn {
             dbUser: dbConfig.user || "",
             dbPass: CanEdit ? dbConfig.password || "" : "",
             dbName: dbConfig.database || "",
+            dbSslMode: dbConfig.sslMode || "default",
           };
 
           savedDatabaseDraft.current = databaseDraft;
@@ -430,12 +446,13 @@ export function useConfigView(): UseConfigViewReturn {
     setUiMessage(null);
 
     try {
+      const trimmedIp = ipAddress.trim();
       const payload: PrinterPayload =
         connectionType === "IP"
           ? {
               name: printerName.trim(),
               type: "IP",
-              ip: ipAddress,
+              ip: trimmedIp,
               port: parseInt(port, 10),
             }
           : connectionType === "COM"
@@ -473,7 +490,7 @@ export function useConfigView(): UseConfigViewReturn {
           const savedDraft: PrinterDraft = {
             printerName: printerName.trim(),
             connectionType,
-            ipAddress,
+            ipAddress: trimmedIp,
             port,
             selectedCom,
             baudRate,
@@ -607,13 +624,14 @@ export function useConfigView(): UseConfigViewReturn {
         user: dbUser,
         password: dbPass,
         database: dbName,
+        sslMode: dbSslMode,
       });
 
       if (!response.status) {
         setUiMessage({
           type: "error",
-          text: t("config_view.save_error"),
-          details: t(response.message || ""),
+          text: t(response.message || "config_view.save_error"),
+          details: response.rawError,
         });
 
         return;
@@ -624,6 +642,7 @@ export function useConfigView(): UseConfigViewReturn {
         dbUser,
         dbPass,
         dbName,
+        dbSslMode,
       };
 
       setHasDatabaseConfig(true);
@@ -817,13 +836,14 @@ export function useConfigView(): UseConfigViewReturn {
   };
 
   const isValidIpAddress = (ip: string): boolean => {
+    const trimmed = ip.trim();
     const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
 
-    if (!ipRegex.test(ip)) {
+    if (!ipRegex.test(trimmed)) {
       return false;
     }
 
-    return ip.split(".").every((octet) => {
+    return trimmed.split(".").every((octet) => {
       const num = parseInt(octet, 10);
       return num >= 0 && num <= 255;
     });
@@ -878,6 +898,7 @@ export function useConfigView(): UseConfigViewReturn {
       dbUser,
       dbPass,
       dbName,
+      dbSslMode,
 
       partsSource,
       partsOperation,
@@ -933,6 +954,7 @@ export function useConfigView(): UseConfigViewReturn {
       setDbUser,
       setDbPass,
       setDbName,
+      setDbSslMode,
     },
 
     isPrinterValid,

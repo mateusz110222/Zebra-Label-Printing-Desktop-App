@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   beginPrinterBatch: vi.fn(),
   finishPrinterBatch: vi.fn(),
   resolveAuthoritativePart: vi.fn(),
+  resolveScannedReprint: vi.fn(),
 }));
 
 const createEvent = (): IpcMainInvokeEvent => ({}) as IpcMainInvokeEvent;
@@ -76,6 +77,9 @@ vi.mock("../printer/PrinterActivity", () => ({
 
 vi.mock("../parts/PartsResolver", () => ({
   resolveAuthoritativePart: mocks.resolveAuthoritativePart,
+}));
+vi.mock("../parts/ScannedReprint", () => ({
+  resolveScannedReprint: mocks.resolveScannedReprint,
 }));
 
 vi.mock("../auth/IsAutorized", () => ({
@@ -130,7 +134,7 @@ const usbPrinter = {
 };
 
 const getHandler = (
-  channel: "print-label" | "reprint-label",
+  channel: "print-label" | "reprint-label" | "lookup-reprint-serial",
 ): ((...args: unknown[]) => Promise<unknown>) => {
   const handler = mocks.handlers.get(channel);
 
@@ -214,6 +218,47 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
   });
 
   describe("authorization", () => {
+    it("rejects serial lookup for an unauthorized renderer", async () => {
+      mocks.isMainRendererAuthorized.mockReturnValueOnce(false);
+      expect(
+        await getHandler("lookup-reprint-serial")(
+          createEvent(),
+          "PC66849999A262780009",
+        ),
+      ).toMatchObject({ status: false, message: "backend.audit.unauthorized" });
+      expect(mocks.resolveScannedReprint).not.toHaveBeenCalled();
+    });
+
+    it("looks up the scanned label and assigned printer without printing", async () => {
+      mocks.resolveScannedReprint.mockResolvedValueOnce({
+        status: true,
+        data: {
+          part: canonicalPart,
+          date: "2026-10-05",
+          serialNumber: "0009",
+          fullSerialNumber: "PC66849999A262780009",
+        },
+      });
+      expect(
+        await getHandler("lookup-reprint-serial")(
+          createEvent(),
+          "PC66849999A262780009",
+        ),
+      ).toMatchObject({
+        status: true,
+        data: {
+          part: canonicalPart,
+          date: "2026-10-05",
+          serialNumber: "0009",
+          assignedPrinter: "10.0.0.10:9100",
+        },
+      });
+      expect(mocks.ipConnection).not.toHaveBeenCalled();
+      expect(mocks.comConnection).not.toHaveBeenCalled();
+      expect(mocks.usbConnection).not.toHaveBeenCalled();
+      expect(mocks.generatePrintZPL).not.toHaveBeenCalled();
+    });
+
     it("rejects normal print from an unauthorized renderer", async () => {
       mocks.isMainRendererAuthorized.mockReturnValue(false);
 

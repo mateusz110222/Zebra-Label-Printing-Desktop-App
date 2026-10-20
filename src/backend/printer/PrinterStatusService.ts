@@ -2,7 +2,15 @@ import { BrowserWindow, ipcMain } from "electron";
 import { type PrinterConfig, store } from "../utils/store";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { setLastKnownPrinterStatus } from "./PrinterActivity";
-import { getConfiguredPrinters, getPrinterName, getPrinterRoutingConfig } from "./PrinterConfigs";
+import {
+  getConfiguredPrinters,
+  getPrinterName,
+  getPrinterRoutingConfig,
+} from "./PrinterConfigs";
+import {
+  isMainRendererAuthorized,
+  isPreviewAuthorized,
+} from "../auth/IsAutorized";
 
 export interface PrinterFleetStatus extends PrinterStatusResult {
   printerMode: "single" | "multiple";
@@ -10,23 +18,37 @@ export interface PrinterFleetStatus extends PrinterStatusResult {
   readyPrinters: number;
 }
 
-let inFlightStatusQuery: Promise<PrinterStatusResult> | null = null;
+const inFlightStatusQueries = new Map<string, Promise<PrinterStatusResult>>();
 let pollerIntervalId: NodeJS.Timeout | null = null;
 let isPollerRunning = false;
+
+const getConfigFlightKey = (config?: PrinterConfig): string => {
+  if (!config) return "default";
+  if (config.type === "IP") {
+    return `IP:${config.ip || ""}:${config.port ?? 9100}`;
+  }
+  if (config.type === "COM") {
+    return `COM:${config.comPort || ""}:${config.baudRate ?? 9600}`;
+  }
+  return `USB:${config.usbPrinterName || ""}`;
+};
 
 export const queryPrinterStatusSingleFlight = async (
   forceConfig?: PrinterConfig,
 ): Promise<PrinterStatusResult> => {
-  if (inFlightStatusQuery) {
-    return inFlightStatusQuery;
+  const config = forceConfig || store.get("printer");
+  const key = getConfigFlightKey(config);
+  const existing = inFlightStatusQueries.get(key);
+  if (existing) {
+    return existing;
   }
 
-  const config = forceConfig || store.get("printer");
-
-  inFlightStatusQuery = (async () => {
+  const queryPromise = (async () => {
     try {
       const result = await queryPrinterStatus(config);
-      setLastKnownPrinterStatus(result);
+      if (!forceConfig) {
+        setLastKnownPrinterStatus(result);
+      }
       return result;
     } catch (error) {
       const fallback: PrinterStatusResult = {
@@ -37,14 +59,17 @@ export const queryPrinterStatusSingleFlight = async (
         message: "backend.printer.error",
         rawError: error instanceof Error ? error.message : String(error),
       };
-      setLastKnownPrinterStatus(fallback);
+      if (!forceConfig) {
+        setLastKnownPrinterStatus(fallback);
+      }
       return fallback;
     } finally {
-      inFlightStatusQuery = null;
+      inFlightStatusQueries.delete(key);
     }
   })();
 
-  return inFlightStatusQuery;
+  inFlightStatusQueries.set(key, queryPromise);
+  return queryPromise;
 };
 
 const withFleetStatus = async (
@@ -67,7 +92,7 @@ const withFleetStatus = async (
     configuredPrinters.map(async (printer) => {
       if (getPrinterName(printer) === activeName) return activeStatus;
       try {
-        return await queryPrinterStatus(printer);
+        return await queryPrinterStatusSingleFlight(printer);
       } catch {
         return { ready: false };
       }
@@ -120,7 +145,20 @@ export const stopPrinterStatusPoller = (): void => {
 };
 
 export default function SetupPrinterStatusHandlers(): void {
-  ipcMain.handle("Get-PrinterStatus", async () => {
+  ipcMain.handle("Get-PrinterStatus", async (event) => {
+    if (
+      event?.sender &&
+      !isMainRendererAuthorized(event) &&
+      !isPreviewAuthorized(event)
+    ) {
+      return {
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.audit.unauthorized",
+      };
+    }
     const activeStatus = await queryPrinterStatusSingleFlight();
     return withFleetStatus(activeStatus);
   });

@@ -3,7 +3,12 @@ import { constants } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { Client, type ClientOptions } from "ldapts";
-import { appendAuditLog, clearAuditSession, getAuditActor, setAuditSession } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  clearAuditSession,
+  getAuditActor,
+  setAuditSession,
+} from "../audit/AuditLog";
 import {
   buildBindUser,
   buildUserSearchFilter,
@@ -13,9 +18,8 @@ import {
   ldapCompatibilityTlsOptions,
   parseBoolean,
   parsePositiveTimeout,
-  redactSecret
+  redactSecret,
 } from "./LdapAuth";
-import { t } from "i18next";
 import { isMainRendererAuthorized } from "./IsAutorized";
 
 interface LoginRequest {
@@ -162,7 +166,7 @@ export default function HandleLogin(): void {
           action: "LOGIN",
           status: "failure",
           actor: login || "anonymous",
-          details: { reason: t("backend.auth.AUTH_INVALID_CREDENTIALS") },
+          details: { reason: "backend.auth.AUTH_INVALID_CREDENTIALS" },
         });
         return {
           status: false,
@@ -294,7 +298,10 @@ export default function HandleLogin(): void {
     },
   );
 
-  ipcMain.handle("handle-logout", async () => {
+  ipcMain.handle("handle-logout", async (event) => {
+    if (event?.sender && !isMainRendererAuthorized(event)) {
+      return;
+    }
     const actor = getAuditActor();
     clearAuditSession();
     await appendAuditLog({

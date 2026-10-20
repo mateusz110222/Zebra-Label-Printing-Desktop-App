@@ -24,6 +24,7 @@ interface PartPayload {
   Part_Description: string;
   Serial_Prefix: string;
   Label_Format: string;
+  Operation?: string;
 }
 
 interface LoginPayload {
@@ -32,7 +33,7 @@ interface LoginPayload {
 }
 
 interface UpdateProgress {
-  percent: string;
+  percent: string | number;
 }
 
 interface UpdateCheckResponse {
@@ -100,6 +101,7 @@ const api = {
     part: PartPayload;
     date: string;
     serialNumber: string;
+    zpl?: string;
   }) => ipcRenderer.invoke("get-label-preview", payload),
 
   GetLabelsFormats: () => ipcRenderer.invoke("get-labels-formats"),
@@ -111,6 +113,8 @@ const api = {
     ipcRenderer.invoke("delete-label-format", name),
 
   // Printing
+  LookupReprintSerial: (serial: string) =>
+    ipcRenderer.invoke("lookup-reprint-serial", serial),
   PrintLabel: (payload: { part: PartPayload; quantity: number }) =>
     ipcRenderer.invoke("print-label", payload),
 
@@ -171,9 +175,10 @@ const api = {
   GetDatabaseConfig: () => ipcRenderer.invoke("get-database-config"),
 
   SaveDatabaseConfig: (payload: {
+    sslMode?: "default" | "required" | "disabled";
     host: string;
     user: string;
-    password: string;
+    password?: string;
     database: string;
   }) => ipcRenderer.invoke("save-database-config", payload),
 
@@ -197,6 +202,12 @@ const api = {
   }) => ipcRenderer.invoke("log-renderer-error", errorInfo),
 
   // Events
+  OnTemplatesChanged: (callback: () => void) => {
+    const sub = (): void => callback();
+    ipcRenderer.on("templates-changed", sub);
+    return () => ipcRenderer.removeListener("templates-changed", sub);
+  },
+
   OnPrinterStatusChanged: (callback: (status: unknown) => void) => {
     const sub = (_event: Electron.IpcRendererEvent, data: unknown): void =>
       callback(data);

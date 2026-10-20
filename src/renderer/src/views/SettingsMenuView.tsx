@@ -6,12 +6,14 @@ import { useTranslation } from "react-i18next";
 import { TbLoader2 } from "react-icons/tb";
 import { FiGlobe, FiMonitor, FiMoon, FiSun } from "react-icons/fi";
 import { useTheme } from "@renderer/hooks/useThemeContext";
+import { useAuth } from "@renderer/context/AuthContext";
 
 export function SettingsMenuView(): React.JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null);
   const { data, actions } = useSettingsMenu(menuRef);
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const { CanEdit } = useAuth();
 
   const hasNewVersion =
     data.githubVersion !== "-" &&
@@ -106,8 +108,12 @@ export function SettingsMenuView(): React.JSX.Element {
 
           {/* TOGGLE AUTO-UPDATE */}
           <div
-            className="group flex cursor-pointer items-center justify-between"
-            onClick={actions.toggleAutoUpdate}
+            className={`group flex items-center justify-between ${
+              CanEdit ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+            }`}
+            onClick={() => {
+              if (CanEdit) void actions.toggleAutoUpdate();
+            }}
           >
             <span className="text-sm text-gray-600 transition-colors group-hover:text-gray-900 dark:text-slate-300 dark:group-hover:text-white">
               {t("settings.auto_update")}
@@ -115,7 +121,10 @@ export function SettingsMenuView(): React.JSX.Element {
 
             <button
               type="button"
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+              disabled={!CanEdit}
+              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+                CanEdit ? "cursor-pointer" : "cursor-not-allowed"
+              } ${
                 data.autoUpdate
                   ? "bg-emerald-500"
                   : "bg-gray-200 dark:bg-slate-600"

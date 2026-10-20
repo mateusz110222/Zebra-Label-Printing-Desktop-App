@@ -1,19 +1,32 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Select from "react-select";
+import {
+  FiArrowLeft,
+  FiArrowUpRight,
+  FiEdit3,
+  FiMaximize,
+  FiPrinter,
+} from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-import { CriticalErrorState, LoadingWrapper, StatusBanner, SubmitButton } from "../components/common";
+import {
+  CriticalErrorState,
+  LoadingWrapper,
+  StatusBanner,
+  SubmitButton,
+} from "../components/common";
 import { LabelPreview, PartDetailsCard } from "../components/print";
 import { usePrintLabel } from "@renderer/hooks";
-import { selectStyles } from "@renderer/config";
+import { getSelectStyles } from "@renderer/config";
 import { useTheme } from "@renderer/hooks/useThemeContext";
 import { usePrinterStatus } from "@renderer/context/PrinterStatusContext";
 import ReprintUnitDetails from "@renderer/components/print/ReprintUnitDetails";
+import { ScannedReprintView } from "./ScannedReprintView";
 
-export function ReprintView(): React.JSX.Element {
+function ManualReprintView(): React.JSX.Element {
   const { t } = useTranslation();
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
 
   const { data, status, actions, isValid } = usePrintLabel("reprint");
@@ -117,7 +130,6 @@ export function ReprintView(): React.JSX.Element {
                     {t("print_view.part_selection")}
                   </label>
                   <Select
-                    key={theme}
                     autoFocus
                     options={data.options}
                     onChange={actions.handleSelectChange}
@@ -127,7 +139,7 @@ export function ReprintView(): React.JSX.Element {
                     classNamePrefix="react-select"
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
-                    styles={selectStyles}
+                    styles={getSelectStyles(resolvedTheme === "dark")}
                   />
                 </div>
 
@@ -182,5 +194,92 @@ export function ReprintView(): React.JSX.Element {
         </div>
       </div>
     </LoadingWrapper>
+  );
+}
+
+export function ReprintView(): React.JSX.Element {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<"manual" | "scan" | null>(null);
+  const [isScanPrinting, setIsScanPrinting] = useState(false);
+
+  return (
+    <div className="min-h-full text-slate-800 dark:text-slate-100">
+      {mode ? (
+        <>
+          <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-8">
+            <button
+              type="button"
+              disabled={isScanPrinting}
+              onClick={() => setMode(null)}
+              className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            >
+              <FiArrowLeft /> {t("reprint.change_method")}
+            </button>
+          </div>
+          {mode === "manual" ? (
+            <ManualReprintView />
+          ) : (
+            <ScannedReprintView onPrintingChange={setIsScanPrinting} />
+          )}
+        </>
+      ) : (
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+          <div className="mb-10 flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <FiPrinter size={23} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                {t("reprint.title")}
+              </h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+                {t("reprint.choose_method")}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            {(["manual", "scan"] as const).map((method, index) => {
+              const Icon = method === "manual" ? FiEdit3 : FiMaximize;
+              return (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setMode(method)}
+                  className="group relative flex min-h-72 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-7 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-400 hover:shadow-lg motion-reduce:transform-none dark:border-slate-700 dark:bg-slate-800 dark:hover:border-indigo-400 sm:p-8"
+                >
+                  <div className="mb-10 flex w-full items-start justify-between">
+                    <div
+                      className={
+                        method === "scan"
+                          ? "rounded-xl bg-teal-50 p-3 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300"
+                          : "rounded-xl bg-indigo-50 p-3 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300"
+                      }
+                    >
+                      <Icon size={26} />
+                    </div>
+                    <span className="font-mono text-xs tracking-widest text-slate-400 dark:text-slate-500">
+                      0{index + 1}
+                    </span>
+                  </div>
+                  <h2 className="text-xl font-bold tracking-tight">
+                    {t(`reprint.method_${method}`)}
+                  </h2>
+                  <p className="mb-7 mt-3 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {t(`reprint.method_${method}_description`)}
+                  </p>
+                  <span className="mt-auto flex w-full items-center justify-between border-t border-slate-100 pt-5 text-sm font-semibold text-indigo-600 dark:border-slate-700 dark:text-indigo-300">
+                    {t(`reprint.method_${method}_action`)}
+                    <FiArrowUpRight
+                      size={20}
+                      className="transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transform-none"
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

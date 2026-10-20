@@ -10,6 +10,7 @@ import {
 
 import GetJulianDate from "../hooks/GetJulianDate";
 import GetCmcJulianDate from "../hooks/GetCmcJulianDate";
+import GetBmsDate from "../hooks/GetBmsDate";
 
 describe("fillZplTemplate", () => {
   it("zastępuje pojedynczy placeholder", () => {
@@ -69,6 +70,15 @@ describe("fillZplTemplate", () => {
     ).toBe("^FDA+B $TEST [REV.2]^FS");
   });
 
+  it("zastępuje znaki sterujące ZPL (^, ~, CR, LF) spacjami i wykonuje podstawianie w jednym przebiegu", () => {
+    expect(
+      fillZplTemplate("^FD*DESCRIPTION*^FS^FD*PARTNUM*^FS", {
+        DESCRIPTION: "SAFE^FS^JUS~JA\r\n*PARTNUM*",
+        PARTNUM: "12345",
+      }),
+    ).toBe("^FDSAFE FS JUS JA  *PARTNUM*^FS^FD12345^FS");
+  });
+
   it("pozostawia nieznane placeholdery bez zmian", () => {
     const template = "^FD*PARTNUM*^FS^FD*UNKNOWN*^FS";
 
@@ -91,6 +101,26 @@ describe("fillZplTemplate", () => {
         PARTNUM: "ABC123",
       }),
     ).toBe("");
+  });
+});
+
+describe("GetBmsDate", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 21, 12, 0, 0));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("formatuje poprawną datę ISO w lokalnej strefie czasowej jako DD[A-L]Y", () => {
+    expect(GetBmsDate("2026-01-01")).toBe("01A6");
+    expect(GetBmsDate("2026-08-13")).toBe("13H6");
+  });
+
+  it("odrzuca nieistniejącą datę kalendarzową (np. 2026-02-31) i wraca do bieżącej daty", () => {
+    expect(GetBmsDate("2026-02-31")).toBe("21H6");
   });
 });
 

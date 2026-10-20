@@ -96,13 +96,13 @@ export function useLabelEdit(): useLabelEditResponse {
     let isMounted = true;
 
     const fetchZPL = async (): Promise<void> => {
-      if (isNewTemplate || !cleanName || !window.api) {
+      if (isNewTemplate || !nameParam || dataParam || !window.api) {
         if (isMounted) setIsZPLLoading(false);
         return;
       }
 
       try {
-        const response = await window.api.GetLabelZPL(cleanName);
+        const response = await window.api.GetLabelZPL(nameParam);
         if (isMounted) {
           if (response.status && response.data) {
             setSavedContent(response.data);
@@ -127,13 +127,13 @@ export function useLabelEdit(): useLabelEditResponse {
     return () => {
       isMounted = false;
     };
-  }, [cleanName, isNewTemplate, t]);
+  }, [nameParam, dataParam, isNewTemplate, t]);
 
   useEffect(() => {
     let isMounted = true;
 
     const findExamplePart = async (): Promise<void> => {
-      if (!cleanName || !window.api) {
+      if (!cleanName.trim() || !window.api) {
         setExamplePart(null);
         return;
       }
@@ -194,9 +194,13 @@ export function useLabelEdit(): useLabelEditResponse {
       }
     };
 
-    void findExamplePart();
+    const timer = setTimeout(() => {
+      void findExamplePart();
+    }, 350);
+
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
   }, [cleanName, t]);
 

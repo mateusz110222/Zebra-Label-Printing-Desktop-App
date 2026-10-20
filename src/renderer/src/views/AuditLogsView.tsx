@@ -1,4 +1,11 @@
-import React, { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
   FiCheckCircle,
@@ -9,10 +16,13 @@ import {
   FiRefreshCw,
   FiSearch,
   FiShield,
-  FiXCircle
+  FiXCircle,
 } from "react-icons/fi";
 import { useAuth } from "@renderer/context/AuthContext";
-import { AuditLogsViewSkeleton, LoadingWrapper } from "@renderer/components/common";
+import {
+  AuditLogsViewSkeleton,
+  LoadingWrapper,
+} from "@renderer/components/common";
 import { extractError } from "@renderer/utils/errorUtils";
 
 const PAGE_SIZE = 50;

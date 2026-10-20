@@ -47,12 +47,12 @@ export default function UpdateButtonsAndMessage({
         </button>
 
         <div className="min-h-5 flex flex-col items-center justify-center">
-          {data.updateStatus === "latest" && (
+          {data.updateStatus === "latest" && !data.errorMessage && (
             <p className="text-xs text-center text-green-600 font-medium">
               {t("update.latest_version")}
             </p>
           )}
-          {data.updateStatus === "error" && (
+          {(data.updateStatus === "error" || Boolean(data.errorMessage)) && (
             <div className="w-full bg-red-50 border border-red-100 rounded p-2 mt-1">
               <p className="text-xs text-center text-red-600 font-bold mb-1">
                 {t("update.error_occurred")}

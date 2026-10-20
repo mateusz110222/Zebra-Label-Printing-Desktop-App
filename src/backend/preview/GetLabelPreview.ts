@@ -4,6 +4,7 @@ import {
   generateReprintPreviewZPL,
 } from "../hooks/ZPLService";
 import sharp from "sharp";
+import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
 interface LabelPreviewResponse {
   status: boolean;
@@ -12,29 +13,58 @@ interface LabelPreviewResponse {
   rawError?: string;
 }
 
+const MAX_ZPL_SIZE = 1024 * 1024; // 1 MB
+
+const getLocalIsoDate = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 export default function GetLabelPreview(): void {
   ipcMain.handle(
     "get-label-preview",
-    async (
-      _event,
-      { part, date, serialNumber, zpl },
-    ): Promise<LabelPreviewResponse> => {
+    async (event, payload): Promise<LabelPreviewResponse> => {
       try {
+        if (event?.sender && !isMainRendererAuthorized(event)) {
+          return {
+            status: false,
+            message: "backend.audit.unauthorized",
+            data: null,
+          };
+        }
+
+        const { part, date, serialNumber, zpl } = payload ?? {};
+
         if (!part || !part.Label_Format) {
           return {
             status: false,
             message: "backend.print.invalid_data",
             data: null,
-            rawError: `Part: ${part} or Label_Format: ${part.Label_Format} missing`,
+            rawError: `Part: ${part} or Label_Format: ${part?.Label_Format} missing`,
           };
         }
+
+        if (
+          typeof zpl === "string" &&
+          Buffer.byteLength(zpl, "utf8") > MAX_ZPL_SIZE
+        ) {
+          return {
+            status: false,
+            message: "backend.labeledit.template_too_large",
+            data: null,
+          };
+        }
+
         const useReprint =
           (typeof serialNumber === "string" && serialNumber.trim() !== "") ||
           (typeof date === "string" && date.trim() !== "");
 
         let result;
         if (useReprint || serialNumber === "0") {
-          const safeDate = date || new Date().toISOString().split("T")[0];
+          const safeDate = date || getLocalIsoDate();
           const safeSN = serialNumber || "0";
           result = await generateReprintPreviewZPL(part, safeDate, safeSN);
         } else {

@@ -1,8 +1,16 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LoadingWrapper, SystemHealthViewSkeleton } from "@renderer/components/common";
+import {
+  LoadingWrapper,
+  SystemHealthViewSkeleton,
+} from "@renderer/components/common";
 import { extractError } from "@renderer/utils/errorUtils";
-import { FiAlertCircle, FiCheckCircle, FiCopy, FiRefreshCw } from "react-icons/fi";
+import {
+  FiAlertCircle,
+  FiCheckCircle,
+  FiCopy,
+  FiRefreshCw,
+} from "react-icons/fi";
 
 const statusColor = (ok: boolean): string =>
   ok
@@ -32,11 +40,31 @@ const StatusPill = ({ ok }: { ok: boolean }): React.JSX.Element => {
 const CopyableValue = ({ value }: { value: string }): React.JSX.Element => {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    },
+    [],
+  );
 
   const copy = async (): Promise<void> => {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+      timerRef.current = window.setTimeout(() => {
+        timerRef.current = null;
+        setCopied(false);
+      }, 1500);
+    } catch {
+      // Clipboard write may fail if document is not focused or permission denied
+    }
   };
 
   return (

@@ -172,7 +172,7 @@ export async function generatePrintZPL(
 
     const rawTemplate = templateResult.data!;
 
-    const pool = getDatabase();
+    const pool = await getDatabase();
     const connection = await pool.getConnection();
 
     try {
@@ -441,7 +441,7 @@ async function generateReprintZPLInternal(
       return invalidDataResult("backend.print.serial_zero_reprint_not_allowed");
     }
 
-    const pool = getDatabase();
+    const pool = await getDatabase();
 
     const [rows] = await pool.query<FamilyRow[]>(
       `SELECT f.pk,
@@ -615,7 +615,7 @@ export async function generatePreviewZPL(
       rawTemplate = templateResult.data!;
     }
 
-    const pool = getDatabase();
+    const pool = await getDatabase();
 
     const [rows] = await pool.query<FamilyRow[]>(
       `SELECT f.pk,
@@ -659,6 +659,7 @@ export async function generatePreviewZPL(
     }
 
     const julianDate = GetJulianDate("");
+    const labelId = Math.random().toString(36).substring(2, 7).toUpperCase();
 
     const printData = {
       PARTNUM: part.Part_Number,
@@ -676,6 +677,8 @@ export async function generatePreviewZPL(
       NUMCOPIES: 1,
 
       DESCRIPTION: part.Part_Description,
+
+      ID_LABEL: labelId,
     };
 
     return {

@@ -6,8 +6,13 @@ import USBConnection from "../PrinterConnections/USBConnection";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { getTemplatesPath } from "../system/TemplatePaths";
-import { appendAuditLog, canConfigurePrinter, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canConfigurePrinter,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
+import { beginPrinterBatch, getStatusWithoutQuery } from "./PrinterActivity";
 
 const getPrinterTarget = (config: PrinterConfig): string =>
   config.type === "IP"
@@ -120,22 +125,27 @@ export default function TestPrinterConnection(): void {
           };
         }
 
+        const endBatch = await beginPrinterBatch(getStatusWithoutQuery());
         let response;
-        switch (config.type) {
-          case "IP":
-            response = await IpConnection(config, template);
-            break;
-          case "COM":
-            response = await COMConnection(config, template);
-            break;
-          case "USB":
-            response = await USBConnection(config, template);
-            break;
-          default:
-            response = {
-              status: false,
-              message: "backend.printer.unknown_connection",
-            };
+        try {
+          switch (config.type) {
+            case "IP":
+              response = await IpConnection(config, template);
+              break;
+            case "COM":
+              response = await COMConnection(config, template);
+              break;
+            case "USB":
+              response = await USBConnection(config, template);
+              break;
+            default:
+              response = {
+                status: false,
+                message: "backend.printer.unknown_connection",
+              };
+          }
+        } finally {
+          endBatch();
         }
 
         const auditPersisted = await appendAuditLog({

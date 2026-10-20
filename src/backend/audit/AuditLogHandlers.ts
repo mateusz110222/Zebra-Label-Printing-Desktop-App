@@ -8,8 +8,11 @@ import {
 } from "./AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 
-const csvCell = (value: unknown): string =>
-  `"${String(value ?? "").replaceAll('"', '""')}"`;
+const csvCell = (value: unknown): string => {
+  const raw = String(value ?? "");
+  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  return `"${safe.replaceAll('"', '""')}"`;
+};
 
 const toCsv = (entries: AuditLogEntry[]): string => {
   const headers = [

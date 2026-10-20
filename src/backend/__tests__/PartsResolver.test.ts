@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { loadAuthoritativeParts, normalizePartsConfig, resolveAuthoritativePart } from "../parts/PartsResolver";
+import {
+  loadAuthoritativeParts,
+  normalizePartsConfig,
+  resolveAuthoritativePart,
+} from "../parts/PartsResolver";
 
 const mocks = vi.hoisted(() => ({
   storeGet: vi.fn(),

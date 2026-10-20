@@ -1,5 +1,9 @@
 import { ipcMain } from "electron";
-import { appendAuditLog, canConfigurePrinter, checkAuditLogWritable } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canConfigurePrinter,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { PrinterConfig, store } from "../utils/store";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { refreshAndBroadcastPrinterStatus } from "../printer/PrinterStatusService";
@@ -8,7 +12,7 @@ import {
   getConfiguredPrinters,
   getPrinterName,
   getPrinterRoutingConfig,
-  upsertPrinter
+  upsertPrinter,
 } from "../printer/PrinterConfigs";
 
 export default function SavePrinterConfig(): void {

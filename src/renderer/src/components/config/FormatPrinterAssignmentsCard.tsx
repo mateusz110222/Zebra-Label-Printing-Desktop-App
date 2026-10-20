@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiAlertCircle, FiCheckCircle, FiLock, FiPrinter, FiRefreshCw, FiSearch, FiTag } from "react-icons/fi";
+import {
+  FiAlertCircle,
+  FiCheckCircle,
+  FiLock,
+  FiPrinter,
+  FiRefreshCw,
+  FiSearch,
+  FiTag,
+} from "react-icons/fi";
 import type { PrinterConfig } from "@renderer/types";
 
 interface Props {
@@ -17,7 +25,7 @@ interface Props {
 const getPrinterName = (printer: PrinterConfig): string =>
   printer.name ||
   (printer.type === "IP"
-    ? `${printer.ip}:${printer.port}`
+    ? `${printer.ip}:${printer.port ?? 9100}`
     : printer.type === "COM"
       ? printer.comPort || "COM"
       : printer.usbPrinterName || "USB");

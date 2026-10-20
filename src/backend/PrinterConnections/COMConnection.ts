@@ -74,6 +74,13 @@ class COMConnectionImpl extends PrinterConnectionBase {
         });
 
         port.open((err) => {
+          if (settled) {
+            if (port.isOpen) {
+              port.close(() => undefined);
+            }
+            return;
+          }
+
           if (err) {
             const isBusy = err.message.includes("Access denied");
             const msg = isBusy

@@ -2,7 +2,15 @@ import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@renderer/context/AuthContext";
-import { FiActivity, FiCode, FiFileText, FiPrinter, FiRepeat, FiShield, FiSliders } from "react-icons/fi";
+import {
+  FiActivity,
+  FiCode,
+  FiFileText,
+  FiPrinter,
+  FiRepeat,
+  FiShield,
+  FiSliders,
+} from "react-icons/fi";
 
 export function SidebarView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -14,7 +22,7 @@ export function SidebarView(): React.JSX.Element {
     const fetchVersion = async (): Promise<void> => {
       try {
         const version = await window.api.GetAppVersion();
-        if (isMounted && version) {
+        if (isMounted && typeof version === "string" && version) {
           setAppVersion(version);
         }
       } catch (error) {
@@ -130,7 +138,9 @@ export function SidebarView(): React.JSX.Element {
         </div>
         <div className="mt-2 hidden text-center text-[10px] text-slate-500 xl:block">
           &copy; {new Date().getFullYear()} BorgWarner
-          {appVersion && <span className="ml-1.5 font-mono opacity-70">v{appVersion}</span>}
+          {appVersion && (
+            <span className="ml-1.5 font-mono opacity-70">v{appVersion}</span>
+          )}
         </div>
       </div>
     </aside>

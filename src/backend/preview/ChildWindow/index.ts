@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { getZplTemplate, SaveZplTemplate } from "../../hooks/ZPLService";
 import { isPreviewAuthorized } from "../../auth/IsAutorized";
 import { appendAuditLog, canViewAuditLogs } from "../../audit/AuditLog";
+import { notifyTemplatesChanged } from "../../parts/TemplateEvents";
 
 const MAX_ZPL_SIZE = 1024 * 1024; // 1 MB
 
@@ -22,14 +23,20 @@ const renderZpl = async (zpl: string): Promise<string> => {
 export default function ChildWindowHandlers(): void {
   ipcMain.handle(
     "get-label-zpl",
-    async (_event: IpcMainInvokeEvent, formatName: string) => {
+    async (event: IpcMainInvokeEvent, formatName: string) => {
+      if (event?.sender && !isPreviewAuthorized(event)) {
+        return {
+          status: false,
+          message: "backend.audit.unauthorized",
+        };
+      }
       const templateResult = await getZplTemplate(formatName);
       if (!templateResult.status || templateResult.data == null) {
         return templateResult;
       }
       return {
         status: true,
-        message: "backend.",
+        message: "backend.labels.TEMPLATE_LOADED",
         data: templateResult.data,
       };
     },
@@ -58,6 +65,14 @@ export default function ChildWindowHandlers(): void {
             };
           }
 
+          if (Buffer.byteLength(rawZpl, "utf8") > MAX_ZPL_SIZE) {
+            return {
+              status: false,
+              message: "backend.labeledit.template_too_large",
+              data: null,
+            };
+          }
+
           const finalBase64 = await renderZpl(rawZpl);
           return {
             status: true,
@@ -74,8 +89,16 @@ export default function ChildWindowHandlers(): void {
           };
         }
 
+        if (Buffer.byteLength(formatName, "utf8") > MAX_ZPL_SIZE) {
+          return {
+            status: false,
+            message: "backend.labeledit.template_too_large",
+            data: null,
+          };
+        }
+
         let Label_ZPL: string;
-        if (formatName.trim().startsWith("^XA")) {
+        if (/^\^XA/i.test(formatName.trim())) {
           Label_ZPL = formatName;
         } else {
           const templateResult = await getZplTemplate(formatName);
@@ -158,6 +181,7 @@ export default function ChildWindowHandlers(): void {
         },
       });
 
+      notifyTemplatesChanged();
       return {
         status: true,
         message: "backend.labeledit.saved",

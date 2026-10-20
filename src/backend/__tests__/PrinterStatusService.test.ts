@@ -4,7 +4,7 @@ import SetupPrinterStatusHandlers, {
   queryPrinterStatusSingleFlight,
   refreshAndBroadcastPrinterStatus,
   startPrinterStatusPoller,
-  stopPrinterStatusPoller
+  stopPrinterStatusPoller,
 } from "../printer/PrinterStatusService";
 
 const mocks = vi.hoisted(() => ({

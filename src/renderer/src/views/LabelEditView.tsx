@@ -17,6 +17,14 @@ export function LabelEditView(): React.JSX.Element {
     useState<PendingExitAction | null>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const allowExitRef = useRef(false);
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      resizeCleanupRef.current?.();
+      resizeCleanupRef.current = null;
+    };
+  }, []);
 
   // Ctrl+S / Cmd+S save shortcut
   useEffect(() => {
@@ -67,6 +75,7 @@ export function LabelEditView(): React.JSX.Element {
   }, [data.cleanName, data.isDirty, t]);
 
   const beginResize = (event: React.PointerEvent<HTMLButtonElement>): void => {
+    resizeCleanupRef.current?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     const resize = (pointerEvent: PointerEvent): void => {
       const next = (pointerEvent.clientX / window.innerWidth) * 100;
@@ -75,9 +84,13 @@ export function LabelEditView(): React.JSX.Element {
     const stop = (): void => {
       window.removeEventListener("pointermove", resize);
       window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+      resizeCleanupRef.current = null;
     };
+    resizeCleanupRef.current = stop;
     window.addEventListener("pointermove", resize);
     window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
   };
 
   // Memoize lines and character stats to optimize editor performance

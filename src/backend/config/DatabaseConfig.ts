@@ -1,5 +1,5 @@
 import mysql from "mysql2/promise";
-import { app } from "electron";
+import { app, safeStorage } from "electron";
 import path from "node:path";
 import fs from "node:fs";
 import { store } from "../utils/store";
@@ -7,17 +7,48 @@ import { store } from "../utils/store";
 type DatabasePool = ReturnType<typeof mysql.createPool>;
 
 let dbPool: DatabasePool | null = null;
+let pendingPool: Promise<DatabasePool> | null = null;
 
-export const getMysqlSslOptions = (): mysql.SslOptions | undefined => {
-  const sslEnv = process.env.MYSQL_SSL?.trim().toLowerCase();
-  if (
-    sslEnv === "false" ||
-    sslEnv === "0" ||
-    sslEnv === "disable" ||
-    sslEnv === "disabled"
-  ) {
-    return undefined;
+const ENCRYPTED_PASSWORD_PREFIX = "enc:v1:";
+
+export const encryptDatabasePassword = (plain: string): string => {
+  if (!plain || plain.startsWith(ENCRYPTED_PASSWORD_PREFIX)) {
+    return plain;
   }
+  try {
+    if (safeStorage?.isEncryptionAvailable?.()) {
+      return (
+        ENCRYPTED_PASSWORD_PREFIX +
+        safeStorage.encryptString(plain).toString("base64")
+      );
+    }
+  } catch {
+    // Fallback to plain value when OS safeStorage is unavailable
+  }
+  return plain;
+};
+
+export const decryptDatabasePassword = (stored: string | undefined): string => {
+  if (!stored) return "";
+  if (!stored.startsWith(ENCRYPTED_PASSWORD_PREFIX)) return stored;
+  try {
+    if (safeStorage?.isEncryptionAvailable?.()) {
+      const buffer = Buffer.from(
+        stored.slice(ENCRYPTED_PASSWORD_PREFIX.length),
+        "base64",
+      );
+      return safeStorage.decryptString(buffer);
+    }
+  } catch {
+    return "";
+  }
+  return "";
+};
+
+export const getMysqlSslOptions = (
+  mode: "default" | "required" | "disabled" = "default",
+): mysql.SslOptions | undefined => {
+  if (mode === "disabled") return undefined;
 
   const rejectUnauthorized =
     process.env.MYSQL_TLS_REJECT_UNAUTHORIZED === "true" ||
@@ -59,18 +90,33 @@ export const getMysqlSslOptions = (): mysql.SslOptions | undefined => {
   };
 };
 
-export const getDatabase = (): DatabasePool => {
+export const connectWithTlsFallback = async <T>(
+  mode: "default" | "required" | "disabled" | undefined,
+  connect: (ssl: mysql.SslOptions | undefined) => Promise<T>,
+): Promise<T> => {
+  const ssl = getMysqlSslOptions(mode);
+  try {
+    return await connect(ssl);
+  } catch (error) {
+    if (mode === "required" || mode === "disabled") throw error;
+    return connect(undefined);
+  }
+};
+
+export const getDatabase = async (): Promise<DatabasePool> => {
   if (dbPool) {
     return dbPool;
   }
+  if (pendingPool) return pendingPool;
 
   const dbConfig = store.get("database");
+  const resolvedPassword = decryptDatabasePassword(dbConfig.password);
 
   const missingVars: string[] = [];
 
   if (!dbConfig.host) missingVars.push("host");
   if (!dbConfig.user) missingVars.push("user");
-  if (!dbConfig.password) missingVars.push("password");
+  if (!resolvedPassword) missingVars.push("password");
   if (!dbConfig.database) missingVars.push("database");
 
   if (missingVars.length > 0) {
@@ -86,13 +132,11 @@ export const getDatabase = (): DatabasePool => {
     throw error;
   }
 
-  try {
-    const sslOptions = getMysqlSslOptions();
-
-    dbPool = mysql.createPool({
+  pendingPool = connectWithTlsFallback(dbConfig.sslMode, async (sslOptions) => {
+    const pool = mysql.createPool({
       host: dbConfig.host,
       user: dbConfig.user,
-      password: dbConfig.password,
+      password: resolvedPassword,
       database: dbConfig.database,
       waitForConnections: true,
       connectionLimit: 10,
@@ -103,7 +147,17 @@ export const getDatabase = (): DatabasePool => {
       idleTimeout: 60000,
       ...(sslOptions ? { ssl: sslOptions } : {}),
     });
-
+    try {
+      const connection = await pool.getConnection();
+      connection.release();
+      return pool;
+    } catch (error) {
+      await pool.end().catch(() => undefined);
+      throw error;
+    }
+  });
+  try {
+    dbPool = await pendingPool;
     return dbPool;
   } catch (error) {
     const rawError = error instanceof Error ? error.message : String(error);
@@ -118,10 +172,13 @@ export const getDatabase = (): DatabasePool => {
     });
 
     throw databaseError;
+  } finally {
+    pendingPool = null;
   }
 };
 
 export const closeDatabase = async (): Promise<void> => {
+  if (pendingPool) await pendingPool.catch(() => undefined);
   if (!dbPool) return;
 
   const poolToClose = dbPool;

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   appendAuditLog: vi.fn(),
   closeDatabase: vi.fn(),
   createConnection: vi.fn(),
+  getMysqlSslOptions: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
@@ -44,7 +45,9 @@ vi.mock("../audit/AuditLog", () => ({
 
 vi.mock("../config/DatabaseConfig", () => ({
   closeDatabase: mocks.closeDatabase,
-  getMysqlSslOptions: vi.fn(() => ({ rejectUnauthorized: true })),
+  getMysqlSslOptions: mocks.getMysqlSslOptions,
+  connectWithTlsFallback: async (mode, connect) =>
+    connect(mocks.getMysqlSslOptions(mode)),
 }));
 
 vi.mock("mysql2/promise", () => ({
@@ -63,6 +66,11 @@ describe("SaveDatabaseConfig", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isMainRendererAuthorized.mockReturnValue(true);
+    mocks.canViewAuditLogs.mockReturnValue(true);
+    mocks.getMysqlSslOptions.mockImplementation((mode) =>
+      mode === "disabled" ? undefined : { rejectUnauthorized: true },
+    );
     mockConnection = {
       query: vi.fn().mockResolvedValue([[{ 1: 1 }]]),
       end: vi.fn().mockResolvedValue(undefined),
@@ -95,7 +103,7 @@ describe("SaveDatabaseConfig", () => {
   const getSaveConfigHandler = (): ((
     event: unknown,
     input: unknown,
-  ) => Promise<{ status: boolean; message: string }>) => {
+  ) => Promise<{ status: boolean; message: string; rawError?: string }>) => {
     const call = mocks.handle.mock.calls.find(
       ([channel]) => channel === "save-database-config",
     );
@@ -152,5 +160,116 @@ describe("SaveDatabaseConfig", () => {
     expect(result.status).toBe(false);
     expect(result.message).toBe("backend.audit.unauthorized");
     expect(mocks.createConnection).not.toHaveBeenCalled();
+  });
+
+  it.each(["default", "required", "disabled"] as const)(
+    "tests and persists the selected TLS mode %s",
+    async (sslMode) => {
+      const result = await getSaveConfigHandler()(createEvent(), {
+        host: "db.com",
+        user: "usr",
+        password: "pwd",
+        database: "db",
+        sslMode,
+      });
+      expect(result.status).toBe(true);
+      expect(mocks.getMysqlSslOptions).toHaveBeenCalledWith(sslMode);
+      const options = mocks.createConnection.mock.calls[0][0];
+      if (sslMode === "disabled") expect(options).not.toHaveProperty("ssl");
+      else expect(options.ssl).toEqual({ rejectUnauthorized: true });
+      expect(mocks.storeSet).toHaveBeenCalledWith(
+        "database",
+        expect.objectContaining({ sslMode }),
+      );
+    },
+  );
+
+  it("rejects invalid TLS modes before connecting", async () => {
+    const result = await getSaveConfigHandler()(createEvent(), {
+      host: "db.com",
+      user: "usr",
+      password: "pwd",
+      database: "db",
+      sslMode: "invalid",
+    });
+    expect(result.status).toBe(false);
+    expect(mocks.createConnection).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["ER_ACCESS_DENIED_ERROR", "database_access_denied"],
+    ["ER_DBACCESS_DENIED_ERROR", "database_permission_denied"],
+    ["ER_BAD_DB_ERROR", "database_not_found"],
+    ["ENOTFOUND", "database_host_not_found"],
+    ["ECONNREFUSED", "database_connection_refused"],
+    ["ETIMEDOUT", "database_connection_timeout"],
+    ["EHOSTUNREACH", "database_host_unreachable"],
+    ["ECONNRESET", "database_connection_lost"],
+    ["HANDSHAKE_NO_SSL_SUPPORT", "database_tls_failed"],
+    ["CERT_HAS_EXPIRED", "database_tls_failed"],
+    ["ER_NOT_SUPPORTED_AUTH_MODE", "database_auth_unsupported"],
+    ["ER_CON_COUNT_ERROR", "database_too_many_connections"],
+    ["UNKNOWN_ERROR", "database_connection_failed"],
+  ])(
+    "explains %s and preserves the previous configuration",
+    async (code, key) => {
+      mocks.createConnection.mockRejectedValueOnce(
+        Object.assign(new Error("Driver diagnostic"), { code }),
+      );
+      const result = await getSaveConfigHandler()(createEvent(), {
+        host: "new-db.example.com",
+        user: "newuser",
+        password: "new-password",
+        database: "new_db",
+      });
+      expect(result).toEqual({
+        status: false,
+        message: `backend.config.${key}`,
+        rawError: `${code}: Driver diagnostic`,
+      });
+      expect(mocks.storeSet).toHaveBeenCalledWith("database", {
+        host: "db.example.com",
+        user: "dbuser",
+        password: "secretpassword",
+        database: "production_db",
+      });
+      expect(mocks.appendAuditLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "failure",
+          details: expect.objectContaining({ errorCode: code }),
+        }),
+      );
+    },
+  );
+
+  it("redacts both new and previous passwords from driver diagnostics", async () => {
+    mocks.createConnection.mockRejectedValueOnce(
+      new Error("new-password secretpassword"),
+    );
+    const result = await getSaveConfigHandler()(createEvent(), {
+      host: "db.com",
+      user: "usr",
+      password: "new-password",
+      database: "db",
+    });
+    expect(result.rawError).toBe(
+      "DATABASE_CONNECTION_FAILED: [REDACTED] [REDACTED]",
+    );
+  });
+
+  it("returns query failures and closes the test connection", async () => {
+    mockConnection.query.mockRejectedValueOnce(
+      Object.assign(new Error("Access denied to database"), {
+        code: "ER_DBACCESS_DENIED_ERROR",
+      }),
+    );
+    const result = await getSaveConfigHandler()(createEvent(), {
+      host: "db.com",
+      user: "usr",
+      password: "pwd",
+      database: "db",
+    });
+    expect(result.message).toBe("backend.config.database_permission_denied");
+    expect(mockConnection.end).toHaveBeenCalledOnce();
   });
 });
