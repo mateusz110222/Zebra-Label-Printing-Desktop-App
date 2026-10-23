@@ -1,5 +1,6 @@
 import GetJulianDate from "./GetJulianDate";
 import GetCmcJulianDate from "./GetCmcJulianDate";
+import { applyBatchCutting } from "./BatchCutting";
 import {
   calculateSerial,
   calculateSerialCounter,
@@ -280,7 +281,11 @@ export async function generatePrintZPL(
           ID_LABEL: labelId,
         };
 
-        const labelZpl = fillZplTemplate(rawTemplate, printData);
+        const labelZpl = applyBatchCutting(
+          fillZplTemplate(rawTemplate, printData),
+          i,
+          quantity,
+        );
 
         labels.push({
           zpl: labelZpl,
@@ -558,7 +563,11 @@ async function generateReprintZPLInternal(
         ID_LABEL: labelId,
       };
 
-      const labelZpl = fillZplTemplate(rawTemplate, printData);
+      const labelZpl = applyBatchCutting(
+        fillZplTemplate(rawTemplate, printData),
+        i,
+        quantity,
+      );
 
       labels.push({
         zpl: labelZpl,

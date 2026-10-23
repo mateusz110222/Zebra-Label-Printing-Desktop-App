@@ -2,7 +2,8 @@
 node_modules/
 
 # Build output
-build/
+build/*
+!build/installer.nsh
 dist/
 out/
 release/

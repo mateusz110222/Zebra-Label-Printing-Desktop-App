@@ -1,10 +1,23 @@
 import { app } from "electron";
 import path from "node:path";
+import { initializeTemplateStorage } from "./TemplateStorage";
 
 export const getTemplatesPath = (): string =>
   app.isPackaged
-    ? path.join(path.dirname(app.getPath("exe")), "zpl_templates")
+    ? path.join(app.getPath("userData"), "zpl_templates")
     : path.join(app.getAppPath(), "zpl_templates");
+
+export async function initializeTemplates(): Promise<void> {
+  if (!app.isPackaged) return;
+  await initializeTemplateStorage(getTemplatesPath(), [
+    path.join(
+      app.getPath("appData"),
+      "MATZ Label Print App",
+      "template-upgrade-backup",
+    ),
+    path.join(path.dirname(app.getPath("exe")), "zpl_templates"),
+  ]);
+}
 
 export const normalizeTemplateFileName = (name: string): string | null => {
   if (typeof name !== "string") return null;

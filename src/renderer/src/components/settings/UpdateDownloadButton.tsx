@@ -18,6 +18,9 @@ export default function UpdateButtonsAndMessage({
   UpdateOnClick,
 }: ButtonsProps): React.JSX.Element | null {
   const { t } = useTranslation();
+  const progress = Number.isFinite(data.progressPercent)
+    ? Math.min(100, Math.max(0, Math.round(data.progressPercent)))
+    : 0;
   if (data.updateStatus === "ready") {
     return (
       <button
@@ -69,15 +72,22 @@ export default function UpdateButtonsAndMessage({
 
   if (data.updateStatus === "available") {
     return (
-      <div className="relative w-full h-9 bg-slate-100 rounded-md overflow-hidden border border-slate-200 cursor-wait">
+      <div
+        role="progressbar"
+        aria-label={t("update.downloading")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progress}
+        className="relative w-full h-9 bg-slate-700 dark:bg-slate-900 rounded-md overflow-hidden border border-slate-600 cursor-wait"
+      >
         <div
-          className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-300 ease-out"
-          style={{ width: `${data.progressPercent}%` }}
+          className="absolute top-0 left-0 h-full bg-blue-600 transition-all duration-300 ease-out"
+          style={{ width: `${progress}%` }}
         />
         <div className="absolute inset-0 flex items-center justify-center z-10 gap-2">
           <BiDownload className="text-white animate-bounce w-4 h-4" />
           <span className="text-xs font-medium text-white drop-shadow-md">
-            {t("update.downloading")} {data.progressPercent}%
+            {t("update.downloading")} {progress}%
           </span>
         </div>
       </div>

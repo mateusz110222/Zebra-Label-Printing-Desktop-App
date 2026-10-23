@@ -82,6 +82,8 @@ export interface PrinterRoutingConfig {
 }
 
 const api = {
+  SetLabelEditorDirty: (dirty: boolean): void =>
+    ipcRenderer.send("label-editor-dirty", dirty),
   // Parts and ZPL
   GetParts: (Label_Format?: string) =>
     ipcRenderer.invoke("get-parts", Label_Format),

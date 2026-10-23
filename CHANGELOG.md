@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.3](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/1.4.2...1.4.3) (2026-10-23)
+
+### Bug Fixes
+
+- Cut only the final label in serialized print and reprint batches.
+- Preserve user templates across application updates and back up legacy templates before installation.
+- Restore and focus existing template editors, close clean editors, and preserve unsaved changes.
+- Improve update download progress readability and accessibility.
+
 ## [1.1.0](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/v1.0.0...v1.1.0) (2026-04-09)
 
 ### Features

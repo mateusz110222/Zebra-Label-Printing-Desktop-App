@@ -68,6 +68,7 @@ declare global {
 
   interface Window {
     api: {
+      SetLabelEditorDirty: (dirty: boolean) => void;
       // Parts and ZPL
       GetParts: (Label_Format?: string) => Promise<{
         status: boolean;

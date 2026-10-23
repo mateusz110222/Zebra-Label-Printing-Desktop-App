@@ -20,6 +20,10 @@ export function LabelEditView(): React.JSX.Element {
   const resizeCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    window.api.SetLabelEditorDirty(data.isZPLLoading || data.isDirty);
+  }, [data.isZPLLoading, data.isDirty]);
+
+  useEffect(() => {
     return () => {
       resizeCleanupRef.current?.();
       resizeCleanupRef.current = null;

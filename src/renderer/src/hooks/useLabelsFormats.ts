@@ -89,7 +89,8 @@ export function useLabelsFormats(): useLabelsFormatsResponse {
     const params = new URLSearchParams();
     if (formatName) params.append("name", formatName);
 
-    window.open(`#/preview?${params.toString()}`, "modal");
+    // Always ask the main process, which restores/focuses an existing editor.
+    window.open(`#/preview?${params.toString()}`, "_blank");
   };
 
   const handleCreateClick = (): void => {

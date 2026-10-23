@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 const api = {
+  SetLabelEditorDirty: (dirty: boolean): void =>
+    ipcRenderer.send("label-editor-dirty", dirty),
   GetParts: () => ipcRenderer.invoke("get-parts"),
 
   GetPartsConfig: () => ipcRenderer.invoke("get-parts-config"),

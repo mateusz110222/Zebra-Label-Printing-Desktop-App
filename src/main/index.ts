@@ -1,5 +1,8 @@
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { join } from "path";
+import { initializeTemplates } from "../backend/system/TemplatePaths";
+import { PreviewWindowRegistry } from "../backend/preview/PreviewWindowRegistry";
+import { isPreviewAuthorized } from "../backend/auth/IsAutorized";
 import { electronApp, is, optimizer } from "@electron-toolkit/utils";
 
 import GetParts from "../backend/parts/GetParts";
@@ -102,8 +105,23 @@ function createWindow(): void {
     }
   });
 
+  const previewWindows = new PreviewWindowRegistry();
+  const updateEditorDirty = (
+    event: Electron.IpcMainEvent,
+    dirty: unknown,
+  ): void => {
+    if (typeof dirty !== "boolean" || !isPreviewAuthorized(event)) return;
+    const editor = BrowserWindow.fromWebContents(event.sender);
+    if (editor) previewWindows.setDirty(editor, dirty);
+  };
+  ipcMain.on("label-editor-dirty", updateEditorDirty);
+  mainWindow.once("closed", () =>
+    ipcMain.removeListener("label-editor-dirty", updateEditorDirty),
+  );
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedPreviewUrl(url, rendererEntryUrl)) {
+      previewWindows.closeCleanExcept(url);
+      if (previewWindows.focusExisting(url)) return { action: "deny" };
       return {
         action: "allow",
         show: false,
@@ -164,9 +182,11 @@ function createWindow(): void {
       childWindow.destroy();
       return;
     }
+    previewWindows.register(details.url, childWindow);
 
     childWindow.once("ready-to-show", () => {
       childWindow.show();
+      childWindow.focus();
     });
 
     childWindow.webContents.on("will-navigate", (event, url) => {
@@ -233,6 +253,7 @@ if (!gotSingleInstanceLock) {
   app
     .whenReady()
     .then(async () => {
+      await initializeTemplates();
       if (!app.isPackaged) {
         try {
           await installExtension(REACT_DEVELOPER_TOOLS);

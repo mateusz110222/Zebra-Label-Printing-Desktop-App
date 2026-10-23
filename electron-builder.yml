@@ -32,6 +32,7 @@ win:
   target: nsis
 
 nsis:
+  include: build/installer.nsh
   oneClick: true
   perMachine: false
   allowElevation: false

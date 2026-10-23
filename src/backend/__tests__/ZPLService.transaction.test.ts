@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 
 import {
   generatePrintZPL,
@@ -113,6 +115,36 @@ describe("generatePrintZPL serial transaction", () => {
       throw new Error(`Unexpected SQL: ${sql}`);
     });
   });
+
+  it.each(["print", "reprint"])(
+    "cuts only the fifth serialized label in a five-label %s batch",
+    async (mode) => {
+      vi.mocked(readFile).mockResolvedValueOnce(
+        "^XA^FD*SERIALPREFIX*2*JDATE**SERIALNUM1*^FS^PQ*NUMCOPIES*,3,0,N^MMC^XZ",
+      );
+      if (mode === "reprint")
+        databaseMocks.pool.query.mockResolvedValueOnce([
+          [{ pk: 7, maxId: "9999", next: "1000", type_name: "decimal" }],
+          [],
+        ]);
+      const result =
+        mode === "print"
+          ? await generatePrintZPL(part, 5)
+          : await generateReprintZPL(part, "2026-08-13", "0200", 5);
+      expect(result.status).toBe(true);
+      expect(
+        result.labels?.map((label) => label.metadata.serialNumber),
+      ).toEqual(["0200", "0201", "0202", "0203", "0204"]);
+      expect(result.labels).toHaveLength(5);
+      result.labels!.forEach((label, index) => {
+        expect(label.zpl.includes("^XB")).toBe(index < 4);
+        expect(label.zpl).toContain("^PQ1,0,0,Y");
+        expect(label.metadata.zplSha256).toBe(
+          createHash("sha256").update(label.zpl).digest("hex"),
+        );
+      });
+    },
+  );
 
   it("locks the family row and commits the next serial on one connection", async () => {
     const result = await generatePrintZPL(part, 2);
