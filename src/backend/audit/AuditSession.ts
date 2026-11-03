@@ -23,13 +23,14 @@ export const setAuditSession = (
   actor: string,
   canViewAudit: boolean,
   canConfigurePrinter = canViewAudit,
-): void => {
+): number => {
   currentSession = {
     actor,
     canViewAudit,
     canConfigurePrinter,
     expiresAt: Date.now() + AUDIT_SESSION_TTL_MS,
   };
+  return currentSession.expiresAt;
 };
 
 export const clearAuditSession = (): void => {

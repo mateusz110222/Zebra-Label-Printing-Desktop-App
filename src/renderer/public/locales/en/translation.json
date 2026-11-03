@@ -624,6 +624,18 @@
     "error": "Error",
     "labels_count": "labels",
     "batch_labels_title": "Batch labels",
+    "diagnostics": {
+      "title": "Printer diagnostics",
+      "unavailable": "Full measurement unavailable",
+      "match": "Counter matches sent count",
+      "difference": "Difference from sent count: {{value}}",
+      "before": "Counter before",
+      "after": "Counter after",
+      "delta": "Counter increase",
+      "sent": "Sent",
+      "before_errors": "Errors before sending",
+      "after_errors": "Errors after sending"
+    },
     "value_yes": "Yes",
     "value_no": "No",
     "actions": {

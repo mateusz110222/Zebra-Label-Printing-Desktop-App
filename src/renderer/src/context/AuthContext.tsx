@@ -1,4 +1,11 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -9,6 +16,7 @@ interface AuthContextType {
     login: string,
     CanEdit: boolean,
     canConfigurePrinter: boolean,
+    expiresAt: number,
   ) => void;
   logout: () => void;
 }
@@ -25,24 +33,52 @@ export function AuthProvider({
   const [CanEdit, setCanEdit] = useState<boolean>(false);
   const [canConfigurePrinter, setCanConfigurePrinter] =
     useState<boolean>(false);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+
+  const clearLogin = useCallback((): void => {
+    setLoginState(null);
+    setIsLoggedIn(false);
+    setCanEdit(false);
+    setCanConfigurePrinter(false);
+    setExpiresAt(null);
+  }, []);
+
+  useEffect(() => {
+    if (expiresAt === null) return;
+
+    // Use the backend deadline; checking on resume also covers suspended PCs.
+    const checkExpiration = (): void => {
+      if (Date.now() >= expiresAt) clearLogin();
+    };
+    const timer = window.setTimeout(
+      checkExpiration,
+      Math.max(0, expiresAt - Date.now()),
+    );
+    window.addEventListener("focus", checkExpiration);
+    document.addEventListener("visibilitychange", checkExpiration);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", checkExpiration);
+      document.removeEventListener("visibilitychange", checkExpiration);
+    };
+  }, [clearLogin, expiresAt]);
 
   const setLogin = (
     loginValue: string,
     CanEdit: boolean,
     printerAccess: boolean,
+    sessionExpiresAt: number,
   ): void => {
     setLoginState(loginValue);
     setCanEdit(CanEdit);
     setCanConfigurePrinter(printerAccess);
     setIsLoggedIn(true);
+    setExpiresAt(sessionExpiresAt);
   };
 
   const logout = (): void => {
     void window.api.Logout();
-    setLoginState(null);
-    setIsLoggedIn(false);
-    setCanEdit(false);
-    setCanConfigurePrinter(false);
+    clearLogin();
   };
 
   return (

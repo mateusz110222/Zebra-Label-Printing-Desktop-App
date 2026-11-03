@@ -247,7 +247,7 @@ describe("TestPrinterConnection", () => {
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       ipCandidate,
-      "^XA^FDTEST^FS^XZ",
+      "^XA^JZN^FDTEST^FS^XZ",
     );
 
     expect(result.status).toBe(true);
@@ -266,7 +266,7 @@ describe("TestPrinterConnection", () => {
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       candidate,
-      "^XA^FDTEST^FS^XZ",
+      "^XA^JZN^FDTEST^FS^XZ",
     );
   });
 
@@ -318,7 +318,7 @@ describe("TestPrinterConnection", () => {
 
     expect(mocks.ipConnection).toHaveBeenCalledWith(
       ipCandidate,
-      "^XA^FDTEST^FS^XZ",
+      "^XA^JZN^FDTEST^FS^XZ",
     );
 
     expect(preparationCallIndex).toBeGreaterThanOrEqual(0);
@@ -426,7 +426,7 @@ describe("TestPrinterConnection", () => {
 
     expect(mocks.comConnection).toHaveBeenCalledWith(
       comCandidate,
-      "^XA^FDTEST^FS^XZ",
+      "^XA^JZN^FDTEST^FS^XZ",
     );
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(
@@ -481,7 +481,7 @@ describe("TestPrinterConnection", () => {
 
     expect(mocks.usbConnection).toHaveBeenCalledWith(
       usbCandidate,
-      "^XA^FDTEST^FS^XZ",
+      "^XA^JZN^FDTEST^FS^XZ",
     );
 
     expect(mocks.appendAuditLog).toHaveBeenCalledWith(

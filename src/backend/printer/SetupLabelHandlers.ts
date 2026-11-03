@@ -13,6 +13,7 @@ import {
 } from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { beginPrinterBatch } from "./PrinterActivity";
+import { measurePrinterCounter } from "./PrinterDiagnostics";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { findPrinterForLabelFormat } from "./PrinterConfigs";
@@ -138,6 +139,10 @@ const executeAndLogBatch = async ({
   let failedCount = 0;
 
   let lastSuccessfulResponse: ConnectionResult | undefined;
+  const counterBefore =
+    quantity > 1 && (printer.type === "COM" || printer.type === "IP")
+      ? await measurePrinterCounter(printer, false)
+      : null;
 
   for (let i = 0; i < labels.length; i++) {
     const label = labels[i];
@@ -220,6 +225,24 @@ const executeAndLogBatch = async ({
     details.failedCount = failedCount;
     details.deliveryResult = deliveryResult;
     details.labels = labelResults;
+    if (counterBefore) {
+      const counterAfter = await measurePrinterCounter(printer, true);
+      const before = counterBefore.count;
+      const after = counterAfter.count;
+      const delta =
+        before !== null && after !== null && after >= before
+          ? after - before
+          : null;
+      details.printerDiagnostics = {
+        counter: "odometer.total_label_count",
+        before,
+        after,
+        delta,
+        differenceFromSent: delta === null ? null : delta - sentCount,
+        beforeErrors: counterBefore.errors,
+        afterErrors: counterAfter.errors,
+      };
+    }
   }
 
   const auditPersisted = await appendAuditLog({

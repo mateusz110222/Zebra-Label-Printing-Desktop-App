@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   usbConnection: vi.fn(),
 
   queryPrinterStatus: vi.fn(),
+  measurePrinterCounter: vi.fn(),
   beginPrinterBatch: vi.fn(),
   finishPrinterBatch: vi.fn(),
   resolveAuthoritativePart: vi.fn(),
@@ -69,6 +70,10 @@ vi.mock("../audit/AuditLog", () => ({
 
 vi.mock("../printer/PrinterStatus", () => ({
   queryPrinterStatus: mocks.queryPrinterStatus,
+}));
+
+vi.mock("../printer/PrinterDiagnostics", () => ({
+  measurePrinterCounter: mocks.measurePrinterCounter,
 }));
 
 vi.mock("../printer/PrinterActivity", () => ({
@@ -204,6 +209,10 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
     });
 
     mocks.queryPrinterStatus.mockResolvedValue(successfulPrinterStatus);
+    mocks.measurePrinterCounter.mockReset().mockResolvedValue({
+      count: null,
+      errors: [],
+    });
     mocks.beginPrinterBatch.mockImplementation(
       async () => mocks.finishPrinterBatch,
     );
@@ -693,6 +702,13 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
     });
 
     it("sends every label separately and creates one BATCH_PRINT", async () => {
+      mocks.measurePrinterCounter
+        .mockResolvedValueOnce({ count: 100, errors: [] })
+        .mockImplementationOnce(async () => {
+          expect(mocks.ipConnection).toHaveBeenCalledTimes(5);
+          expect(mocks.finishPrinterBatch).not.toHaveBeenCalled();
+          return { count: 106, errors: ["backend.printer.head_open"] };
+        });
       const result = await getHandler("print-label")(createEvent(), {
         part,
         quantity: 5,
@@ -727,6 +743,15 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
             sentCount: 5,
             failedCount: 0,
             deliveryResult: "success",
+            printerDiagnostics: {
+              counter: "odometer.total_label_count",
+              before: 100,
+              after: 106,
+              delta: 6,
+              differenceFromSent: 1,
+              beforeErrors: [],
+              afterErrors: ["backend.printer.head_open"],
+            },
             labels: expect.arrayContaining([
               expect.objectContaining({
                 batchPosition: 1,

@@ -1,6 +1,11 @@
 const sanitizeZplFieldValue = (value: string | number): string =>
   String(value).replace(/[\^~\r\n]/g, " ");
 
+export const disableReprintAfterError = (zpl: string): string =>
+  zpl
+    .replace(/\^JZ[YN]?/gi, "^JZN")
+    .replace(/\^XA(?!\s*\^JZN)/gi, "$&^JZN");
+
 export const fillZplTemplate = (
   template: string,
   data: Record<string, string | number>,

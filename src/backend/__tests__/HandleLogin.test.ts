@@ -111,6 +111,7 @@ interface LoginResponse {
     title: string;
     canEdit: boolean;
     canConfigurePrinter: boolean;
+    expiresAt: number;
   };
 
   rawError?: string;
@@ -183,6 +184,7 @@ describe("HandleLogin", () => {
 
     mocks.clearAuditSession.mockReset();
     mocks.setAuditSession.mockReset();
+    mocks.setAuditSession.mockReturnValue(1_800_000);
 
     mocks.getAuditActor.mockReset();
     mocks.getAuditActor.mockReturnValue("Jan Kowalski");
@@ -741,6 +743,7 @@ describe("HandleLogin", () => {
           title: "Operator",
           canEdit: false,
           canConfigurePrinter: false,
+          expiresAt: 1_800_000,
         },
       });
 
@@ -994,6 +997,7 @@ describe("HandleLogin", () => {
           title: "",
           canEdit: false,
           canConfigurePrinter: false,
+          expiresAt: 1_800_000,
         },
       });
     });

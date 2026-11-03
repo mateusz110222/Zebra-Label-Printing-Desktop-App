@@ -1,4 +1,5 @@
 ^XA
+^JZN
 ~TA000
 ~JSN
 ^LT0

@@ -46,6 +46,14 @@ interface AuditBatchLabel {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const readDiagnosticNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isSafeInteger(value) ? value : null;
+
+const readDiagnosticErrors = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+
 const parseBatchLabels = (value: unknown): AuditBatchLabel[] | null => {
   let candidate = value;
 
@@ -631,6 +639,34 @@ function PrintHistoryTable({
           const labelsArray = parseBatchLabels(entry.details.labels);
 
           const isBatchEntry = entry.action === "BATCH_PRINT";
+          const diagnostics = isRecord(entry.details.printerDiagnostics)
+            ? entry.details.printerDiagnostics
+            : null;
+          const difference = readDiagnosticNumber(
+            diagnostics?.differenceFromSent,
+          );
+          const diagnosticStatus =
+            difference === null
+              ? t("audit.diagnostics.unavailable")
+              : difference === 0
+                ? t("audit.diagnostics.match")
+                : t("audit.diagnostics.difference", {
+                    value: difference > 0 ? `+${difference}` : difference,
+                  });
+          const diagnosticTone =
+            difference !== null && difference !== 0
+              ? "font-semibold text-amber-800 dark:text-amber-300"
+              : "text-slate-600 dark:text-slate-400";
+          const diagnosticErrors = [
+            {
+              phase: "before_errors",
+              messages: readDiagnosticErrors(diagnostics?.beforeErrors),
+            },
+            {
+              phase: "after_errors",
+              messages: readDiagnosticErrors(diagnostics?.afterErrors),
+            },
+          ];
 
           const canExpandBatch =
             isBatchEntry && labelsArray !== null && labelsArray.length > 0;
@@ -785,6 +821,12 @@ function PrintHistoryTable({
                     />
                   </div>
 
+                  {isBatchEntry && (
+                    <p className={`mt-2 text-xs ${diagnosticTone}`}>
+                      {t("audit.diagnostics.title")} · {diagnosticStatus}
+                    </p>
+                  )}
+
                   {entry.details.printerError && (
                     <div className="mt-2 text-xs text-red-600 dark:text-red-400">
                       {entry.details.printerError}
@@ -796,6 +838,58 @@ function PrintHistoryTable({
               {canExpandBatch && isExpanded && labelsArray && (
                 <tr>
                   <td colSpan={6} className="bg-slate-950/20 px-6 py-4">
+                    <section className="mb-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+                      <h4 className="text-sm font-semibold">
+                        {t("audit.diagnostics.title")}
+                      </h4>
+                      {diagnostics ? (
+                        <>
+                          <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-2 text-xs">
+                            {[
+                              { key: "before", value: diagnostics.before },
+                              { key: "after", value: diagnostics.after },
+                              { key: "delta", value: diagnostics.delta },
+                              { key: "sent", value: sentCount },
+                            ].map(({ key, value }) => (
+                              <div key={key}>
+                                <dt className="text-slate-600 dark:text-slate-400">
+                                  {t(`audit.diagnostics.${key}`)}
+                                </dt>
+                                <dd className="mt-0.5 text-right text-sm font-semibold tabular-nums">
+                                  {readDiagnosticNumber(value)?.toLocaleString(
+                                    locale,
+                                  ) ?? "—"}
+                                </dd>
+                              </div>
+                            ))}
+                          </dl>
+                          {diagnosticErrors.map(
+                            ({ phase, messages }) =>
+                              messages.length > 0 && (
+                                <div
+                                  key={phase}
+                                  className="mt-2 text-xs text-amber-800 dark:text-amber-300"
+                                >
+                                  <span className="font-semibold">
+                                    {t(`audit.diagnostics.${phase}`)}
+                                  </span>
+                                  <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                                    {messages.map((message) => (
+                                      <li key={message} className="break-words">
+                                        {t(message, { defaultValue: message })}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ),
+                          )}
+                        </>
+                      ) : (
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                          {t("audit.diagnostics.unavailable")}
+                        </p>
+                      )}
+                    </section>
                     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
                       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
                         <div>

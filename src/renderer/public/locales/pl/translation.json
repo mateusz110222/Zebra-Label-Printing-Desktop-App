@@ -624,6 +624,18 @@
     "error": "Błąd",
     "labels_count": "etykiet",
     "batch_labels_title": "Etykiety w batchu",
+    "diagnostics": {
+      "title": "Diagnostyka drukarki",
+      "unavailable": "Brak pełnego pomiaru",
+      "match": "Licznik zgodny z wysyłką",
+      "difference": "Różnica względem wysyłki: {{value}}",
+      "before": "Licznik przed",
+      "after": "Licznik po",
+      "delta": "Przyrost licznika",
+      "sent": "Wysłano",
+      "before_errors": "Błędy przed wysyłką",
+      "after_errors": "Błędy po wysyłce"
+    },
     "value_yes": "Tak",
     "value_no": "Nie",
     "actions": {

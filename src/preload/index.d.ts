@@ -283,6 +283,7 @@ declare global {
           title: string;
           canEdit: boolean;
           canConfigurePrinter: boolean;
+          expiresAt: number;
         };
         rawError?: string;
       }>;

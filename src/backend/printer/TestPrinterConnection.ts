@@ -6,6 +6,7 @@ import USBConnection from "../PrinterConnections/USBConnection";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 import { getTemplatesPath } from "../system/TemplatePaths";
+import { disableReprintAfterError } from "../hooks/LabelProcessor";
 import {
   appendAuditLog,
   canConfigurePrinter,
@@ -102,7 +103,9 @@ export default function TestPrinterConnection(): void {
         }
 
         const fullPath = path.join(getTemplatesPath(), "Test_Print_label.zpl");
-        const template = await readFile(fullPath, "utf-8");
+        const template = disableReprintAfterError(
+          await readFile(fullPath, "utf-8"),
+        );
 
         const preparationPersisted = await appendAuditLog({
           category: "print",

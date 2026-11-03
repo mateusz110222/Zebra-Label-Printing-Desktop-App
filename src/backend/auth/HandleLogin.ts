@@ -36,6 +36,7 @@ interface LoginResponse {
     title: string;
     canEdit: boolean;
     canConfigurePrinter: boolean;
+    expiresAt: number;
   };
   rawError?: string;
 }
@@ -257,7 +258,11 @@ export default function HandleLogin(): void {
             message: "backend.audit.storage_unavailable",
           };
         }
-        setAuditSession(fullName, canEdit, canConfigurePrinter);
+        const expiresAt = setAuditSession(
+          fullName,
+          canEdit,
+          canConfigurePrinter,
+        );
 
         return {
           status: true,
@@ -268,6 +273,7 @@ export default function HandleLogin(): void {
             title,
             canEdit,
             canConfigurePrinter,
+            expiresAt,
           },
         };
       } catch (error) {

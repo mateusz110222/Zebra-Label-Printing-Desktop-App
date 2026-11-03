@@ -183,7 +183,7 @@ const getPrinterDisplayName = (printer: PrinterConfig): string =>
 
 export function useConfigView(): UseConfigViewReturn {
   const { t } = useTranslation();
-  const { CanEdit } = useAuth();
+  const { CanEdit, canConfigurePrinter } = useAuth();
 
   const [criticalError, setCriticalError] = useState<string | null>(null);
   const [uiMessage, setUiMessage] = useState<UiMessage | null>(null);
@@ -471,7 +471,9 @@ export function useConfigView(): UseConfigViewReturn {
       const resp =
         action === "SAVE"
           ? await window.api.SavePrinterConfig(payload)
-          : await window.api.TestPrinterConnection(payload);
+          : await window.api.TestPrinterConnection(
+              canConfigurePrinter ? payload : undefined,
+            );
 
       if (resp.status) {
         setUiMessage({

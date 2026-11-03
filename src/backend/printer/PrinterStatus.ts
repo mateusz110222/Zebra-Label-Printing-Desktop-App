@@ -276,7 +276,7 @@ const queryUsbPrinterStatus = async (
   }
 };
 
-const queryPrinterStatusOnce = (
+export const queryPrinterStatusOnce = (
   config: PrinterConfig,
 ): Promise<PrinterStatusResult> => {
   switch (config.type) {

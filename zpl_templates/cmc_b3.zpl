@@ -1,4 +1,5 @@
 ^XA
+^JZN
 ^PW1200
 ^MNY
 ^JMA^LH10,235

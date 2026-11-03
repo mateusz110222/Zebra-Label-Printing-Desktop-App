@@ -4,6 +4,7 @@ import { applyBatchCutting } from "./BatchCutting";
 import {
   calculateSerial,
   calculateSerialCounter,
+  disableReprintAfterError,
   fillZplTemplate,
   parseSerialValue,
 } from "./LabelProcessor";
@@ -282,7 +283,7 @@ export async function generatePrintZPL(
         };
 
         const labelZpl = applyBatchCutting(
-          fillZplTemplate(rawTemplate, printData),
+          disableReprintAfterError(fillZplTemplate(rawTemplate, printData)),
           i,
           quantity,
         );
@@ -564,7 +565,7 @@ async function generateReprintZPLInternal(
       };
 
       const labelZpl = applyBatchCutting(
-        fillZplTemplate(rawTemplate, printData),
+        disableReprintAfterError(fillZplTemplate(rawTemplate, printData)),
         i,
         quantity,
       );

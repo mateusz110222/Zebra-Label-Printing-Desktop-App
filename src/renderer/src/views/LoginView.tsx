@@ -51,7 +51,7 @@ export function LoginView(): React.JSX.Element {
         text: t(response.message || ""),
       });
 
-      setLogin(FullName, CanEdit, canConfigurePrinter);
+      setLogin(FullName, CanEdit, canConfigurePrinter, response.data.expiresAt);
       navigate("/");
     } catch (error) {
       const { message, details } = extractError(error);

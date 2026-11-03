@@ -53,6 +53,16 @@ describe("AuditSession", () => {
   });
 
   describe("setAuditSession", () => {
+    it("returns the backend deadline for synchronizing the renderer session", () => {
+      const expiresAt = setAuditSession("IT User", true);
+
+      expect(expiresAt).toBe(Date.now() + AUDIT_SESSION_TTL_MS);
+      vi.setSystemTime(expiresAt - 1);
+      expect(canViewAuditLogs()).toBe(true);
+      vi.setSystemTime(expiresAt);
+      expect(canViewAuditLogs()).toBe(false);
+    });
+
     it("stores the authenticated actor", () => {
       setAuditSession("IT User", true);
 
