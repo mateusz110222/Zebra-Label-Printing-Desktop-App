@@ -141,7 +141,7 @@ const executeAndLogBatch = async ({
   let lastSuccessfulResponse: ConnectionResult | undefined;
   const counterBefore =
     quantity > 1 && (printer.type === "COM" || printer.type === "IP")
-      ? await measurePrinterCounter(printer, false)
+      ? await measurePrinterCounter(printer)
       : null;
 
   for (let i = 0; i < labels.length; i++) {
@@ -226,7 +226,7 @@ const executeAndLogBatch = async ({
     details.deliveryResult = deliveryResult;
     details.labels = labelResults;
     if (counterBefore) {
-      const counterAfter = await measurePrinterCounter(printer, true);
+      const counterAfter = await measurePrinterCounter(printer, quantity);
       const before = counterBefore.count;
       const after = counterAfter.count;
       const delta =

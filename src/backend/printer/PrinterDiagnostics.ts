@@ -5,7 +5,7 @@ import { queryPrinterStatusOnce } from "./PrinterStatus";
 
 const COUNTER_QUERY = '! U1 getvar "odometer.total_label_count"\r\n';
 const QUERY_TIMEOUT_MS = 2500;
-const DRAIN_TIMEOUT_MS = 20000;
+const MIN_DRAIN_TIMEOUT_MS = 20000;
 
 function readCounter(config: PrinterConfig): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -90,10 +90,10 @@ function readCounter(config: PrinterConfig): Promise<number> {
 
 export async function measurePrinterCounter(
   config: PrinterConfig,
-  waitForDrain: boolean,
+  batchSize?: number,
 ): Promise<{ count: number | null; errors: string[] }> {
   const errors = new Set<string>();
-  const deadline = Date.now() + DRAIN_TIMEOUT_MS;
+  const deadline = Date.now() + MIN_DRAIN_TIMEOUT_MS + (batchSize ?? 0) * 500;
   try {
     do {
       // The caller already owns the print queue. Bypass the cached UI status.
@@ -107,7 +107,7 @@ export async function measurePrinterCounter(
       ) {
         return { count: await readCounter(config), errors: [...errors] };
       }
-      if (!waitForDrain) break;
+      if (batchSize === undefined) break;
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
     } while (Date.now() < deadline);
     errors.add("Printer queue did not report idle");
