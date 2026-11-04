@@ -265,10 +265,7 @@ const executeAndLogBatch = async ({
               (count) => ({ count, errors: [] }),
               (error: Error) => ({ count: null, errors: [error.message] }),
             )
-          : await measurePrinterCounter(
-              printer,
-              acknowledgements ? undefined : quantity,
-            );
+          : await measurePrinterCounter(printer, !acknowledgements);
       const before = counterBefore.count;
       const after = counterAfter.count;
       const delta =

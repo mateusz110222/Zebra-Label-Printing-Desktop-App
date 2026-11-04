@@ -5,7 +5,9 @@ import { queryPrinterStatusOnce } from "./PrinterStatus";
 
 const COUNTER_QUERY = '! U1 getvar "odometer.total_label_count"\r\n';
 const QUERY_TIMEOUT_MS = 2500;
-const MIN_DRAIN_TIMEOUT_MS = 20000;
+const NO_QUEUE_PROGRESS_TIMEOUT_MS = 20000;
+const MAX_DRAIN_TIMEOUT_MS = 300000;
+const STATUS_POLL_INTERVAL_MS = 500;
 
 export function readCounter(config: PrinterConfig): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -90,11 +92,14 @@ export function readCounter(config: PrinterConfig): Promise<number> {
 
 export async function measurePrinterCounter(
   config: PrinterConfig,
-  batchSize?: number,
+  waitForDrain = false,
 ): Promise<{ count: number | null; errors: string[] }> {
   const errors = new Set<string>();
   const startedAt = Date.now();
-  const deadline = startedAt + MIN_DRAIN_TIMEOUT_MS + (batchSize ?? 0) * 500;
+  const deadline = startedAt + MAX_DRAIN_TIMEOUT_MS;
+  let lastProgressAt = startedAt;
+  let lowestFormats = Infinity;
+  let lowestLabels = Infinity;
   let attempts = 0;
   let missingStatuses = 0;
   let firstQueueStatus: string | undefined;
@@ -111,6 +116,15 @@ export async function measurePrinterCounter(
       const details = status.data;
       const elapsedMs = Date.now() - startedAt;
       if (details) {
+        const { formatsInBuffer, labelsRemaining } = details;
+        if (
+          formatsInBuffer < lowestFormats ||
+          (formatsInBuffer === lowestFormats && labelsRemaining < lowestLabels)
+        ) {
+          lowestFormats = formatsInBuffer;
+          lowestLabels = labelsRemaining;
+          lastProgressAt = startedAt + elapsedMs;
+        }
         const snapshot = `${elapsedMs} ms: formatsInBuffer=${details.formatsInBuffer}, labelsRemaining=${details.labelsRemaining}, ready=${status.ready}`;
         firstQueueStatus ??= snapshot;
         lastQueueStatus = snapshot;
@@ -130,10 +144,23 @@ export async function measurePrinterCounter(
       ) {
         return { count: await readCounter(config), errors: [...errors] };
       }
-      if (batchSize === undefined) break;
-      await new Promise<void>((resolve) => setTimeout(resolve, 500));
+      if (!waitForDrain) break;
+      const remaining =
+        Math.min(deadline, lastProgressAt + NO_QUEUE_PROGRESS_TIMEOUT_MS) -
+        Date.now();
+      if (remaining <= 0) break;
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, Math.min(STATUS_POLL_INTERVAL_MS, remaining)),
+      );
     } while (Date.now() < deadline);
     errors.add("Printer queue did not report idle");
+    if (waitForDrain) {
+      errors.add(
+        Date.now() >= deadline
+          ? "Maximum queue wait reached (300 s)"
+          : "No decrease in printer queue for 20 s",
+      );
+    }
     errors.add(
       `Queue checked for ${Date.now() - startedAt} ms: ${attempts} status queries, ${missingStatuses} without queue details`,
     );
