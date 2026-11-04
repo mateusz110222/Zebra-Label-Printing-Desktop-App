@@ -156,8 +156,7 @@ export async function resolveScannedReprint(
   const decoded = decodeScannedSerial(input, parts);
   if (!decoded.status) return decoded;
 
-  // The existing reprint generator verifies the counter against family.next and
-  // family.maxId without reserving a new serial or sending anything to a printer.
+  // Validate the decoded number and template without reserving a serial or printing.
   const validation = await generateReprintZPL(
     decoded.data.part,
     decoded.data.date,

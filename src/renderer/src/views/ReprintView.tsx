@@ -24,18 +24,39 @@ import { usePrinterStatus } from "@renderer/context/PrinterStatusContext";
 import ReprintUnitDetails from "@renderer/components/print/ReprintUnitDetails";
 import { ScannedReprintView } from "./ScannedReprintView";
 
-function ManualReprintView(): React.JSX.Element {
+function ManualReprintView({
+  onPrintingChange,
+}: {
+  onPrintingChange: (busy: boolean) => void;
+}): React.JSX.Element {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
 
   const { data, status, actions, isValid } = usePrintLabel("reprint");
+  const [scan, setScan] = useState("");
+  const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
+  const [scanMismatch, setScanMismatch] = useState(false);
+  const expectedCodes = data.lastPrintSummary?.verificationCodes ?? [];
+  const needsScan = confirmedCodes.length < expectedCodes.length;
   const { ready: livePrinterReady, statusMessage: livePrinterMessage } =
     usePrinterStatus();
 
   const printerAllowsPrint =
     data.hasAssignedPrinter && (data.usesMultiplePrinters || livePrinterReady);
-  const canSubmit = isValid && printerAllowsPrint && !status.isPrinting;
+  const canSubmit =
+    isValid && printerAllowsPrint && !status.isPrinting && !needsScan;
+
+  useEffect(() => {
+    onPrintingChange(status.isPrinting || needsScan);
+  }, [onPrintingChange, status.isPrinting, needsScan]);
+
+  const print = (): void => {
+    setScan("");
+    setConfirmedCodes([]);
+    setScanMismatch(false);
+    void actions.handlePrint();
+  };
 
   // Keyboard shortcut Ctrl+Enter / Ctrl+P
   useEffect(() => {
@@ -46,14 +67,14 @@ function ManualReprintView(): React.JSX.Element {
       ) {
         if (canSubmit) {
           e.preventDefault();
-          void actions.handlePrint();
+          print();
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canSubmit, actions]);
+  });
 
   if (status.criticalError) {
     return (
@@ -102,95 +123,161 @@ function ManualReprintView(): React.JSX.Element {
           )}
 
           {/* Status Banner */}
-          {status.uiMessage && (
-            <div className="mb-6">
-              <StatusBanner
-                type={status.uiMessage.type}
-                message={status.uiMessage.text}
-                details={status.uiMessage.details}
-                onClose={actions.clearUiMessage}
-              />
-            </div>
-          )}
+          {status.uiMessage &&
+            (status.uiMessage.type === "error" ||
+              expectedCodes.length === 0) && (
+              <div className="mb-6">
+                <StatusBanner
+                  type={status.uiMessage.type}
+                  message={status.uiMessage.text}
+                  details={status.uiMessage.details}
+                  onClose={actions.clearUiMessage}
+                />
+              </div>
+            )}
 
-          {/* Main Card */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+          {needsScan ? (
             <form
+              className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (canSubmit) {
-                  void actions.handlePrint();
-                }
+                if (!scan.trim()) return;
+                const code = scan.trim().toUpperCase();
+                const matches =
+                  expectedCodes.some(
+                    (expected) => expected.toUpperCase() === code,
+                  ) && !confirmedCodes.includes(code);
+                if (matches)
+                  setConfirmedCodes((previous) => [...previous, code]);
+                setScanMismatch(!matches);
+                setScan("");
+                event.currentTarget.querySelector("input")?.focus();
               }}
             >
-              <div className="p-4 sm:p-6 lg:p-8">
-                {/* Part Selection */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-100 mb-2">
-                    {t("print_view.part_selection")}
-                  </label>
-                  <Select
-                    autoFocus
-                    options={data.options}
-                    onChange={actions.handleSelectChange}
-                    placeholder={t("print_view.select_part")}
-                    isClearable
-                    value={data.selectedOption}
-                    classNamePrefix="react-select"
-                    menuPortalTarget={document.body}
-                    menuPosition="fixed"
-                    styles={getSelectStyles(resolvedTheme === "dark")}
+              <label
+                htmlFor="manual-reprint-scan"
+                className="block text-sm font-semibold"
+              >
+                {t("reprint.verify_title")} · {confirmedCodes.length}/
+                {expectedCodes.length}
+              </label>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                {t("reprint.verify_batch_hint")}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <input
+                  id="manual-reprint-scan"
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={scan}
+                  onChange={(event) => setScan(event.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-900"
+                />
+                <button
+                  type="submit"
+                  disabled={!scan.trim()}
+                  className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {t("reprint.verify_action")}
+                </button>
+              </div>
+              {scanMismatch && (
+                <p
+                  role="alert"
+                  className="mt-2 text-sm text-red-700 dark:text-red-300"
+                >
+                  {t("reprint.verify_batch_mismatch")}
+                </p>
+              )}
+            </form>
+          ) : (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+              {expectedCodes.length > 0 && (
+                <p
+                  role="status"
+                  className="px-5 pt-4 text-sm font-semibold text-teal-700 dark:text-teal-300"
+                >
+                  {t("reprint.verify_success")}
+                </p>
+              )}
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (canSubmit) {
+                    print();
+                  }
+                }}
+              >
+                <div className="p-4 sm:p-6 lg:p-8">
+                  {/* Part Selection */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-100 mb-2">
+                      {t("print_view.part_selection")}
+                    </label>
+                    <Select
+                      autoFocus
+                      options={data.options}
+                      onChange={actions.handleSelectChange}
+                      placeholder={t("print_view.select_part")}
+                      isClearable
+                      value={data.selectedOption}
+                      classNamePrefix="react-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      styles={getSelectStyles(resolvedTheme === "dark")}
+                    />
+                  </div>
+
+                  {/* Part Details Card */}
+                  {data.selectedPart && (
+                    <PartDetailsCard
+                      part={data.selectedPart}
+                      assignedPrinter={data.assignedPrinter}
+                      quantity={data.labelQuantity}
+                      onQuantityChange={actions.handleQuantityChange}
+                      onQuantityBlur={actions.handleQuantityBlur}
+                    />
+                  )}
+
+                  {data.selectedPart && (
+                    <ReprintUnitDetails
+                      date={data.date}
+                      onchangeDate={actions.handleDateChange}
+                      serialNumber={data.serialNumber}
+                      onchangeSerialNumber={actions.handleSerialNumberChange}
+                    />
+                  )}
+
+                  <LabelPreview
+                    isLoading={status.isPreviewLoading}
+                    previewImage={data.previewImage}
                   />
                 </div>
 
-                {/* Part Details Card */}
-                {data.selectedPart && (
-                  <PartDetailsCard
-                    part={data.selectedPart}
-                    assignedPrinter={data.assignedPrinter}
-                    quantity={data.labelQuantity}
-                    onQuantityChange={actions.handleQuantityChange}
-                    onQuantityBlur={actions.handleQuantityBlur}
+                {/* Footer */}
+                <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
+                    {!data.selectedPart
+                      ? t("print_view.select_part_first")
+                      : !data.date || !data.serialNumber.trim()
+                        ? t("reprint.complete_details")
+                        : !data.hasAssignedPrinter
+                          ? t("backend.printer.format_not_assigned")
+                          : !data.usesMultiplePrinters && !livePrinterReady
+                            ? t("header.printer_offline")
+                            : t("print_view.ready_to_print")}
+                  </p>
+                  <SubmitButton
+                    isLoading={status.isPrinting}
+                    isDisabled={!canSubmit}
+                    loadingText={t("print_view.printing")}
+                    text={t("reprint.print_label")}
                   />
-                )}
-
-                {data.selectedPart && (
-                  <ReprintUnitDetails
-                    date={data.date}
-                    onchangeDate={actions.handleDateChange}
-                    serialNumber={data.serialNumber}
-                    onchangeSerialNumber={actions.handleSerialNumberChange}
-                  />
-                )}
-
-                <LabelPreview
-                  isLoading={status.isPreviewLoading}
-                  previewImage={data.previewImage}
-                />
-              </div>
-
-              {/* Footer */}
-              <div className="px-4 sm:px-6 lg:px-8 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400 text-center sm:text-left">
-                  {!data.selectedPart
-                    ? t("print_view.select_part_first")
-                    : !data.date || !data.serialNumber.trim()
-                      ? t("reprint.complete_details")
-                      : !data.hasAssignedPrinter
-                        ? t("backend.printer.format_not_assigned")
-                        : !data.usesMultiplePrinters && !livePrinterReady
-                          ? t("header.printer_offline")
-                          : t("print_view.ready_to_print")}
-                </p>
-                <SubmitButton
-                  isLoading={status.isPrinting}
-                  isDisabled={!canSubmit}
-                  loadingText={t("print_view.printing")}
-                  text={t("reprint.print_label")}
-                />
-              </div>
-            </form>
-          </div>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </LoadingWrapper>
@@ -200,7 +287,7 @@ function ManualReprintView(): React.JSX.Element {
 export function ReprintView(): React.JSX.Element {
   const { t } = useTranslation();
   const [mode, setMode] = useState<"manual" | "scan" | null>(null);
-  const [isScanPrinting, setIsScanPrinting] = useState(false);
+  const [isReprintBusy, setIsReprintBusy] = useState(false);
 
   return (
     <div className="min-h-full text-slate-800 dark:text-slate-100">
@@ -209,7 +296,7 @@ export function ReprintView(): React.JSX.Element {
           <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 lg:px-8">
             <button
               type="button"
-              disabled={isScanPrinting}
+              disabled={isReprintBusy}
               onClick={() => setMode(null)}
               className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
             >
@@ -217,9 +304,9 @@ export function ReprintView(): React.JSX.Element {
             </button>
           </div>
           {mode === "manual" ? (
-            <ManualReprintView />
+            <ManualReprintView onPrintingChange={setIsReprintBusy} />
           ) : (
-            <ScannedReprintView onPrintingChange={setIsScanPrinting} />
+            <ScannedReprintView onPrintingChange={setIsReprintBusy} />
           )}
         </>
       ) : (

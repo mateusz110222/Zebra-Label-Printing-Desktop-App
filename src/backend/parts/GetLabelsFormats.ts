@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { readdir, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import {
   getTemplatesPath,
   normalizeTemplateFileName,
@@ -84,12 +85,24 @@ export default function GetLabelsFormats(): void {
     }
 
     try {
-      await unlink(path.join(getTemplatesPath(), filename));
+      const filePath = path.join(getTemplatesPath(), filename);
+      const previous = await readFile(filePath).catch(() => null);
+      await unlink(filePath);
       await appendAuditLog({
         category: "template",
         action: "TEMPLATE_DELETED",
         status: "success",
-        details: { name: filename },
+        details: {
+          name: filename,
+          before: {
+            name: filename,
+            sizeBytes: previous?.length,
+            checksum: previous
+              ? createHash("sha256").update(previous).digest("hex")
+              : undefined,
+          },
+          after: null,
+        },
       });
       notifyTemplatesChanged();
       return { status: true, message: "backend.labels.TEMPLATE_DELETED" };

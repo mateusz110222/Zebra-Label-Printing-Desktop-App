@@ -205,6 +205,20 @@ export default function SaveDatabaseConfig(): void {
             database: config.database,
             user: config.user,
             sslMode: config.sslMode || "default",
+            before: {
+              host: previousConfig.host ?? "",
+              database: previousConfig.database ?? "",
+              user: previousConfig.user ?? "",
+              sslMode: previousConfig.sslMode || "default",
+            },
+            after: {
+              host: config.host,
+              database: config.database,
+              user: config.user,
+              sslMode: config.sslMode || "default",
+            },
+            credentialsChanged:
+              (config.password || "") !== previousPlainPassword,
           },
         });
 

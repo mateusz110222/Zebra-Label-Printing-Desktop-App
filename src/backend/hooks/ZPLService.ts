@@ -24,6 +24,7 @@ export interface GeneratedLabelMetadata {
   julianDate: string;
   bmsDate: string;
   zplSha256: string;
+  scanCode?: string;
 }
 
 export interface GeneratedLabel {
@@ -488,8 +489,6 @@ async function generateReprintZPLInternal(
 
     const numericMax = parseSerialValue(maxSerial, type_name);
 
-    const numericNext = parseSerialValue(String(next), type_name);
-
     if (
       requestedSerial === "0" &&
       parseSerialValue(baseSerial, type_name) > numericMax
@@ -518,13 +517,6 @@ async function generateReprintZPLInternal(
       };
     }
 
-    if (
-      !allowCurrentNextForPreview &&
-      numericBase + BigInt(quantity) - 1n >= numericNext
-    ) {
-      return invalidDataResult("backend.print.reprint_serial_not_reserved");
-    }
-
     const templateResult = await getZplTemplate(part.Label_Format);
 
     if (!templateResult.status) {
@@ -534,6 +526,14 @@ async function generateReprintZPLInternal(
     const rawTemplate = templateResult.data!;
 
     const labels: GeneratedLabel[] = [];
+
+    const serialFields = rawTemplate.split(/\^FS/i).flatMap((field) => {
+      const match = /\^FD([^^]*)/i.exec(field);
+      return match?.[1].includes("*SERIALNUM1*") &&
+        /\^B(?!Y)[A-Z0-9]/i.test(field.slice(0, match.index))
+        ? [match[1]]
+        : [];
+    });
 
     for (let i = 0; i < quantity; i++) {
       const currentSerial = calculateSerial(baseSerial, i, type_name);
@@ -570,6 +570,11 @@ async function generateReprintZPLInternal(
         quantity,
       );
 
+      const codes = [
+        ...new Set(
+          serialFields.map((field) => fillZplTemplate(field, printData).trim()),
+        ),
+      ];
       labels.push({
         zpl: labelZpl,
         metadata: {
@@ -579,6 +584,7 @@ async function generateReprintZPLInternal(
           bmsDate,
 
           zplSha256: hashZpl(labelZpl),
+          scanCode: codes.length === 1 ? codes[0] : undefined,
         },
       });
     }

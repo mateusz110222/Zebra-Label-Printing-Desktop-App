@@ -484,6 +484,15 @@
     }
   },
   "reprint": {
+    "verify_pending": "Sent to printer. Waiting for scan",
+    "verify_batch_hint": "Scan the code on each sent label. Confirm each serial once.",
+    "verify_batch_mismatch": "This code is not part of the reprint or has already been confirmed.",
+    "verify_template_unsupported": "The template has no unambiguous serial barcode to verify.",
+    "verify_title": "Scan the printed label",
+    "verify_action": "Verify code",
+    "verify_hint": "Scan the Data Matrix on the new label and press Enter if your scanner does not submit automatically.",
+    "verify_success": "The code matches the reprint serial.",
+    "verify_mismatch": "The code does not match the reprint serial. Scan the correct label.",
     "title": "Reprint label",
     "subtitle": "Select a part and enter the original label data before reprinting.",
     "serialnumber": "Serial Number",
@@ -619,11 +628,28 @@
     "sent": "Sent",
     "failed": "Failed",
     "partial": "Partial failure",
-    "expand": "Expand",
-    "collapse": "Collapse",
     "error": "Error",
     "labels_count": "labels",
     "batch_labels_title": "Batch labels",
+    "ack": {
+      "metric": "Confirmed",
+      "confirmed": "Printer acknowledgements: {{count}}/{{expected}}",
+      "missing": "Missing serials:",
+      "repeated": "Repeated acknowledgements:"
+    },
+    "modal": {
+      "batch": "Batch details",
+      "open": "Details",
+      "close": "Close",
+      "changes": "View changes",
+      "field": "Field",
+      "before": "Before",
+      "after": "After",
+      "no_changes": "No recorded values changed.",
+      "no_comparison": "This entry has no comparison data.",
+      "credentials_changed": "The database password changed.",
+      "parts_changed": "The local parts list changed."
+    },
     "diagnostics": {
       "title": "Printer diagnostics",
       "unavailable": "Full measurement unavailable",
@@ -667,6 +693,11 @@
       "TEMPLATE_DELETED": "Label template deleted"
     },
     "fields": {
+      "activePrinter": "active printer",
+      "checksum": "checksum",
+      "zplExcerpt": "changed ZPL excerpt",
+      "credentialsChanged": "database password changed",
+      "localPartsChanged": "local parts list changed",
       "description": "description",
       "operation": "operation",
       "fullSerialNumber": "full SN",

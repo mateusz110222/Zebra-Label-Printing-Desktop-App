@@ -152,6 +152,7 @@ declare global {
         quantity: number;
         serialNumber: string;
         date: string;
+        verifyScans?: boolean;
       }) => Promise<PrintLabelResult>;
 
       GetPrinterStatus: () => Promise<{
@@ -365,6 +366,7 @@ declare global {
   }
 
   interface PrintLabelResult {
+    verificationCodes?: string[];
     status: boolean;
     message?: string;
     rawError?: string;

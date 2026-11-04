@@ -1,5 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import sharp from "sharp";
+import { createHash } from "node:crypto";
 import { getZplTemplate, SaveZplTemplate } from "../../hooks/ZPLService";
 import { isPreviewAuthorized } from "../../auth/IsAutorized";
 import { appendAuditLog, canViewAuditLogs } from "../../audit/AuditLog";
@@ -156,6 +157,7 @@ export default function ChildWindowHandlers(): void {
         };
       }
 
+      const previous = await getZplTemplate(formatName);
       const response = await SaveZplTemplate(formatName, data);
 
       if (!response.status) {
@@ -171,6 +173,35 @@ export default function ChildWindowHandlers(): void {
         return response;
       }
 
+      const previousZpl = previous?.status ? previous.data : undefined;
+      const previousLines = previousZpl?.split(/\r?\n/) ?? [];
+      const nextLines = data.split(/\r?\n/);
+      let start = 0;
+      while (
+        start < previousLines.length &&
+        start < nextLines.length &&
+        previousLines[start] === nextLines[start]
+      )
+        start++;
+      let oldEnd = previousLines.length;
+      let newEnd = nextLines.length;
+      while (
+        oldEnd > start &&
+        newEnd > start &&
+        previousLines[oldEnd - 1] === nextLines[newEnd - 1]
+      ) {
+        oldEnd--;
+        newEnd--;
+      }
+      const snapshot = (zpl: string, lines: string[]) => {
+        const excerpt = lines.join("\n");
+        return {
+          sizeBytes: Buffer.byteLength(zpl, "utf8"),
+          checksum: createHash("sha256").update(zpl).digest("hex"),
+          zplExcerpt:
+            excerpt.length > 1800 ? `${excerpt.slice(0, 1800)}\n…` : excerpt,
+        };
+      };
       await appendAuditLog({
         category: "template",
         action: "TEMPLATE_SAVED",
@@ -178,6 +209,11 @@ export default function ChildWindowHandlers(): void {
         details: {
           name: formatName,
           sizeBytes: Buffer.byteLength(data, "utf8"),
+          before:
+            previousZpl === undefined
+              ? null
+              : snapshot(previousZpl, previousLines.slice(start, oldEnd)),
+          after: snapshot(data, nextLines.slice(start, newEnd)),
         },
       });
 

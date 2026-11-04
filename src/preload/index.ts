@@ -125,6 +125,7 @@ const api = {
     quantity: number;
     serialNumber: string;
     date: string;
+    verifyScans?: boolean;
   }) => ipcRenderer.invoke("reprint-label", payload),
 
   GetPrinterStatus: () => ipcRenderer.invoke("Get-PrinterStatus"),

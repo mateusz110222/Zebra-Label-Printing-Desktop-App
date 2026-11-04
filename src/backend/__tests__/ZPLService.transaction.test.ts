@@ -655,25 +655,17 @@ describe("generateReprintZPL validation", () => {
     });
   });
 
-  it("rejects a serial equal to family.next because it has not been reserved yet", async () => {
-    const result = await generateReprintZPL(part, "2026-08-13", "0200", 1);
+  it.each(["0200", "0373"])(
+    "allows reprinting %s independently of family.next",
+    async (serial) => {
+      const result = await generateReprintZPL(part, "2026-08-13", serial, 1);
 
-    expect(result).toEqual({
-      status: false,
-      message: "backend.print.reprint_serial_not_reserved",
-      rawError: undefined,
-    });
-  });
-
-  it("rejects a serial above family.next because it has not been reserved yet", async () => {
-    const result = await generateReprintZPL(part, "2026-08-13", "0201", 1);
-
-    expect(result).toEqual({
-      status: false,
-      message: "backend.print.reprint_serial_not_reserved",
-      rawError: undefined,
-    });
-  });
+      expect(result.status).toBe(true);
+      expect(result.labels?.[0].metadata.serialNumber).toBe(serial);
+      expect(databaseMocks.pool.query).toHaveBeenCalledOnce();
+      expect(databaseMocks.pool.getConnection).not.toHaveBeenCalled();
+    },
+  );
 
   it("allows reprinting a serial below family.next", async () => {
     const result = await generateReprintZPL(part, "2026-08-13", "0199", 1);
@@ -683,6 +675,18 @@ describe("generateReprintZPL validation", () => {
     expect(result.message).toBe("backend.reprint.success");
 
     expect(result.labels?.[0].metadata.serialNumber).toBe("0199");
+  });
+
+  it("returns the scan code from the reprint barcode instead of the plain text field", async () => {
+    vi.mocked(readFile).mockResolvedValueOnce(
+      "^XA^A0N,20,20^FD*SERIALNUM1*^FS^BXN,4,200^FD*SERIALPREFIX**SERIALNUM1*^FS^XZ",
+    );
+    const result = await generateReprintZPL(part, "2026-08-13", "0373", 2);
+
+    expect(result.labels?.map(({ metadata }) => metadata.scanCode)).toEqual([
+      "42022977A0373",
+      "42022977A0374",
+    ]);
   });
 
   it("rejects preview when family.next is already above maxId", async () => {

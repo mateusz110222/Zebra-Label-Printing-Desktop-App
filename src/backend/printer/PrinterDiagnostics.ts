@@ -7,7 +7,7 @@ const COUNTER_QUERY = '! U1 getvar "odometer.total_label_count"\r\n';
 const QUERY_TIMEOUT_MS = 2500;
 const MIN_DRAIN_TIMEOUT_MS = 20000;
 
-function readCounter(config: PrinterConfig): Promise<number> {
+export function readCounter(config: PrinterConfig): Promise<number> {
   return new Promise((resolve, reject) => {
     let response = "";
     let settled = false;
@@ -93,13 +93,36 @@ export async function measurePrinterCounter(
   batchSize?: number,
 ): Promise<{ count: number | null; errors: string[] }> {
   const errors = new Set<string>();
-  const deadline = Date.now() + MIN_DRAIN_TIMEOUT_MS + (batchSize ?? 0) * 500;
+  const startedAt = Date.now();
+  const deadline = startedAt + MIN_DRAIN_TIMEOUT_MS + (batchSize ?? 0) * 500;
+  let attempts = 0;
+  let missingStatuses = 0;
+  let firstQueueStatus: string | undefined;
+  let lastQueueStatus: string | undefined;
+  let lastMissingStatus: string | undefined;
+  let peakFormats = 0;
+  let peakLabels = 0;
   try {
     do {
       // The caller already owns the print queue. Bypass the cached UI status.
       const status = await queryPrinterStatusOnce(config);
+      attempts++;
       if (!status.ready) errors.add(status.message);
       const details = status.data;
+      const elapsedMs = Date.now() - startedAt;
+      if (details) {
+        const snapshot = `${elapsedMs} ms: formatsInBuffer=${details.formatsInBuffer}, labelsRemaining=${details.labelsRemaining}, ready=${status.ready}`;
+        firstQueueStatus ??= snapshot;
+        lastQueueStatus = snapshot;
+        peakFormats = Math.max(peakFormats, details.formatsInBuffer);
+        peakLabels = Math.max(peakLabels, details.labelsRemaining);
+      } else {
+        missingStatuses++;
+        const reason = status.rawError
+          ? ` (${status.rawError.slice(0, 160)})`
+          : "";
+        lastMissingStatus = `${elapsedMs} ms: ${status.message}${reason}`;
+      }
       if (
         status.ready &&
         details?.formatsInBuffer === 0 &&
@@ -111,6 +134,18 @@ export async function measurePrinterCounter(
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
     } while (Date.now() < deadline);
     errors.add("Printer queue did not report idle");
+    errors.add(
+      `Queue checked for ${Date.now() - startedAt} ms: ${attempts} status queries, ${missingStatuses} without queue details`,
+    );
+    if (firstQueueStatus && lastQueueStatus) {
+      errors.add(`First queue status: ${firstQueueStatus}`);
+      errors.add(`Last queue status: ${lastQueueStatus}`);
+      errors.add(
+        `Queue peaks: formatsInBuffer=${peakFormats}, labelsRemaining=${peakLabels}`,
+      );
+    }
+    if (lastMissingStatus)
+      errors.add(`Last unavailable status: ${lastMissingStatus}`);
   } catch (error) {
     errors.add(error instanceof Error ? error.message : String(error));
   }

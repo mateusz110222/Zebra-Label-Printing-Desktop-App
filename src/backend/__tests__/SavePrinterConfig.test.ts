@@ -317,6 +317,8 @@ describe("SavePrinterConfig", () => {
       details: {
         type: "IP",
         target: "10.0.0.20:9100",
+        before: { name: "", type: "IP", target: "10.0.0.10:9100" },
+        after: { name: "", type: "IP", target: "10.0.0.20:9100" },
       },
     });
 
@@ -346,6 +348,8 @@ describe("SavePrinterConfig", () => {
       details: {
         type: "COM",
         target: "COM7@115200",
+        before: { name: "", type: "IP", target: "10.0.0.10:9100" },
+        after: { name: "", type: "COM", target: "COM7@115200" },
       },
     });
 
@@ -374,6 +378,8 @@ describe("SavePrinterConfig", () => {
       details: {
         type: "USB",
         target: "ZDesigner ZD421-203dpi ZPL",
+        before: { name: "", type: "IP", target: "10.0.0.10:9100" },
+        after: { name: "", type: "USB", target: "ZDesigner ZD421-203dpi ZPL" },
       },
     });
 

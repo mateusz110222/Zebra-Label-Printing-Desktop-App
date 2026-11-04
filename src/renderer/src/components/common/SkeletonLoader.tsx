@@ -138,35 +138,44 @@ export function PageSkeleton(): React.JSX.Element {
   );
 }
 
-export function AuditLogsViewSkeleton(): React.JSX.Element {
+export function AuditLogsViewSkeleton({
+  contentOnly = false,
+}: { contentOnly?: boolean } = {}): React.JSX.Element {
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="mb-6 space-y-3">
-          <SkeletonLoader width="w-64" height="h-8" />
-          <SkeletonLoader width="w-96 max-w-full" height="h-4" />
-        </div>
-
-        <div className="mb-6 grid gap-3 sm:grid-cols-2">
-          {[0, 1].map((item) => (
-            <div
-              key={item}
-              className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
-            >
-              <SkeletonLoader
-                width="w-12"
-                height="h-12"
-                className="rounded-lg"
-              />
-              <div className="flex-1 space-y-2">
-                <SkeletonLoader width="w-40" height="h-5" />
-                <SkeletonLoader width="w-3/4" height="h-3" />
-              </div>
+    <div
+      className={contentOnly ? undefined : "min-h-full p-4 sm:p-6 lg:p-8"}
+      role="status"
+      aria-busy="true"
+    >
+      <div className={contentOnly ? undefined : "mx-auto max-w-[1600px]"}>
+        {!contentOnly && (
+          <>
+            <div className="mb-6 space-y-3">
+              <SkeletonLoader width="w-64" height="h-8" />
+              <SkeletonLoader width="w-96 max-w-full" height="h-4" />
             </div>
-          ))}
-        </div>
 
-        <div className="mb-4 flex items-end justify-between gap-4">
+            <div className="mb-6 grid gap-3 sm:grid-cols-2">
+              {[0, 1].map((item) => (
+                <div
+                  key={item}
+                  className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800"
+                >
+                  <SkeletonLoader
+                    width="w-12"
+                    height="h-12"
+                    className="rounded-lg"
+                  />
+                  <div className="flex-1 space-y-2">
+                    <SkeletonLoader width="w-40" height="h-5" />
+                    <SkeletonLoader width="w-3/4" height="h-3" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2">
             <SkeletonLoader width="w-64" height="h-7" />
             <SkeletonLoader width="w-80 max-w-full" height="h-4" />
@@ -177,36 +186,42 @@ export function AuditLogsViewSkeleton(): React.JSX.Element {
           </div>
         </div>
 
-        <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-5 dark:border-slate-700 dark:bg-slate-800">
-          {["xl:col-span-2", "", "", ""].map((className, item) => (
+        <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2 xl:grid-cols-6 dark:border-slate-700 dark:bg-slate-800">
+          {["xl:col-span-2", "", "", "", ""].map((className, item) => (
             <SkeletonLoader
               key={item}
               width="w-full"
-              height="h-10"
+              height="h-9"
               className={`rounded-lg ${className}`}
             />
           ))}
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-          <div className="border-b border-slate-200 p-4 dark:border-slate-700">
-            <SkeletonLoader width="w-full" height="h-5" />
+          <div className="h-[clamp(16rem,50dvh,42rem)] overflow-hidden">
+            <div className="border-b border-slate-200 p-4 dark:border-slate-700">
+              <SkeletonLoader width="w-full" height="h-5" />
+            </div>
+            <div className="space-y-0">
+              {Array.from({ length: 6 }).map((_, row) => (
+                <div
+                  key={row}
+                  className="grid grid-cols-5 gap-5 border-b border-slate-100 p-4 last:border-0 dark:border-slate-700/60"
+                >
+                  {Array.from({ length: 5 }).map((__, cell) => (
+                    <SkeletonLoader
+                      key={cell}
+                      width={cell === 1 ? "w-3/4" : "w-full"}
+                      height="h-4"
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-0">
-            {Array.from({ length: 6 }).map((_, row) => (
-              <div
-                key={row}
-                className="grid grid-cols-5 gap-5 border-b border-slate-100 p-4 last:border-0 dark:border-slate-700/60"
-              >
-                {Array.from({ length: 5 }).map((__, cell) => (
-                  <SkeletonLoader
-                    key={cell}
-                    width={cell === 1 ? "w-3/4" : "w-full"}
-                    height="h-4"
-                  />
-                ))}
-              </div>
-            ))}
+          <div className="flex justify-between border-t border-slate-200 px-4 py-3 dark:border-slate-700">
+            <SkeletonLoader width="w-24" height="h-6" />
+            <SkeletonLoader width="w-36" height="h-6" />
           </div>
         </div>
       </div>

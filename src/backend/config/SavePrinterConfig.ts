@@ -12,8 +12,18 @@ import {
   getConfiguredPrinters,
   getPrinterName,
   getPrinterRoutingConfig,
+  getPrinterTarget,
   upsertPrinter,
 } from "../printer/PrinterConfigs";
+
+const auditPrinter = (config: PrinterConfig) => ({
+  name: config.name ?? "",
+  type: config.type,
+  target:
+    config.type === "COM"
+      ? `${config.comPort ?? ""}@${config.baudRate ?? 9600}`
+      : getPrinterTarget(config),
+});
 
 export default function SavePrinterConfig(): void {
   ipcMain.handle(
@@ -79,6 +89,8 @@ export default function SavePrinterConfig(): void {
           action: "PRINTER_CONFIG_CHANGED",
           status: "success",
           details: {
+            before: previousConfig.type ? auditPrinter(previousConfig) : null,
+            after: auditPrinter(normalizedConfig),
             type: config.type,
             target:
               config.type === "IP"
@@ -185,7 +197,18 @@ export default function SavePrinterConfig(): void {
         category: "config",
         action: "PRINTER_CONFIG_CHANGED",
         status: "success",
-        details: { deletedPrinter: requestedName },
+        details: {
+          deletedPrinter: requestedName,
+          before: {
+            deletedPrinter: requestedName,
+            activePrinter: previousActive ? getPrinterName(previousActive) : "",
+            assignments: previousRouting.formatAssignments,
+          },
+          after: {
+            activePrinter: getPrinterName(store.get("printer")),
+            assignments: nextAssignments,
+          },
+        },
       });
 
       if (!auditPersisted) {
@@ -243,6 +266,8 @@ export default function SavePrinterConfig(): void {
         details: {
           previousPrinter: previous ? getPrinterName(previous) : "",
           printer: requestedName,
+          before: { activePrinter: previous ? getPrinterName(previous) : "" },
+          after: { activePrinter: requestedName },
         },
       });
       if (!auditPersisted) {

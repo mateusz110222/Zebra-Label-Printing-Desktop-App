@@ -208,6 +208,8 @@ export default function UpdatesHandler(
       status: "success",
       details: {
         enabled: enable,
+        before: { enabled: previousSetting },
+        after: { enabled: enable },
       },
     });
 

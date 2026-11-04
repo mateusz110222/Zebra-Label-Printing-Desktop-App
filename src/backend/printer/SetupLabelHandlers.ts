@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { createHash } from "node:crypto";
 import IpConnection from "../PrinterConnections/IpConnection";
 import COMConnection from "../PrinterConnections/COMConnection";
 import USBConnection from "../PrinterConnections/USBConnection";
@@ -13,7 +14,11 @@ import {
 } from "../audit/AuditLog";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
 import { beginPrinterBatch } from "./PrinterActivity";
-import { measurePrinterCounter } from "./PrinterDiagnostics";
+import { measurePrinterCounter, readCounter } from "./PrinterDiagnostics";
+import {
+  prepareAcknowledgedBatch,
+  sendAcknowledgedBatch,
+} from "./PrintAcknowledgements";
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { findPrinterForLabelFormat } from "./PrinterConfigs";
@@ -127,6 +132,7 @@ const executeAndLogBatch = async ({
   quantity: number;
   sentCount: number;
   failedCount: number;
+  verificationCodes: string[];
   auditPersisted: boolean;
   auditStatusMessage: string;
   printerReachable: boolean | undefined;
@@ -134,15 +140,30 @@ const executeAndLogBatch = async ({
   printerStatusMessage: string | undefined;
 }> => {
   const labelResults: AuditBatchLabel[] = [];
+  const verificationCodes: string[] = [];
 
   let sentCount = 0;
   let failedCount = 0;
 
   let lastSuccessfulResponse: ConnectionResult | undefined;
+  const fullSerial = ({ metadata }: GeneratedLabel): string =>
+    `${canonicalPart.Serial_Prefix}${metadata.julianDate}${metadata.serialNumber}`;
+  const ackBatch =
+    printer.type === "COM" || printer.type === "IP"
+      ? prepareAcknowledgedBatch(
+          labels.map((label) => ({
+            serial: fullSerial(label),
+            zpl: label.zpl,
+          })),
+        )
+      : null;
   const counterBefore =
     quantity > 1 && (printer.type === "COM" || printer.type === "IP")
       ? await measurePrinterCounter(printer)
       : null;
+  const acknowledgements = ackBatch
+    ? await sendAcknowledgedBatch(printer, ackBatch)
+    : null;
 
   for (let i = 0; i < labels.length; i++) {
     const label = labels[i];
@@ -150,7 +171,15 @@ const executeAndLogBatch = async ({
     let response: ConnectionResult;
 
     try {
-      response = await sendToPrinter(label.zpl, printer);
+      response = acknowledgements
+        ? i < acknowledgements.sentCount
+          ? { status: true, message: "backend.printer.label_sent_successfully" }
+          : {
+              status: false,
+              message: "backend.printer.send_error",
+              rawError: acknowledgements.error ?? undefined,
+            }
+        : await sendToPrinter(label.zpl, printer);
     } catch (error) {
       response = {
         status: false,
@@ -163,6 +192,8 @@ const executeAndLogBatch = async ({
 
     if (deliveryState === "sent") {
       sentCount++;
+      if (label.metadata.scanCode)
+        verificationCodes.push(label.metadata.scanCode);
       lastSuccessfulResponse = response;
     } else {
       failedCount++;
@@ -171,13 +202,12 @@ const executeAndLogBatch = async ({
     labelResults.push({
       batchPosition: i + 1,
       serialNumber: label.metadata.serialNumber,
-      fullSerialNumber:
-        `${canonicalPart.Serial_Prefix}` +
-        `${label.metadata.julianDate}` +
-        `${label.metadata.serialNumber}`,
+      fullSerialNumber: fullSerial(label),
       julianDate: label.metadata.julianDate,
       bmsDate: label.metadata.bmsDate,
-      zplSha256: label.metadata.zplSha256,
+      zplSha256: ackBatch
+        ? createHash("sha256").update(ackBatch.labels[i].zpl).digest("hex")
+        : label.metadata.zplSha256,
       deliveryState,
       printerMessage: response.message || null,
       printerError: response.rawError || null,
@@ -206,6 +236,7 @@ const executeAndLogBatch = async ({
     printerType: printer.type,
     printerTarget: getPrinterTarget(printer),
   };
+  if (acknowledgements) details.printerAcknowledgements = acknowledgements;
 
   if (quantity === 1) {
     const single = labelResults[0];
@@ -226,7 +257,18 @@ const executeAndLogBatch = async ({
     details.deliveryResult = deliveryResult;
     details.labels = labelResults;
     if (counterBefore) {
-      const counterAfter = await measurePrinterCounter(printer, quantity);
+      const counterAfter =
+        acknowledgements &&
+        acknowledgements.missing.length === 0 &&
+        !acknowledgements.error
+          ? await readCounter(printer).then(
+              (count) => ({ count, errors: [] }),
+              (error: Error) => ({ count: null, errors: [error.message] }),
+            )
+          : await measurePrinterCounter(
+              printer,
+              acknowledgements ? undefined : quantity,
+            );
       const before = counterBefore.count;
       const after = counterAfter.count;
       const delta =
@@ -277,6 +319,7 @@ const executeAndLogBatch = async ({
     quantity: labels.length,
     sentCount,
     failedCount,
+    verificationCodes,
     auditPersisted,
     auditStatusMessage: auditPersisted
       ? "backend.audit.storage_ready"
@@ -664,6 +707,14 @@ export default function SetupLabelHandlers(): void {
         serialNumber,
         quantity,
       );
+
+      if (
+        payload?.verifyScans === true &&
+        result.labels?.some((label) => !label.metadata.scanCode)
+      ) {
+        result.status = false;
+        result.message = "reprint.verify_template_unsupported";
+      }
 
       if (!result.status || !result.labels) {
         const auditPersisted = await logPrintFailure(

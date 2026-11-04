@@ -20,6 +20,7 @@ export function ScannedReprintView({
   const [preview, setPreview] = useState<string | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [expectedScan, setExpectedScan] = useState<string | null>(null);
   const [message, setMessage] = useState<UiMessage | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requests = useRef({ id: 0, mounted: false, printing: false });
@@ -33,9 +34,29 @@ export function ScannedReprintView({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isPrinting) inputRef.current?.focus();
+  }, [isPrinting, expectedScan]);
+
   const lookup = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (!input.trim() || isLookingUp || requests.current.printing) return;
+    if (expectedScan) {
+      const matches =
+        input.trim().toUpperCase() === expectedScan.trim().toUpperCase();
+      setInput("");
+      if (matches) {
+        setExpectedScan(null);
+        onPrintingChange(false);
+      }
+      setMessage({
+        type: matches ? "success" : "error",
+        text: t(matches ? "reprint.verify_success" : "reprint.verify_mismatch"),
+        details: expectedScan,
+      });
+      inputRef.current?.focus();
+      return;
+    }
     const request = ++requests.current.id;
     const current = (): boolean =>
       requests.current.mounted && request === requests.current.id;
@@ -84,7 +105,8 @@ export function ScannedReprintView({
   };
 
   const print = async (): Promise<void> => {
-    if (!label || isLookingUp || requests.current.printing) return;
+    if (!label || expectedScan || isLookingUp || requests.current.printing)
+      return;
     const now = new Date();
     if (
       (now.getHours() === 23 && now.getMinutes() >= 55) ||
@@ -100,6 +122,7 @@ export function ScannedReprintView({
     setIsPrinting(true);
     onPrintingChange(true);
     setMessage(null);
+    let requiresScan = false;
     try {
       const response = await window.api.ReprintLabel({
         part: label.part,
@@ -108,27 +131,21 @@ export function ScannedReprintView({
         quantity: 1,
       });
       if (!requests.current.mounted) return;
-      setMessage({
-        type:
-          response.status && response.auditPersisted !== false
-            ? "success"
-            : "error",
-        text: t(
-          response.message ||
-            (response.status
-              ? "backend.reprint.success"
-              : "backend.print.error"),
-        ),
-        details:
-          response.auditPersisted === false
-            ? t(
-                response.auditStatusMessage ||
-                  "backend.audit.storage_unavailable",
-              )
-            : response.rawError ||
-              (response.status ? label.fullSerialNumber : undefined),
-      });
+      if (!response.status || response.auditPersisted === false) {
+        setMessage({
+          type: "error",
+          text: t(
+            response.auditPersisted === false
+              ? response.auditStatusMessage ||
+                  "backend.audit.storage_unavailable"
+              : response.message || "backend.print.error",
+          ),
+          details: response.rawError,
+        });
+      }
       if (response.status) {
+        requiresScan = true;
+        setExpectedScan(label.fullSerialNumber);
         setLabel(null);
         setPreview(null);
         setInput("");
@@ -142,12 +159,9 @@ export function ScannedReprintView({
         });
     } finally {
       requests.current.printing = false;
-      onPrintingChange(false);
+      if (!requiresScan) onPrintingChange(false);
       if (requests.current.mounted) {
         setIsPrinting(false);
-        window.setTimeout(() => {
-          if (requests.current.mounted) inputRef.current?.focus();
-        }, 0);
       }
     }
   };
@@ -167,17 +181,39 @@ export function ScannedReprintView({
         </p>
       </div>
 
+      {message && (
+        <div className="mb-4" aria-live="polite">
+          <StatusBanner
+            type={message.type}
+            message={message.text}
+            details={message.details}
+            onClose={() => {
+              setMessage(null);
+              inputRef.current?.focus();
+            }}
+          />
+        </div>
+      )}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <form
           onSubmit={(event) => void lookup(event)}
-          className="border-b border-slate-100 p-5 dark:border-slate-700 sm:p-8"
+          className="p-5 sm:p-8"
         >
           <label
             htmlFor="reprint-scan"
             className="mb-3 block text-sm font-bold"
           >
-            {t("reprint.scan_input")}
+            {t(expectedScan ? "reprint.verify_title" : "reprint.scan_input")}
           </label>
+          {expectedScan && (
+            <p
+              role="status"
+              className="mb-3 text-sm font-semibold text-amber-800 dark:text-amber-300"
+            >
+              {t("reprint.verify_pending")} ·{" "}
+              <span className="break-all font-mono">{expectedScan}</span>
+            </p>
+          )}
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative min-w-0 flex-1">
               <FiMaximize
@@ -187,7 +223,6 @@ export function ScannedReprintView({
               <input
                 id="reprint-scan"
                 ref={inputRef}
-                autoFocus
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={256}
@@ -200,7 +235,7 @@ export function ScannedReprintView({
                   setPreview(null);
                   setMessage(null);
                 }}
-                placeholder="PC66849999A262780009"
+                placeholder={expectedScan ? undefined : "PC66849999A262780009"}
                 aria-describedby="reprint-scan-hint"
                 className="w-full rounded-xl border border-slate-300 bg-slate-50 py-4 pl-12 pr-4 font-mono text-base tracking-wide text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-white sm:text-lg"
               />
@@ -212,7 +247,11 @@ export function ScannedReprintView({
             >
               <FiSearch />
               {t(
-                isLookingUp ? "reprint.scan_searching" : "reprint.scan_lookup",
+                expectedScan
+                  ? "reprint.verify_action"
+                  : isLookingUp
+                    ? "reprint.scan_searching"
+                    : "reprint.scan_lookup",
               )}
             </button>
           </div>
@@ -220,96 +259,93 @@ export function ScannedReprintView({
             id="reprint-scan-hint"
             className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400"
           >
-            {t("reprint.scan_hint")}
+            {t(expectedScan ? "reprint.verify_hint" : "reprint.scan_hint")}
           </p>
         </form>
 
-        <div
-          className="p-5 sm:p-8"
-          aria-live="polite"
-          aria-busy={isLookingUp || isPrinting}
-        >
-          {message && (
-            <StatusBanner
-              type={message.type}
-              message={message.text}
-              details={message.details}
-              onClose={() => setMessage(null)}
-            />
-          )}
-          {label ? (
-            <div>
-              <div className="mb-5 flex items-center gap-2 text-sm font-bold text-teal-700 dark:text-teal-300">
-                <FiCheckCircle />
-                {t("reprint.scan_found")}
-              </div>
-              <p className="mb-2 break-all font-mono text-xl font-bold tracking-wide sm:text-2xl">
-                {label.fullSerialNumber}
-              </p>
-              <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
-                {label.part.Part_Description}
-              </p>
-              <dl className="mb-6 grid grid-cols-2 gap-5 rounded-xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/50 sm:grid-cols-3">
-                {[
-                  [t("print_view.part_selection"), label.part.Part_Number],
-                  [t("reprint.date"), label.date],
-                  [t("reprint.serialnumber"), label.serialNumber],
-                  [t("reprint.scan_template"), label.part.Label_Format],
-                  [t("reprint.scan_printer"), label.assignedPrinter],
-                  [t("reprint.scan_quantity"), "1"],
-                ].map(([title, value]) => (
-                  <div key={title} className="min-w-0">
-                    <dt className="mb-1 text-xs text-slate-500 dark:text-slate-400">
-                      {title}
-                    </dt>
-                    <dd className="break-all font-mono text-sm font-semibold">
-                      {value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <LabelPreview
-                isLoading={isLookingUp}
-                previewImage={preview}
-                notice={t("reprint.scan_single_copy")}
-              />
-              <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-700 sm:flex-row">
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t("reprint.scan_single_copy")}
-                </p>
-                <button
-                  type="button"
-                  disabled={isPrinting || isLookingUp}
-                  onClick={() => void print()}
-                  className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-600 disabled:cursor-wait disabled:opacity-50 dark:bg-teal-600 dark:hover:bg-teal-500 sm:w-auto"
-                >
-                  <FiPrinter />
-                  {t(
-                    isPrinting ? "print_view.printing" : "reprint.print_label",
-                  )}
-                </button>
-              </div>
-            </div>
-          ) : (
-            !message && (
-              <div className="flex flex-col items-center px-4 py-14 text-center">
-                <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-500">
-                  <FiMaximize size={38} />
+        {(label || (!message && !expectedScan)) && (
+          <div
+            className="border-t border-slate-100 p-5 dark:border-slate-700 sm:p-8"
+            aria-live="polite"
+            aria-busy={isLookingUp || isPrinting}
+          >
+            {label ? (
+              <div>
+                <div className="mb-5 flex items-center gap-2 text-sm font-bold text-teal-700 dark:text-teal-300">
+                  <FiCheckCircle />
+                  {t("reprint.scan_found")}
                 </div>
-                <p className="text-base font-semibold">
-                  {t(
-                    isLookingUp
-                      ? "reprint.scan_searching"
-                      : "reprint.scan_waiting",
-                  )}
+                <p className="mb-2 break-all font-mono text-xl font-bold tracking-wide sm:text-2xl">
+                  {label.fullSerialNumber}
                 </p>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  {t("reprint.scan_empty_hint")}
+                <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
+                  {label.part.Part_Description}
                 </p>
+                <dl className="mb-6 grid grid-cols-2 gap-5 rounded-xl border border-slate-100 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/50 sm:grid-cols-3">
+                  {[
+                    [t("print_view.part_selection"), label.part.Part_Number],
+                    [t("reprint.date"), label.date],
+                    [t("reprint.serialnumber"), label.serialNumber],
+                    [t("reprint.scan_template"), label.part.Label_Format],
+                    [t("reprint.scan_printer"), label.assignedPrinter],
+                    [t("reprint.scan_quantity"), "1"],
+                  ].map(([title, value]) => (
+                    <div key={title} className="min-w-0">
+                      <dt className="mb-1 text-xs text-slate-500 dark:text-slate-400">
+                        {title}
+                      </dt>
+                      <dd className="break-all font-mono text-sm font-semibold">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <LabelPreview
+                  isLoading={isLookingUp}
+                  previewImage={preview}
+                  notice={t("reprint.scan_single_copy")}
+                />
+                <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 dark:border-slate-700 sm:flex-row">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t("reprint.scan_single_copy")}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isPrinting || isLookingUp}
+                    onClick={() => void print()}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-teal-600 disabled:cursor-wait disabled:opacity-50 dark:bg-teal-600 dark:hover:bg-teal-500 sm:w-auto"
+                  >
+                    <FiPrinter />
+                    {t(
+                      isPrinting
+                        ? "print_view.printing"
+                        : "reprint.print_label",
+                    )}
+                  </button>
+                </div>
               </div>
-            )
-          )}
-        </div>
+            ) : (
+              !message &&
+              !expectedScan && (
+                <div className="flex flex-col items-center px-4 py-14 text-center">
+                  <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-500">
+                    <FiMaximize size={38} />
+                  </div>
+                  <p className="text-base font-semibold">
+                    {t(
+                      isLookingUp
+                        ? "reprint.scan_searching"
+                        : "reprint.scan_waiting",
+                    )}
+                  </p>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    {t("reprint.scan_empty_hint")}
+                  </p>
+                </div>
+              )
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

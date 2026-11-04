@@ -89,6 +89,14 @@ export default function PrinterRoutingConfigHandler(): void {
           details: {
             mode: normalized.data.mode,
             assignments: normalized.data.formatAssignments,
+            before: {
+              mode: previous.mode,
+              assignments: previous.formatAssignments,
+            },
+            after: {
+              mode: normalized.data.mode,
+              assignments: normalized.data.formatAssignments,
+            },
           },
         });
 

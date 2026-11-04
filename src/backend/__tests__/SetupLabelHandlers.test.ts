@@ -598,7 +598,7 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
     it("does not send printer data when reprint ZPL generation fails", async () => {
       mocks.generateReprintZPL.mockResolvedValueOnce({
         status: false,
-        message: "backend.print.reprint_serial_not_reserved",
+        message: "backend.print.template_not_found",
       });
 
       const result = await getHandler("reprint-label")(createEvent(), {
@@ -610,7 +610,7 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
 
       expect(result).toMatchObject({
         status: false,
-        message: "backend.print.reprint_serial_not_reserved",
+        message: "backend.print.template_not_found",
       });
       expect(mocks.ipConnection).not.toHaveBeenCalled();
       expect(mocks.appendAuditLog).toHaveBeenCalledWith(

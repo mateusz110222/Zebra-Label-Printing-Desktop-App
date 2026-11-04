@@ -117,14 +117,14 @@ describe("scanned reprint", () => {
     );
   });
 
-  it("propagates the existing unreserved-serial validation", async () => {
+  it("propagates a missing template error", async () => {
     mocks.generate.mockResolvedValueOnce({
       status: false,
-      message: "backend.print.reprint_serial_not_reserved",
+      message: "backend.print.template_not_found",
     });
     expect(await resolveScannedReprint("PC66849999A262780009")).toMatchObject({
       status: false,
-      message: "backend.print.reprint_serial_not_reserved",
+      message: "backend.print.template_not_found",
     });
   });
 

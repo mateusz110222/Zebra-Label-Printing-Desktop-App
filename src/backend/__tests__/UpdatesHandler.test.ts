@@ -450,6 +450,8 @@ describe("UpdatesHandler", () => {
         status: "success",
         details: {
           enabled: true,
+          before: { enabled: false },
+          after: { enabled: true },
         },
       });
     });

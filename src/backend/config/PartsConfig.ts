@@ -152,6 +152,25 @@ export default function PartsConfigHandler(): void {
           server: normalized.data.server,
           configPath: normalized.data.configPath,
           localPartsCount: normalized.data.localParts.length,
+          before: previousConfig
+            ? {
+                source: previousConfig.source,
+                operation: previousConfig.operation,
+                server: previousConfig.server,
+                configPath: previousConfig.configPath,
+                localPartsCount: previousConfig.localParts.length,
+              }
+            : null,
+          after: {
+            source: normalized.data.source,
+            operation: normalized.data.operation,
+            server: normalized.data.server,
+            configPath: normalized.data.configPath,
+            localPartsCount: normalized.data.localParts.length,
+          },
+          localPartsChanged:
+            JSON.stringify(previousConfig?.localParts ?? []) !==
+            JSON.stringify(normalized.data.localParts),
         },
       });
 

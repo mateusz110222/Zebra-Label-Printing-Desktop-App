@@ -437,6 +437,7 @@ export const usePrintLabel = (mode: string): UsePrintLabelReturn => {
               quantity: qty,
               serialNumber: serialNumber,
               date,
+              verifyScans: true,
             })
           : await window.api.PrintLabel({
               part: selectedPart,
