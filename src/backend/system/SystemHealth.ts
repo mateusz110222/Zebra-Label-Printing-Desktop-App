@@ -228,8 +228,19 @@ export default function SystemHealthHandler(): void {
             rawError: rawErrors.length > 0 ? rawErrors.join("\n") : undefined,
           };
         } catch (error) {
-          const rawError =
-            error instanceof Error ? error.message : String(error);
+          const message = ["backend.health.database_error"];
+          let rawError = error instanceof Error ? error.message : String(error);
+          if (
+            error instanceof Error &&
+            (error.message === "backend.config.database_initialization_failed" ||
+              error.message === "backend.config.database_missing_config")
+          ) {
+            message.push(error.message);
+            rawError =
+              "rawError" in error && typeof error.rawError === "string"
+                ? error.rawError
+                : "";
+          }
 
           return {
             status: false,
@@ -244,7 +255,7 @@ export default function SystemHealthHandler(): void {
             timeDriftMs: null,
             serverTimeMs: null,
             computerTimeMs: Date.now(),
-            message: ["backend.health.database_error"],
+            message,
             rawError,
           };
         }

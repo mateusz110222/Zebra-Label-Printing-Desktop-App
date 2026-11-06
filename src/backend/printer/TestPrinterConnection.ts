@@ -13,7 +13,7 @@ import {
   checkAuditLogWritable,
 } from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
-import { beginPrinterBatch, getStatusWithoutQuery } from "./PrinterActivity";
+import { beginPrinterBatch } from "./PrinterActivity";
 
 const getPrinterTarget = (config: PrinterConfig): string =>
   config.type === "IP"
@@ -70,6 +70,7 @@ export default function TestPrinterConnection(): void {
   ipcMain.handle(
     "test-printer-connection",
     async (event, candidate?: PrinterConfig) => {
+      let endBatch: (() => void) | undefined;
       try {
         if (!isMainRendererAuthorized(event)) {
           return { status: false, message: "backend.audit.unauthorized" };
@@ -128,27 +129,23 @@ export default function TestPrinterConnection(): void {
           };
         }
 
-        const endBatch = await beginPrinterBatch(getStatusWithoutQuery());
+        endBatch = await beginPrinterBatch();
         let response;
-        try {
-          switch (config.type) {
-            case "IP":
-              response = await IpConnection(config, template);
-              break;
-            case "COM":
-              response = await COMConnection(config, template);
-              break;
-            case "USB":
-              response = await USBConnection(config, template);
-              break;
-            default:
-              response = {
-                status: false,
-                message: "backend.printer.unknown_connection",
-              };
-          }
-        } finally {
-          endBatch();
+        switch (config.type) {
+          case "IP":
+            response = await IpConnection(config, template);
+            break;
+          case "COM":
+            response = await COMConnection(config, template);
+            break;
+          case "USB":
+            response = await USBConnection(config, template);
+            break;
+          default:
+            response = {
+              status: false,
+              message: "backend.printer.unknown_connection",
+            };
         }
 
         const auditPersisted = await appendAuditLog({
@@ -195,6 +192,8 @@ export default function TestPrinterConnection(): void {
           message: "backend.config_view.test_error",
           rawError,
         };
+      } finally {
+        endBatch?.();
       }
     },
   );

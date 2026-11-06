@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App.git"
   },
-  "version": "1.4.7",
+  "version": "1.5.0",
   "description": "Aplication for printing labels",
   "main": "./out/main/index.js",
   "publish": [
@@ -36,7 +36,6 @@
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
-    "build:icons": "electron-icon-builder --input=./icon.png --output=./ --flatten",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -46,7 +45,6 @@
     "release:patch": "standard-version --release-as patch"
   },
   "dependencies": {
-    "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@maxxuxx/node-printer": "^1.6.6",
     "@tailwindcss/vite": "^4.3.3",
@@ -75,7 +73,6 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/semver": "^7.8.0",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.1.1",
     "electron-builder": "^26.15.7",

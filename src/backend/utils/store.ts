@@ -11,7 +11,7 @@ export interface PrinterConfig {
 }
 
 export interface DatabaseConfig {
-  sslMode?: "default" | "required" | "disabled";
+  sslMode?: "default" | "required" | "self_signed" | "disabled";
   host?: string;
   user?: string;
   password?: string;

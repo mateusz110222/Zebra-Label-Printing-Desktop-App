@@ -14,6 +14,7 @@ const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
 export default function UpdatesHandler(
   mainWindow: Electron.BrowserWindow,
+  requestRestart: (install: () => void) => void,
 ): void {
   autoUpdater.autoDownload = store.get("autoUpdate");
 
@@ -161,14 +162,15 @@ export default function UpdatesHandler(
     });
   });
 
+  let updateDownloaded = false;
   autoUpdater.on("update-downloaded", () => {
+    updateDownloaded = true;
     sendToWindow("update_downloaded");
   });
 
   ipcMain.on("restart_app", (event): void => {
     if (!isMainRendererAuthorized(event)) return;
-
-    autoUpdater.quitAndInstall();
+    if (updateDownloaded) requestRestart(() => autoUpdater.quitAndInstall());
   });
 
   ipcMain.handle("set-auto-update", async (event, enable: unknown) => {

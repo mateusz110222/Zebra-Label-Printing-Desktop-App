@@ -6,6 +6,7 @@ import {
   canViewAuditLogs,
   clearAuditSession,
   getAuditActor,
+  onAuditSessionExpired,
   setAuditSession,
 } from "../audit/AuditSession";
 
@@ -130,6 +131,22 @@ describe("AuditSession", () => {
   });
 
   describe("session expiration", () => {
+    it("notifies once at expiry without a permission check from the renderer", () => {
+      const listener = vi.fn();
+      const unsubscribe = onAuditSessionExpired(listener);
+      try {
+        const expiresAt = setAuditSession("IT User", true);
+        vi.advanceTimersByTime(AUDIT_SESSION_TTL_MS - 1);
+        expect(listener).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(listener).toHaveBeenCalledExactlyOnceWith(expiresAt);
+        expect(canViewAuditLogs()).toBe(false);
+        expect(listener).toHaveBeenCalledTimes(1);
+      } finally {
+        unsubscribe();
+      }
+    });
+
     it("uses a fixed 30 minute TTL without extending it during permission checks", () => {
       setAuditSession("IT User", true);
 

@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -34,8 +35,10 @@ export function AuthProvider({
   const [canConfigurePrinter, setCanConfigurePrinter] =
     useState<boolean>(false);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const sessionVersion = useRef(0);
 
   const clearLogin = useCallback((): void => {
+    sessionVersion.current++;
     setLoginState(null);
     setIsLoggedIn(false);
     setCanEdit(false);
@@ -43,25 +46,30 @@ export function AuthProvider({
     setExpiresAt(null);
   }, []);
 
+  const syncSession = useCallback(async (): Promise<void> => {
+    const version = sessionVersion.current;
+    const active = await window.api.HasActiveSession().catch(() => undefined);
+    if (active === false && version === sessionVersion.current) clearLogin();
+  }, [clearLogin]);
+
   useEffect(() => {
     if (expiresAt === null) return;
 
-    // Use the backend deadline; checking on resume also covers suspended PCs.
-    const checkExpiration = (): void => {
-      if (Date.now() >= expiresAt) clearLogin();
+    const unsubscribe = window.api.OnSessionExpired((expiredDeadline) => {
+      if (expiredDeadline === expiresAt) clearLogin();
+    });
+    const checkSession = (): void => {
+      if (document.visibilityState === "visible") void syncSession();
     };
-    const timer = window.setTimeout(
-      checkExpiration,
-      Math.max(0, expiresAt - Date.now()),
-    );
-    window.addEventListener("focus", checkExpiration);
-    document.addEventListener("visibilitychange", checkExpiration);
+    void syncSession();
+    window.addEventListener("focus", checkSession);
+    document.addEventListener("visibilitychange", checkSession);
     return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("focus", checkExpiration);
-      document.removeEventListener("visibilitychange", checkExpiration);
+      unsubscribe();
+      window.removeEventListener("focus", checkSession);
+      document.removeEventListener("visibilitychange", checkSession);
     };
-  }, [clearLogin, expiresAt]);
+  }, [clearLogin, expiresAt, syncSession]);
 
   const setLogin = (
     loginValue: string,
@@ -69,6 +77,7 @@ export function AuthProvider({
     printerAccess: boolean,
     sessionExpiresAt: number,
   ): void => {
+    sessionVersion.current++;
     setLoginState(loginValue);
     setCanEdit(CanEdit);
     setCanConfigurePrinter(printerAccess);

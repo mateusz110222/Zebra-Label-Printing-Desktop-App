@@ -104,7 +104,7 @@ export default function useSettingsMenu(
   useEffect(() => {
     let isMounted = true;
 
-    const fetchVersions = async (): Promise<void> => {
+    const fetchLocalVersion = async (): Promise<void> => {
       try {
         const ver = await window.api.GetAppVersion();
         if (isMounted) {
@@ -114,24 +114,9 @@ export default function useSettingsMenu(
         console.warn("Failed to get app version", e);
         if (isMounted) setLocalVersion("0.0.0");
       }
-
-      try {
-        const ghVer = await window.api.GetGithubVersion();
-
-        if (isMounted) {
-          if (ghVer.status && ghVer.data) {
-            setGithubVersion(ghVer.data);
-          } else {
-            setGithubVersion("-");
-          }
-        }
-      } catch (e) {
-        if (isMounted) setGithubVersion("-");
-        console.error("GitHub version check skipped or failed:", e);
-      }
     };
 
-    fetchVersions();
+    fetchLocalVersion();
 
     return () => {
       isMounted = false;

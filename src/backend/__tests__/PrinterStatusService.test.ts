@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SetupPrinterStatusHandlers, {
   broadcastPrinterStatus,
+  getLatestFleetStatus,
   queryPrinterStatusSingleFlight,
   refreshAndBroadcastPrinterStatus,
   startPrinterStatusPoller,
   stopPrinterStatusPoller,
 } from "../printer/PrinterStatusService";
+import { beginPrinterBatch } from "../printer/PrinterActivity";
 
 const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -124,5 +126,19 @@ describe("PrinterStatusService", () => {
       expect.objectContaining({ ready: true }),
     );
     stopPrinterStatusPoller();
+  });
+
+  it("preserves the last measured fleet reading while a print is active", async () => {
+    await refreshAndBroadcastPrinterStatus();
+    const reading = getLatestFleetStatus();
+    const finish = await beginPrinterBatch();
+    try {
+      mocks.queryPrinterStatus.mockClear();
+      await refreshAndBroadcastPrinterStatus();
+      expect(mocks.queryPrinterStatus).not.toHaveBeenCalled();
+      expect(getLatestFleetStatus()).toBe(reading);
+    } finally {
+      finish();
+    }
   });
 });

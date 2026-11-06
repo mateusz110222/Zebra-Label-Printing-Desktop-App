@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stanowiska · Druk etykiet</title>
+    <link rel="stylesheet" href="/stations/stations.css" />
+    <script src="/stations/stations.js" defer></script>
+  </head>
+  <body>
+    <header class="shell">
+      <a class="brand" href="/d/label-it"
+        ><span class="label-mark" aria-hidden="true"></span>Druk etykiet
+        <span class="muted">/ Monitoring</span></a
+      >
+      <nav aria-label="Monitoring">
+        <a href="/d/label-it">Przegląd</a
+        ><a href="/stations/" aria-current="page">Stanowiska</a>
+      </nav>
+    </header>
+    <main>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">Dostęp IT</p>
+          <h1>Stanowiska</h1>
+          <p class="muted">
+            Podłącz aplikację drukującą i zarządzaj jej dostępem do monitoringu.
+          </p>
+        </div>
+        <button type="button" id="refresh">Odśwież listę</button>
+      </div>
+      <p id="message" role="status" aria-live="polite">Sprawdzanie sesji…</p>
+      <section aria-labelledby="add-title" class="add-section">
+        <h2 id="add-title">Dodaj stanowisko</h2>
+        <form id="add-form">
+          <fieldset disabled id="add-fields">
+            <div class="field">
+              <label for="name">Nazwa stanowiska</label
+              ><input
+                id="name"
+                name="name"
+                required
+                maxlength="255"
+                placeholder="Drukarka przy linii AUDI"
+                autocomplete="off"
+              />
+            </div>
+            <div class="field">
+              <label for="stationId">Identyfikator</label
+              ><input
+                id="stationId"
+                name="stationId"
+                required
+                pattern="[a-zA-Z0-9_\-]{1,64}"
+                maxlength="64"
+                placeholder="audi-linia-01"
+                autocomplete="off"
+                aria-describedby="id-help"
+              /><small id="id-help"
+                >Litery, cyfry, myślniki lub podkreślenia.</small
+              >
+            </div>
+            <button class="primary" type="submit">
+              Dodaj i wygeneruj token
+            </button>
+          </fieldset>
+        </form>
+      </section>
+      <section id="secret" hidden aria-labelledby="secret-title" tabindex="-1">
+        <div class="section-heading">
+          <h2 id="secret-title">Konfiguracja stanowiska</h2>
+          <button type="button" id="hide-secret">Ukryj token</button>
+        </div>
+        <p>
+          Token jest widoczny tylko teraz. Skopiuj konfigurację do ustawień
+          monitoringu w aplikacji drukującej.
+        </p>
+        <dl>
+          <div>
+            <dt>Adres serwera</dt>
+            <dd id="server-url"></dd>
+          </div>
+          <div>
+            <dt>Identyfikator</dt>
+            <dd id="new-id"></dd>
+          </div>
+        </dl>
+        <label for="token">Token</label>
+        <div class="token-row">
+          <input
+            id="token"
+            readonly
+            autocomplete="off"
+            spellcheck="false"
+          /><button type="button" id="copy-token">Kopiuj token</button>
+        </div>
+        <label for="configuration">Pełna konfiguracja JSON</label
+        ><textarea
+          id="configuration"
+          readonly
+          rows="7"
+          spellcheck="false"
+        ></textarea
+        ><button class="primary" type="button" id="copy-config">
+          Kopiuj konfigurację
+        </button>
+      </section>
+      <section aria-labelledby="list-title">
+        <div class="section-heading">
+          <h2 id="list-title">
+            Zarejestrowane stanowiska <span id="count" class="muted"></span>
+          </h2>
+          <p class="muted">Blokada i zmiana tokena działają od razu.</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Stanowisko</th>
+                <th scope="col">Dostęp</th>
+                <th scope="col">Ostatni kontakt</th>
+                <th scope="col">Działania</th>
+              </tr>
+            </thead>
+            <tbody id="stations">
+              <tr>
+                <td colspan="4">Ładowanie stanowisk…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <p class="footer-note">
+        Zmiana tokena zachowuje historię wydruków. Nowy token trzeba zapisać w
+        aplikacji na stanowisku.
+      </p>
+    </main>
+    <dialog
+      id="confirmation"
+      aria-labelledby="confirm-title"
+      aria-describedby="confirm-message"
+    >
+      <form method="dialog">
+        <h2 id="confirm-title">Potwierdzenie</h2>
+        <p id="confirm-message"></p>
+        <div class="dialog-actions">
+          <button value="cancel" autofocus>Anuluj</button
+          ><button value="confirm" class="primary" id="confirm-button">
+            Potwierdź
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

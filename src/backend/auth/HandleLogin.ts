@@ -2,6 +2,7 @@ import { app, ipcMain } from "electron";
 import { constants } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { hasActiveAuditSession } from "../audit/AuditSession";
 import { Client, type ClientOptions } from "ldapts";
 import {
   appendAuditLog,
@@ -302,6 +303,10 @@ export default function HandleLogin(): void {
         await safeUnbind(client);
       }
     },
+  );
+
+  ipcMain.handle("has-active-session", (event) =>
+    isMainRendererAuthorized(event) ? hasActiveAuditSession() : undefined,
   );
 
   ipcMain.handle("handle-logout", async (event) => {

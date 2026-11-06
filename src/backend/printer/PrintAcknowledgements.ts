@@ -3,6 +3,10 @@ import { Socket } from "node:net";
 import { SerialPort } from "serialport";
 import type { PrinterConfig } from "../utils/store";
 
+const IO_TIMEOUT_MS = 10000;
+const NO_ACK_PROGRESS_TIMEOUT_MS = 20000;
+const MAX_ACK_WAIT_MS = 300000;
+
 interface Label {
   serial: string;
   zpl: string;
@@ -15,11 +19,24 @@ export function prepareAcknowledgedBatch(
   const prepared: Label[] = [];
   for (const { serial, zpl } of labels) {
     const field = `^FD${serial}^FS`;
-    const index = zpl.indexOf(field);
+    let index = -1;
+    let start = 0;
+    for (const delimiter of zpl.matchAll(/\^FS/gi)) {
+      const end = delimiter.index + delimiter[0].length;
+      const segment = zpl.slice(start, end);
+      start = end;
+      if (
+        segment.endsWith(field) &&
+        /\^B(?!Y)[A-Z0-9]/i.test(segment.slice(0, -field.length)) &&
+        !/\^FN/i.test(segment)
+      ) {
+        if (index >= 0) return null;
+        index = end - field.length;
+      }
+    }
     if (
-      !/^[A-Z0-9]{1,256}$/.test(serial) ||
+      !/^[A-Z0-9 ]{1,256}$/.test(serial) ||
       index < 0 ||
-      index !== zpl.lastIndexOf(field) ||
       /\^FN\s*0*9999(?!\d)/i.test(zpl) ||
       (zpl.match(/\^XA/gi)?.length ?? 0) !== 1 ||
       (zpl.match(/\^XZ/gi)?.length ?? 0) !== 1
@@ -28,12 +45,10 @@ export function prepareAcknowledgedBatch(
 
     prepared.push({
       serial,
-      zpl: zpl
-        .replace(field, `^FN9999${field}`)
-        .replace(
-          /\^XZ/i,
-          `^FH_^HV9999,${serial.length},${marker}[,]_0D_0A,L^FS^XZ`,
-        ),
+      zpl: `${zpl.slice(0, index)}^FN9999${zpl.slice(index)}`.replace(
+        /\^XZ/i,
+        `^FH_^HV9999,${serial.length},${marker}[,]_0D_0A,L^FS^XZ`,
+      ),
     });
   }
   if (new Set(prepared.map(({ serial }) => serial)).size !== prepared.length)
@@ -60,10 +75,24 @@ export function sendAcknowledgedBatch(
     let buffer = "";
     let finished = false;
     let close = (done: () => void): void => done();
-    const timeout = setTimeout(
-      () => finish(new Error("Timed out waiting for printer acknowledgements")),
-      20000 + labels.length * 500,
-    );
+    let timeout: ReturnType<typeof setTimeout>;
+    let ackDeadline: number | undefined;
+
+    function armTimeout(ms: number, message: string): void {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => finish(new Error(message)), ms);
+    }
+
+    function waitForAcknowledgements(): void {
+      if (ackDeadline === undefined) return;
+      armTimeout(
+        Math.min(
+          NO_ACK_PROGRESS_TIMEOUT_MS,
+          Math.max(0, ackDeadline - Date.now()),
+        ),
+        "Timed out waiting for printer acknowledgements",
+      );
+    }
 
     function finish(error?: Error | null): void {
       if (finished) return;
@@ -87,6 +116,7 @@ export function sendAcknowledgedBatch(
 
     function receive(chunk: Buffer): void {
       if (finished) return;
+      const previousCount = confirmed.size;
       buffer += chunk.toString("ascii");
       let end: number;
       while ((end = buffer.indexOf("\n")) >= 0) {
@@ -99,6 +129,7 @@ export function sendAcknowledgedBatch(
         confirmed.add(serial);
       }
       if (buffer.length > 4096) buffer = buffer.slice(-512);
+      if (confirmed.size > previousCount) waitForAcknowledgements();
       completeIfReady();
     }
 
@@ -106,10 +137,23 @@ export function sendAcknowledgedBatch(
     function sendNext(write: Write): void {
       if (finished) return;
       if (sentCount === labels.length) {
+        ackDeadline = Date.now() + MAX_ACK_WAIT_MS;
+        waitForAcknowledgements();
         completeIfReady();
         return;
       }
-      write(labels[sentCount].zpl, (error) => {
+      const { zpl } = labels[sentCount];
+      const wireTimeMs =
+        config.type === "COM"
+          ? Math.ceil(
+              (Buffer.byteLength(zpl) * 10000) / (config.baudRate || 9600),
+            )
+          : 0;
+      armTimeout(
+        IO_TIMEOUT_MS + wireTimeMs,
+        "Timed out sending label to printer",
+      );
+      write(zpl, (error) => {
         if (finished) return;
         if (error) finish(error);
         else {
@@ -119,6 +163,7 @@ export function sendAcknowledgedBatch(
       });
     }
 
+    armTimeout(IO_TIMEOUT_MS, "Timed out opening printer connection");
     try {
       if (config.type === "COM" && config.comPort) {
         const port = new SerialPort({

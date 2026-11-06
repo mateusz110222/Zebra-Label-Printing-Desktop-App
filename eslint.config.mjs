@@ -30,4 +30,8 @@ export default defineConfig(
     },
   },
   eslintConfigPrettier,
+  {
+    files: ["monitoring/**/*.{js,mjs}"],
+    rules: { "@typescript-eslint/explicit-function-return-type": "off" },
+  },
 );

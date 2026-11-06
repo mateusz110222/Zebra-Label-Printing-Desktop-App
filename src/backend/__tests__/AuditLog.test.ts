@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type AuditLogEntry, readAuditLogs } from "../audit/AuditLog";
+import type { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
+import { unlinkSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import type { AuditLogEntry } from "../audit/AuditLog";
+
+let audit: typeof import("../audit/AuditLog");
+let readAuditLogs: typeof audit.readAuditLogs;
 
 const mocks = vi.hoisted(() => ({
   mkdir: vi.fn(),
   readdir: vi.fn(),
   readFile: vi.fn(),
-  open: vi.fn(),
-  unlink: vi.fn(),
+  databases: [] as DatabaseSync[],
+  databasePath: ":memory:",
 }));
 
 vi.mock("electron", () => ({
@@ -25,10 +33,20 @@ vi.mock("node:fs/promises", async (importOriginal) => {
     ...actual,
 
     mkdir: mocks.mkdir,
-    open: mocks.open,
     readdir: mocks.readdir,
     readFile: mocks.readFile,
-    unlink: mocks.unlink,
+  };
+});
+
+vi.mock("node:sqlite", async (importOriginal) => {
+  const { DatabaseSync } = await importOriginal<typeof import("node:sqlite")>();
+  return {
+    DatabaseSync: class extends DatabaseSync {
+      constructor() {
+        super(mocks.databasePath);
+        mocks.databases.push(this);
+      }
+    },
   };
 });
 
@@ -37,7 +55,7 @@ const entry = (
   timestamp: string,
   overrides: Partial<AuditLogEntry> = {},
 ): AuditLogEntry => ({
-  id: action,
+  id: `${action}:${timestamp}`,
   timestamp,
   category: "print",
   action,
@@ -56,8 +74,12 @@ const asJsonl = (entries: AuditLogEntry[]): string =>
   entries.map((auditEntry) => JSON.stringify(auditEntry)).join("\n");
 
 describe("readAuditLogs", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    for (const db of mocks.databases.splice(0)) db.close();
+    vi.resetModules();
+    vi.resetAllMocks();
+    audit = await import("../audit/AuditLog");
+    readAuditLogs = audit.readAuditLogs;
 
     mocks.mkdir.mockResolvedValue(undefined);
 
@@ -74,6 +96,24 @@ describe("readAuditLogs", () => {
         entry("LABEL_SEND_FAILED", "2026-08-18T08:00:03.000Z"),
       ]),
     );
+  });
+
+  it("keeps the requested newest page and exact total when trimming a large result", async () => {
+    const records = Array.from({ length: 2500 }, (_, index) =>
+      entry(
+        "PRINT",
+        new Date(Date.UTC(2026, 7, 18, 0, 0, index)).toISOString(),
+        { id: String(index) },
+      ),
+    );
+    mocks.readFile.mockResolvedValueOnce(asJsonl(records));
+    const result = await readAuditLogs({ page: 2, pageSize: 3 });
+    expect(result.total).toBe(2500);
+    expect(result.entries.map(({ id }) => id)).toEqual([
+      "2496",
+      "2495",
+      "2494",
+    ]);
   });
 
   describe("internal records", () => {
@@ -211,30 +251,55 @@ describe("readAuditLogs", () => {
       );
     });
 
-    it("reads newest filenames first", async () => {
-      mocks.readdir.mockResolvedValue([
-        "print-2026-08-17.jsonl",
-        "print-2026-08-19.jsonl",
-        "print-2026-08-18.jsonl",
-      ]);
-
-      mocks.readFile.mockResolvedValue("");
-
-      await readAuditLogs({
-        scope: "print",
-      });
-
-      expect(String(mocks.readFile.mock.calls[0][0])).toContain(
-        "print-2026-08-19.jsonl",
+    it("imports legacy files only once and writes new entries only to SQLite", async () => {
+      const databasePath = path.join(
+        os.tmpdir(),
+        `audit-test-${randomUUID()}.sqlite`,
       );
+      mocks.databasePath = databasePath;
+      try {
+        await readAuditLogs();
+        await expect(
+          audit.appendAuditLog({
+            category: "print",
+            action: "NEW_PRINT",
+            status: "success",
+          }),
+        ).resolves.toBe(true);
+        await expect(audit.checkAuditLogWritable()).resolves.toMatchObject({
+          status: true,
+        });
 
-      expect(String(mocks.readFile.mock.calls[1][0])).toContain(
-        "print-2026-08-18.jsonl",
-      );
+        const key = "monitoring:test";
+        const since = "2026-01-01T00:00:00.000Z";
+        const pending = await audit.readMonitoringBatch(key, since);
+        expect(pending.events).toHaveLength(5);
 
-      expect(String(mocks.readFile.mock.calls[2][0])).toContain(
-        "print-2026-08-17.jsonl",
-      );
+        mocks.databases.pop()?.close();
+        vi.resetModules();
+        const reopened = await import("../audit/AuditLog");
+        await expect(reopened.readMonitoringBatch(key, since)).resolves.toEqual(
+          pending,
+        );
+        await reopened.acknowledgeMonitoringBatch(key, pending.through);
+        await expect(reopened.readMonitoringBatch(key, since)).resolves.toEqual(
+          {
+            through: pending.through,
+            events: [],
+          },
+        );
+        await expect(
+          reopened.readMonitoringBatch("monitoring:other", since),
+        ).resolves.toEqual(pending);
+        const result = await reopened.readAuditLogs();
+        expect(result.total).toBe(3);
+        expect(result.entries[0].action).toBe("NEW_PRINT");
+        expect(mocks.readFile).toHaveBeenCalledOnce();
+      } finally {
+        mocks.databases.pop()?.close();
+        mocks.databasePath = ":memory:";
+        unlinkSync(databasePath);
+      }
     });
   });
 
@@ -291,8 +356,6 @@ describe("readAuditLogs", () => {
       });
 
       expect(result.entries.map(({ action }) => action)).toEqual(["LOGIN"]);
-
-      expect(mocks.readFile).toHaveBeenCalledTimes(1);
     });
   });
 

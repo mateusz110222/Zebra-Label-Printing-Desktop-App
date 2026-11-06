@@ -69,7 +69,7 @@ vi.mock("../audit/AuditLog", () => ({
 }));
 
 vi.mock("../printer/PrinterStatus", () => ({
-  queryPrinterStatus: mocks.queryPrinterStatus,
+  queryPrinterStatusOnce: mocks.queryPrinterStatus,
 }));
 
 vi.mock("../printer/PrinterDiagnostics", () => ({
@@ -500,20 +500,20 @@ describe("PrintLabel IPC authorization and delivery audit", () => {
       });
 
       expect(result).toMatchObject({ status: true, sentCount: 3 });
-      expect(mocks.beginPrinterBatch).toHaveBeenCalledWith(
-        successfulPrinterStatus,
-      );
+      expect(mocks.beginPrinterBatch).toHaveBeenCalledOnce();
       expect(mocks.finishPrinterBatch).toHaveBeenCalledOnce();
       expect(mocks.queryPrinterStatus).toHaveBeenCalledOnce();
 
       const [lockStartedAt] = mocks.beginPrinterBatch.mock.invocationCallOrder;
+      const [statusReadAt] = mocks.queryPrinterStatus.mock.invocationCallOrder;
       const [serialReservedAt] =
         mocks.generatePrintZPL.mock.invocationCallOrder;
       const [auditPersistedAt] = mocks.appendAuditLog.mock.invocationCallOrder;
       const [lockReleasedAt] =
         mocks.finishPrinterBatch.mock.invocationCallOrder;
 
-      expect(lockStartedAt).toBeLessThan(serialReservedAt);
+      expect(lockStartedAt).toBeLessThan(statusReadAt);
+      expect(statusReadAt).toBeLessThan(serialReservedAt);
       expect(serialReservedAt).toBeLessThan(auditPersistedAt);
       expect(auditPersistedAt).toBeLessThan(lockReleasedAt);
     });

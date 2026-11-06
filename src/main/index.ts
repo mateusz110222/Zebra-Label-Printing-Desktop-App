@@ -17,17 +17,23 @@ import SetupPrinterStatusHandlers, {
   startPrinterStatusPoller,
   stopPrinterStatusPoller,
 } from "../backend/printer/PrinterStatusService";
-import {
-  isPrintQueueBusy,
-  waitForPrintQueueIdle,
-} from "../backend/printer/PrinterActivity";
+import { registerGracefulShutdown } from "./gracefulShutdown";
 import HandleLogin from "../backend/auth/HandleLogin";
+import {
+  canViewAuditLogs,
+  onAuditSessionChanged,
+  onAuditSessionExpired,
+} from "../backend/audit/AuditSession";
+import {
+  setupMonitoringConfig,
+  startMonitoring,
+} from "../backend/system/Monitoring";
 import GetLabelPreview from "../backend/preview/GetLabelPreview";
 import { closeDatabase } from "../backend/config/DatabaseConfig";
 import GetLabelsFormats from "../backend/parts/GetLabelsFormats";
-import GetGithubVersions from "../backend/system/GetGithubVersions";
 import UpdatesHandler from "../backend/handlers/UpdatesHandler";
 import SettingsHandler from "../backend/config/SettingsHandler";
+import SettingsBackup from "../backend/config/SettingsBackup";
 import ChildWindowHandlers from "../backend/preview/ChildWindow";
 import PartsConfigHandler from "../backend/config/PartsConfig";
 import AuditLogHandlers from "../backend/audit/AuditLogHandlers";
@@ -56,7 +62,6 @@ process.on("unhandledRejection", (reason) => {
 app.enableSandbox();
 
 let mainWindow: BrowserWindow | null = null;
-let isShuttingDown = false;
 
 const openExternalUrl = (url: string): void => {
   if (!isAllowedExternalUrl(url)) return;
@@ -225,9 +230,24 @@ if (!gotSingleInstanceLock) {
     }
   });
 
+  let stopMonitoring: (() => void) | undefined;
+  const requestRestart = registerGracefulShutdown(async () => {
+    stopMonitoring?.();
+    stopPrinterStatusPoller();
+    await closeDatabase();
+  });
+  onAuditSessionChanged(() => {
+    const canEdit = canViewAuditLogs();
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed() && !window.webContents.isDestroyed())
+        window.webContents.send("label-edit-permission", canEdit);
+    }
+  });
+
   // Initialize Backend Handlers
   GetParts();
   PartsConfigHandler();
+  setupMonitoringConfig();
   PrintLabel();
   TestPrinterConnection();
   SavePrinterConfig();
@@ -236,11 +256,17 @@ if (!gotSingleInstanceLock) {
   SetupPrinterStatusHandlers();
   GetSerialPorts();
   GetUsbPrinters();
-  GetGithubVersions();
   HandleLogin();
+  onAuditSessionExpired((expiresAt) => {
+    const contents = mainWindow?.webContents;
+    if (contents && !contents.isDestroyed()) {
+      contents.send("audit-session-expired", expiresAt);
+    }
+  });
   GetLabelPreview();
   GetLabelsFormats();
   SettingsHandler();
+  SettingsBackup();
   ChildWindowHandlers();
   AuditLogHandlers();
   SaveDatabaseConfig();
@@ -277,10 +303,11 @@ if (!gotSingleInstanceLock) {
 
       createWindow();
       if (mainWindow) {
-        UpdatesHandler(mainWindow);
+        UpdatesHandler(mainWindow, requestRestart);
       }
 
       startPrinterStatusPoller(5000);
+      stopMonitoring = startMonitoring();
 
       app.on("activate", function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -290,31 +317,8 @@ if (!gotSingleInstanceLock) {
       console.error("Failed during app initialization:", err);
     });
 
-  app.on("window-all-closed", async () => {
-    await closeDatabase().catch(() => undefined);
+  app.on("window-all-closed", () => {
     if (process.platform !== "darwin") {
-      app.quit();
-    }
-  });
-
-  app.on("before-quit", async (event) => {
-    if (isShuttingDown) return;
-
-    event.preventDefault();
-    isShuttingDown = true;
-
-    try {
-      stopPrinterStatusPoller();
-      if (isPrintQueueBusy()) {
-        console.log("Waiting for pending print queue before quit...");
-        await waitForPrintQueueIdle(15000);
-      }
-      await closeDatabase().catch((e) =>
-        console.error("Database close error on quit:", e),
-      );
-    } catch (err) {
-      console.error("Error during graceful shutdown:", err);
-    } finally {
       app.quit();
     }
   });

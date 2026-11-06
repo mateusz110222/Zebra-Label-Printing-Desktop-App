@@ -21,6 +21,21 @@ const api = {
     ipcRenderer.invoke("get-labelFormat-preview", { zpl: Label_Format }),
 
   GetPrinterStatus: () => ipcRenderer.invoke("Get-PrinterStatus"),
+  GetLabelEditPermission: (): Promise<boolean> =>
+    ipcRenderer.invoke("get-label-edit-permission"),
+  OnLabelEditPermissionChanged: (
+    callback: (canEdit: boolean) => void,
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      canEdit: boolean,
+    ): void => callback(canEdit);
+    ipcRenderer.on("label-edit-permission", listener);
+    return () => ipcRenderer.removeListener("label-edit-permission", listener);
+  },
+
+  PrintLabelFormatTest: (name: string, zpl: string) =>
+    ipcRenderer.invoke("print-label-format-test", name, zpl),
 
   SaveLabelFormat: (name: string, data: string) =>
     ipcRenderer.invoke("save-labelformat", name, data),

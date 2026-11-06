@@ -2,7 +2,7 @@ import mysql from "mysql2/promise";
 import { app, safeStorage } from "electron";
 import path from "node:path";
 import fs from "node:fs";
-import { store } from "../utils/store";
+import { type DatabaseConfig, store } from "../utils/store";
 
 type DatabasePool = ReturnType<typeof mysql.createPool>;
 
@@ -46,13 +46,9 @@ export const decryptDatabasePassword = (stored: string | undefined): string => {
 };
 
 export const getMysqlSslOptions = (
-  mode: "default" | "required" | "disabled" = "default",
+  mode: DatabaseConfig["sslMode"] = "default",
 ): mysql.SslOptions | undefined => {
   if (mode === "disabled") return undefined;
-
-  const rejectUnauthorized =
-    process.env.MYSQL_TLS_REJECT_UNAUTHORIZED === "true" ||
-    process.env.MYSQL_SSL_REJECT_UNAUTHORIZED === "true";
 
   let ca: string | undefined = undefined;
   const caPathEnv = process.env.MYSQL_CA_CERT_PATH?.trim();
@@ -85,23 +81,41 @@ export const getMysqlSslOptions = (
   }
 
   return {
-    rejectUnauthorized,
+    rejectUnauthorized: true,
+    verifyIdentity: true,
     ...(ca ? { ca } : {}),
   };
 };
 
-export const connectWithTlsFallback = async <T>(
-  mode: "default" | "required" | "disabled" | undefined,
+export async function connectWithTlsFallback<T>(
+  mode: DatabaseConfig["sslMode"],
   connect: (ssl: mysql.SslOptions | undefined) => Promise<T>,
-): Promise<T> => {
-  const ssl = getMysqlSslOptions(mode);
+): Promise<T> {
   try {
-    return await connect(ssl);
+    return await connect(getMysqlSslOptions(mode));
   } catch (error) {
-    if (mode === "required" || mode === "disabled") throw error;
-    return connect(undefined);
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (
+      (mode === undefined || mode === "default" || mode === "self_signed") &&
+      (code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
+        code === "SELF_SIGNED_CERT_IN_CHAIN" ||
+        (code === "HANDSHAKE_SSL_ERROR" &&
+          error instanceof Error &&
+          /^self[- ]signed certificate(?: in certificate chain)?$/i.test(
+            error.message,
+          )))
+    ) {
+      return connect({ rejectUnauthorized: false, verifyIdentity: false });
+    }
+    if (
+      (mode === undefined || mode === "default") &&
+      code === "HANDSHAKE_NO_SSL_SUPPORT"
+    ) {
+      return connect(undefined);
+    }
+    throw error;
   }
-};
+}
 
 export const getDatabase = async (): Promise<DatabasePool> => {
   if (dbPool) {
@@ -160,7 +174,8 @@ export const getDatabase = async (): Promise<DatabasePool> => {
     dbPool = await pendingPool;
     return dbPool;
   } catch (error) {
-    const rawError = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
+    const rawError = message.split(resolvedPassword).join("[REDACTED]");
 
     const databaseError = new Error(
       "backend.config.database_initialization_failed",

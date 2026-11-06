@@ -564,6 +564,24 @@ describe("SystemHealthHandler", () => {
     expect(response.data.overallStatus).toBe("error");
   });
 
+  it("returns the database initialization key as a message and the driver error as details", async () => {
+    mocks.query.mockRejectedValueOnce(
+      Object.assign(new Error("backend.config.database_initialization_failed"), {
+        rawError: "self signed certificate in certificate chain",
+      }),
+    );
+
+    const response = await getHandler()();
+
+    expect(response.data.database).toMatchObject({
+      message: [
+        "backend.health.database_error",
+        "backend.config.database_initialization_failed",
+      ],
+      rawError: "self signed certificate in certificate chain",
+    });
+  });
+
   it("marks the system unhealthy when print history is not writable", async () => {
     mocks.checkAuditLogWritable.mockResolvedValueOnce({
       status: false,

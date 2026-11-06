@@ -1,0 +1,12 @@
+*
+!server.mjs
+!protocol.mjs
+!dashboards.mjs
+!dashboard-panels.mjs
+!technical-dashboards.mjs
+!ldap-config.mjs
+!ldap-bridge.mjs
+!stations.mjs
+!stations.html
+!stations.css
+!stations.js

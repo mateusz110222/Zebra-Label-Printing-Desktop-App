@@ -33,6 +33,7 @@ export interface GeneratedLabel {
 }
 
 export interface GenerateZPLResult {
+  templateMissing?: boolean;
   status: boolean;
   message: string;
   labels?: GeneratedLabel[];
@@ -60,6 +61,25 @@ interface EngineRow extends RowDataPacket {
 
 const hashZpl = (zpl: string): string =>
   createHash("sha256").update(zpl, "utf8").digest("hex");
+
+const serialBarcodeFields = (template: string): string[] =>
+  template.split(/\^FS/i).flatMap((field) => {
+    const match = /\^FD([^^]*)/i.exec(field);
+    return match?.[1].includes("*SERIALNUM1*") &&
+      /\^B(?!Y)[A-Z0-9]/i.test(field.slice(0, match.index))
+      ? [match[1]]
+      : [];
+  });
+
+const getScanCode = (
+  fields: string[],
+  data: Record<string, string | number>,
+): string | undefined => {
+  const codes = [
+    ...new Set(fields.map((field) => fillZplTemplate(field, data).trim())),
+  ];
+  return codes.length === 1 ? codes[0] : undefined;
+};
 
 const isValidIsoDate = (value: string): boolean => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -110,6 +130,7 @@ export async function getZplTemplate(
     return {
       status: false,
       message: "backend.print.template_not_found",
+      templateMissing: (error as NodeJS.ErrnoException)?.code === "ENOENT",
       rawError: `${formatName} (${errMsg})`,
     };
   }
@@ -174,6 +195,7 @@ export async function generatePrintZPL(
     }
 
     const rawTemplate = templateResult.data!;
+    const serialFields = serialBarcodeFields(rawTemplate);
 
     const pool = await getDatabase();
     const connection = await pool.getConnection();
@@ -298,6 +320,7 @@ export async function generatePrintZPL(
             bmsDate,
 
             zplSha256: hashZpl(labelZpl),
+            scanCode: getScanCode(serialFields, printData),
           },
         });
       }
@@ -527,13 +550,7 @@ async function generateReprintZPLInternal(
 
     const labels: GeneratedLabel[] = [];
 
-    const serialFields = rawTemplate.split(/\^FS/i).flatMap((field) => {
-      const match = /\^FD([^^]*)/i.exec(field);
-      return match?.[1].includes("*SERIALNUM1*") &&
-        /\^B(?!Y)[A-Z0-9]/i.test(field.slice(0, match.index))
-        ? [match[1]]
-        : [];
-    });
+    const serialFields = serialBarcodeFields(rawTemplate);
 
     for (let i = 0; i < quantity; i++) {
       const currentSerial = calculateSerial(baseSerial, i, type_name);
@@ -570,11 +587,6 @@ async function generateReprintZPLInternal(
         quantity,
       );
 
-      const codes = [
-        ...new Set(
-          serialFields.map((field) => fillZplTemplate(field, printData).trim()),
-        ),
-      ];
       labels.push({
         zpl: labelZpl,
         metadata: {
@@ -584,7 +596,7 @@ async function generateReprintZPLInternal(
           bmsDate,
 
           zplSha256: hashZpl(labelZpl),
-          scanCode: codes.length === 1 ? codes[0] : undefined,
+          scanCode: getScanCode(serialFields, printData),
         },
       });
     }

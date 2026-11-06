@@ -2,6 +2,14 @@ import { app } from "electron";
 import path from "node:path";
 import { initializeTemplateStorage } from "./TemplateStorage";
 
+let templateWriteQueue: Promise<unknown> = Promise.resolve();
+
+export function queueTemplateWrite<T>(write: () => Promise<T>): Promise<T> {
+  const pending = templateWriteQueue.then(write);
+  templateWriteQueue = pending.catch(() => undefined);
+  return pending;
+}
+
 export const getTemplatesPath = (): string =>
   app.isPackaged
     ? path.join(app.getPath("userData"), "zpl_templates")

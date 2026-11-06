@@ -1,0 +1,168 @@
+name: label-monitoring
+services:
+  postgres:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: monitoring
+      POSTGRES_USER: monitoring_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  migrate:
+    image: postgres:18.6-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?required}
+      INGEST_DB_PASSWORD: ${INGEST_DB_PASSWORD:?required}
+      IT_DB_PASSWORD: ${IT_DB_PASSWORD:?required}
+      PRODUCTION_DB_PASSWORD: ${PRODUCTION_DB_PASSWORD:?required}
+    volumes:
+      - /opt/label-monitoring/schema.sql:/schema.sql:ro
+    command:
+      [
+        "psql",
+        "-h",
+        "postgres",
+        "-U",
+        "monitoring_admin",
+        "-d",
+        "monitoring",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "--single-transaction",
+        "-f",
+        "/schema.sql",
+      ]
+  api:
+    image: label-monitoring:local
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      INGEST_DB_PASSWORD: ${INGEST_DB_PASSWORD:?required}
+      PUBLIC_URL: ${PUBLIC_URL:?required}
+    volumes:
+      - /opt/label-monitoring/config:/config:ro
+  ldap:
+    image: label-monitoring:local
+    restart: unless-stopped
+    command: ["node", "ldap-bridge.mjs"]
+    environment:
+      LDAP_URL: ${LDAP_URL:?required}
+      LDAP_LOGIN_DOMAIN: ${LDAP_LOGIN_DOMAIN:-}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-}
+      LDAP_SEARCH_BASE: ${LDAP_SEARCH_BASE:?required}
+      LDAP_TIMEOUT_MS: ${LDAP_TIMEOUT_MS:-5000}
+      LDAP_CONNECT_TIMEOUT_MS: ${LDAP_CONNECT_TIMEOUT_MS:-3000}
+      LDAP_TLS_REJECT_UNAUTHORIZED: ${LDAP_TLS_REJECT_UNAUTHORIZED:-true}
+      LDAP_TLS_ALLOW_LEGACY_SERVER_CERT: ${LDAP_TLS_ALLOW_LEGACY_SERVER_CERT:-false}
+      LDAP_TLS_SKIP_HOSTNAME_VERIFICATION: ${LDAP_TLS_SKIP_HOSTNAME_VERIFICATION:-true}
+      LDAP_CA_CERT_PATH: ${LDAP_CA_CERT_PATH:-}
+      LDAP_IT_DEPARTMENTS: ${LDAP_IT_DEPARTMENTS:-}
+      LDAP_IT_GROUP_DN: ${LDAP_IT_GROUP_DN:-}
+    networks: [ldap]
+    volumes:
+      - ldapconfig:/ldap
+      - /opt/label-monitoring/config/certs:/app/certs:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "const s=require('node:net').connect(1389,'127.0.0.1',()=>s.end());s.on('error',()=>process.exit(1));",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  grafana-bootstrap:
+    image: ${GRAFANA_IMAGE:?set a pinned Grafana image}
+    entrypoint: ["sh", "/bootstrap.sh"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?required}
+      GF_USERS_ALLOW_ORG_CREATE: "true"
+      GF_AUTH_LDAP_ENABLED: "false"
+    volumes:
+      - grafana:/var/lib/grafana
+      - /opt/label-monitoring/grafana-bootstrap.sh:/bootstrap.sh:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:3000/api/health",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  grafana:
+    image: ${GRAFANA_IMAGE:?set a pinned Grafana image}
+    restart: unless-stopped
+    depends_on:
+      grafana-bootstrap:
+        condition: service_completed_successfully
+      dashboards:
+        condition: service_completed_successfully
+      ldap:
+        condition: service_healthy
+    networks: [default, ldap]
+    environment:
+      GF_SECURITY_COOKIE_SECURE: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: None
+      GF_SERVER_ROOT_URL: ${PUBLIC_URL:?required}
+      GF_AUTH_DISABLE_LOGIN: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_LDAP_ENABLED: "true"
+      GF_AUTH_LDAP_ALLOW_SIGN_UP: "true"
+      GF_AUTH_LDAP_CONFIG_FILE: /etc/grafana/ldap/ldap.toml
+    volumes:
+      - grafana:/var/lib/grafana
+      - ldapconfig:/etc/grafana/ldap:ro
+  dashboards:
+    image: label-monitoring:local
+    depends_on:
+      grafana-bootstrap:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?required}
+      IT_DB_PASSWORD: ${IT_DB_PASSWORD:?required}
+      PRODUCTION_DB_PASSWORD: ${PRODUCTION_DB_PASSWORD:?required}
+    command: ["node", "dashboards.mjs"]
+    volumes:
+      - grafana:/var/lib/grafana
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      grafana:
+        condition: service_started
+      api:
+        condition: service_started
+      dashboards:
+        condition: service_completed_successfully
+    ports:
+      - "${HTTP_PORT:-8083}:80"
+    volumes:
+      - /opt/label-monitoring/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+volumes:
+  pgdata:
+  grafana:
+  ldapconfig:
+networks:
+  ldap:

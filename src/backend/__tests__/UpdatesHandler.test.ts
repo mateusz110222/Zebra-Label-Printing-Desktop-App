@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IpcMainInvokeEvent } from "electron";
 
-import UpdatesHandler from "../handlers/UpdatesHandler";
+import registerUpdatesHandler from "../handlers/UpdatesHandler";
+
+const UpdatesHandler = (window: Electron.BrowserWindow): void =>
+  registerUpdatesHandler(window, (install) => install());
 
 const UPDATE_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
 
@@ -800,6 +803,7 @@ describe("UpdatesHandler", () => {
   describe("restart_app", () => {
     it("restarts application when renderer is authorized", () => {
       UpdatesHandler(mainWindow);
+      emitUpdaterEvent("update-downloaded");
 
       const handler = getHandler("restart_app");
 
@@ -808,10 +812,19 @@ describe("UpdatesHandler", () => {
       expect(mocks.quitAndInstall).toHaveBeenCalledOnce();
     });
 
+    it("keeps printing available before an update is downloaded", async () => {
+      UpdatesHandler(mainWindow);
+
+      await getHandler("restart_app")(createEvent());
+
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled();
+    });
+
     it("does not restart application for unauthorized renderer", () => {
       mocks.isMainRendererAuthorized.mockReturnValue(false);
 
       UpdatesHandler(mainWindow);
+      emitUpdaterEvent("update-downloaded");
 
       const handler = getHandler("restart_app");
 

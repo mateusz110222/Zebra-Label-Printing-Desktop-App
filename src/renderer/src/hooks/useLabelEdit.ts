@@ -10,6 +10,7 @@ interface useLabelEditResponse {
     parsedData: string;
     cleanName: string;
     isNewTemplate: boolean;
+    canEdit: boolean;
     previewImage: string;
     previewError: string | null;
     criticalError: string | null;
@@ -17,14 +18,20 @@ interface useLabelEditResponse {
     isOnline: boolean;
     isOnlineLoading: boolean;
     isZPLLoading: boolean;
+    isPrinting: boolean;
     isDirty: boolean;
-    uiMessage: { type: "success" | "error"; text: string } | null;
+    uiMessage: {
+      type: "success" | "error";
+      text: string;
+      details?: string;
+    } | null;
   };
   actions: {
     setParsedData: React.Dispatch<React.SetStateAction<string>>;
     setCleanName: React.Dispatch<React.SetStateAction<string>>;
     dismissUiMessage: () => void;
     handleSave: () => Promise<void>;
+    handlePrint: () => Promise<void>;
   };
 }
 
@@ -59,13 +66,36 @@ export function useLabelEdit(): useLabelEditResponse {
   const [previewImage, setPreviewImage] = useState<string>("");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isZPLLoading, setIsZPLLoading] = useState<boolean>(true);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [uiMessage, setUiMessage] = useState<{
     type: "success" | "error";
     text: string;
+    details?: string;
   } | null>(null);
   const [examplePart, setExamplePart] = useState<Part | null>(null);
   const [savedName, setSavedName] = useState(nameParam || "");
   const [savedContent, setSavedContent] = useState(getInitialParsedData);
+  const [canEdit, setCanEdit] = useState(false);
+  const visibleZpl = canEdit ? parsedData : savedContent;
+  const visibleName = canEdit ? cleanName : savedName;
+
+  useEffect(() => {
+    let useInitialResult = true;
+    const unsubscribe = window.api.OnLabelEditPermissionChanged?.((allowed) => {
+      useInitialResult = false;
+      setCanEdit(allowed);
+    });
+    void window.api
+      .GetLabelEditPermission?.()
+      .then((allowed) => {
+        if (useInitialResult) setCanEdit(allowed);
+      })
+      .catch(() => undefined);
+    return () => {
+      useInitialResult = false;
+      unsubscribe?.();
+    };
+  }, []);
 
   const normalizeFormatName = (value: unknown): string =>
     String(value ?? "")
@@ -133,7 +163,7 @@ export function useLabelEdit(): useLabelEditResponse {
     let isMounted = true;
 
     const findExamplePart = async (): Promise<void> => {
-      if (!cleanName.trim() || !window.api) {
+      if (!visibleName.trim() || !window.api) {
         setExamplePart(null);
         return;
       }
@@ -166,7 +196,7 @@ export function useLabelEdit(): useLabelEditResponse {
           return;
         }
 
-        const formatName = normalizeFormatName(cleanName);
+        const formatName = normalizeFormatName(visibleName);
         const matchingPart = (partsData as Part[]).find(
           (part) => normalizeFormatName(part.Label_Format) === formatName,
         );
@@ -176,7 +206,7 @@ export function useLabelEdit(): useLabelEditResponse {
           setUiMessage({
             type: "error",
             text: t("label_editor.example_part_not_found", {
-              format: cleanName,
+              format: visibleName,
             }),
           });
         } else {
@@ -202,7 +232,7 @@ export function useLabelEdit(): useLabelEditResponse {
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [cleanName, t]);
+  }, [visibleName, t]);
 
   useEffect(() => {
     let isMounted = true;
@@ -259,7 +289,7 @@ export function useLabelEdit(): useLabelEditResponse {
 
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-    if (!parsedData.trim()) {
+    if (!visibleZpl.trim()) {
       const resetTimer = window.setTimeout(() => {
         if (isMounted) {
           setPreviewImage("");
@@ -274,16 +304,17 @@ export function useLabelEdit(): useLabelEditResponse {
     }
 
     debounceTimerRef.current = setTimeout(() => {
-      void updatePreview(parsedData);
+      void updatePreview(visibleZpl);
     }, 500);
 
     return () => {
       isMounted = false;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [parsedData, examplePart, t]);
+  }, [visibleZpl, examplePart, t]);
 
   const handleSave = async (): Promise<void> => {
+    if (!canEdit) return;
     const templateName = cleanName.trim();
     if (!templateName || !parsedData.trim()) {
       setUiMessage({
@@ -341,11 +372,37 @@ export function useLabelEdit(): useLabelEditResponse {
     setUiMessage(null);
   };
 
+  const handlePrint = async (): Promise<void> => {
+    if (isPrinting || !visibleZpl.trim() || !visibleName.trim()) return;
+    dismissUiMessage();
+    setIsPrinting(true);
+    try {
+      const result = await window.api.PrintLabelFormatTest(
+        visibleName,
+        visibleZpl,
+      );
+      setUiMessage({
+        type: result.status ? "success" : "error",
+        text: t(result.status ? "label_editor.print_sent" : result.message),
+        details: result.rawError ? t(result.rawError) : undefined,
+      });
+    } catch (error) {
+      setUiMessage({
+        type: "error",
+        text: t("backend.printer.send_error"),
+        details: extractError(error).message,
+      });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return {
     data: {
-      parsedData,
-      cleanName,
+      parsedData: visibleZpl,
+      cleanName: visibleName,
       isNewTemplate,
+      canEdit,
       previewImage,
       previewError,
       criticalError,
@@ -353,6 +410,7 @@ export function useLabelEdit(): useLabelEditResponse {
       isOnline,
       isOnlineLoading,
       isZPLLoading,
+      isPrinting,
       isDirty:
         cleanName.trim() !== savedName.trim() || parsedData !== savedContent,
       uiMessage,
@@ -362,6 +420,7 @@ export function useLabelEdit(): useLabelEditResponse {
       setCleanName,
       dismissUiMessage,
       handleSave,
+      handlePrint,
     },
   };
 }

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/1.4.7...1.5.0) (2026-11-06)
+
+### Features
+
+- Add optional station monitoring with Grafana dashboards, print events, and station credential management.
+- Add settings backup and restore for moving configurations between stations.
+
+### Improvements
+
+- Improve audit records for print activity, configuration changes, and operator sessions.
+- Improve printer status reporting, template editor recovery, and shutdown while print jobs are active.
+
 ## [1.4.3](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/1.4.2...1.4.3) (2026-10-23)
 
 ### Bug Fixes

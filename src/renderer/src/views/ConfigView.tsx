@@ -19,6 +19,8 @@ import {
 } from "../components/config";
 import { useAuth } from "@renderer/context/AuthContext";
 import { useConfigView } from "@renderer/hooks";
+import MonitoringConfigCard from "../components/config/MonitoringConfigCard";
+import SettingsBackupCard from "../components/config/SettingsBackupCard";
 
 export function ConfigView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -36,6 +38,7 @@ export function ConfigView(): React.JSX.Element {
   const [isPrinterFormDirty, setIsPrinterFormDirty] = useState(false);
   const [isDatabaseFormDirty, setIsDatabaseFormDirty] = useState(false);
   const [isPartsFormDirty, setIsPartsFormDirty] = useState(false);
+  const [isMonitoringDirty, setIsMonitoringDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [pendingPrinter, setPendingPrinter] = useState<string | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
@@ -43,7 +46,8 @@ export function ConfigView(): React.JSX.Element {
     isRoutingDirty ||
     isPrinterFormDirty ||
     isDatabaseFormDirty ||
-    isPartsFormDirty;
+    isPartsFormDirty ||
+    isMonitoringDirty;
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -104,6 +108,7 @@ export function ConfigView(): React.JSX.Element {
     setIsPrinterFormDirty(false);
     setIsDatabaseFormDirty(false);
     setIsPartsFormDirty(false);
+    setIsMonitoringDirty(false);
   };
 
   const confirmPendingNavigation = (): void => {
@@ -169,6 +174,17 @@ export function ConfigView(): React.JSX.Element {
           </div>
 
           {/* Status banner */}
+          {CanEdit && canConfigurePrinter && (
+            <SettingsBackupCard
+              disabled={
+                hasUnsavedChanges ||
+                status.isPrinterProcessing ||
+                status.isDatabaseProcessing ||
+                status.isPartsProcessing ||
+                status.isRoutingProcessing
+              }
+            />
+          )}
           {status.uiMessage && (
             <div className="mb-6">
               <StatusBanner
@@ -221,6 +237,19 @@ export function ConfigView(): React.JSX.Element {
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
                 >
                   {t("config_view.parts_tab")}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => requestTabChange("monitoring")}
+                  aria-current={activeTab === "monitoring" ? "page" : undefined}
+                  className={`${
+                    activeTab === "monitoring"
+                      ? "border-indigo-500 text-indigo-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                >
+                  {t("monitoring.tab")}
                 </button>
 
                 {data.printerMode === "multiple" && (
@@ -486,6 +515,16 @@ export function ConfigView(): React.JSX.Element {
               <NoConfigCard
                 titleKey="config_view.parts_access_title"
                 messageKey="config_view.parts_access_message"
+              />
+            ))}
+
+          {activeTab === "monitoring" &&
+            (CanEdit ? (
+              <MonitoringConfigCard onDirtyChange={setIsMonitoringDirty} />
+            ) : (
+              <NoConfigCard
+                titleKey="monitoring.title"
+                messageKey="monitoring.access"
               />
             ))}
 

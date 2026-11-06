@@ -16,7 +16,9 @@ import {
   upsertPrinter,
 } from "../printer/PrinterConfigs";
 
-const auditPrinter = (config: PrinterConfig) => ({
+const auditPrinter = (
+  config: PrinterConfig,
+): { name: string; type: PrinterConfig["type"]; target: string } => ({
   name: config.name ?? "",
   type: config.type,
   target:

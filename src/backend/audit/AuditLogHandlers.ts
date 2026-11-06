@@ -92,6 +92,9 @@ export default function AuditLogHandlers(): void {
           page: 1,
           pageSize: 50000,
         });
+        if (result.total > result.entries.length) {
+          return { status: false, message: "backend.audit.export_limit" };
+        }
         const owner = BrowserWindow.fromWebContents(event.sender) || undefined;
         const exportName =
           query.scope === "print" ? "print-history" : "audit-logs";

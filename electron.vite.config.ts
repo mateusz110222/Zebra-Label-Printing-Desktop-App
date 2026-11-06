@@ -50,12 +50,6 @@ export default defineConfig(({ mode }) => {
         "process.env.LDAP_UR_DEPARTMENTS": JSON.stringify(
           env.LDAP_UR_DEPARTMENTS || "",
         ),
-        "process.env.MYSQL_TLS_REJECT_UNAUTHORIZED": JSON.stringify(
-          env.MYSQL_TLS_REJECT_UNAUTHORIZED || "false",
-        ),
-        "process.env.MYSQL_SSL_REJECT_UNAUTHORIZED": JSON.stringify(
-          env.MYSQL_SSL_REJECT_UNAUTHORIZED || "false",
-        ),
         "process.env.MYSQL_CA_CERT_PATH": JSON.stringify(
           env.MYSQL_CA_CERT_PATH || "",
         ),
@@ -64,9 +58,6 @@ export default defineConfig(({ mode }) => {
         ),
         "process.env.PARTS_CONFIG_FILE": JSON.stringify(
           env.PARTS_CONFIG_FILE || "lps.json",
-        ),
-        "process.env.GITHUB_RELEASE_URL": JSON.stringify(
-          env.GITHUB_RELEASE_URL || "",
         ),
       },
     },

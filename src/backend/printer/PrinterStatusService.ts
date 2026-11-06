@@ -1,7 +1,11 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { type PrinterConfig, store } from "../utils/store";
 import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
-import { setLastKnownPrinterStatus } from "./PrinterActivity";
+import {
+  getPrintBatchGeneration,
+  isPrintQueueBusy,
+  setLastKnownPrinterStatus,
+} from "./PrinterActivity";
 import {
   getConfiguredPrinters,
   getPrinterName,
@@ -21,6 +25,11 @@ export interface PrinterFleetStatus extends PrinterStatusResult {
 const inFlightStatusQueries = new Map<string, Promise<PrinterStatusResult>>();
 let pollerIntervalId: NodeJS.Timeout | null = null;
 let isPollerRunning = false;
+let latestFleetStatus:
+  { status: PrinterFleetStatus; checkedAt: string } | undefined;
+
+export const getLatestFleetStatus = (): typeof latestFleetStatus =>
+  latestFleetStatus;
 
 const getConfigFlightKey = (config?: PrinterConfig): string => {
   if (!config) return "default";
@@ -82,7 +91,7 @@ const withFleetStatus = async (
       ...activeStatus,
       printerMode: mode,
       totalPrinters: configuredPrinters.length > 0 ? 1 : 0,
-      readyPrinters: activeStatus.ready ? 1 : 0,
+      readyPrinters: configuredPrinters.length && activeStatus.ready ? 1 : 0,
     };
   }
 
@@ -116,13 +125,15 @@ export const broadcastPrinterStatus = (status: PrinterStatusResult): void => {
   }
 };
 
-export const refreshAndBroadcastPrinterStatus =
-  async (): Promise<PrinterFleetStatus> => {
-    const activeStatus = await queryPrinterStatusSingleFlight();
-    const status = await withFleetStatus(activeStatus);
-    broadcastPrinterStatus(status);
-    return status;
-  };
+export const refreshAndBroadcastPrinterStatus = async (): Promise<void> => {
+  if (isPrintQueueBusy()) return;
+  const generation = getPrintBatchGeneration();
+  const activeStatus = await queryPrinterStatusSingleFlight();
+  const status = await withFleetStatus(activeStatus);
+  if (generation !== getPrintBatchGeneration()) return;
+  latestFleetStatus = { status, checkedAt: new Date().toISOString() };
+  broadcastPrinterStatus(status);
+};
 
 export const startPrinterStatusPoller = (intervalMs: number = 5000): void => {
   if (isPollerRunning) return;
@@ -159,6 +170,8 @@ export default function SetupPrinterStatusHandlers(): void {
         message: "backend.audit.unauthorized",
       };
     }
+    if (isPrintQueueBusy() && latestFleetStatus)
+      return latestFleetStatus.status;
     const activeStatus = await queryPrinterStatusSingleFlight();
     return withFleetStatus(activeStatus);
   });

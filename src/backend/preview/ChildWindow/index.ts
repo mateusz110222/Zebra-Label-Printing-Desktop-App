@@ -1,10 +1,31 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import sharp from "sharp";
 import { createHash } from "node:crypto";
+import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { getZplTemplate, SaveZplTemplate } from "../../hooks/ZPLService";
+import GetJulianDate from "../../hooks/GetJulianDate";
+import GetCmcJulianDate from "../../hooks/GetCmcJulianDate";
+import GetBmsDate from "../../hooks/GetBmsDate";
+import {
+  disableReprintAfterError,
+  fillZplTemplate,
+} from "../../hooks/LabelProcessor";
+import { beginPrinterBatch } from "../../printer/PrinterActivity";
+import { findPrinterForLabelFormat } from "../../printer/PrinterConfigs";
+import { sendToPrinter } from "../../printer/sendToPrinter";
 import { isPreviewAuthorized } from "../../auth/IsAutorized";
-import { appendAuditLog, canViewAuditLogs } from "../../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../../audit/AuditLog";
 import { notifyTemplatesChanged } from "../../parts/TemplateEvents";
+import {
+  getTemplatesPath,
+  normalizeTemplateFileName,
+  queueTemplateWrite,
+} from "../../system/TemplatePaths";
 
 const MAX_ZPL_SIZE = 1024 * 1024; // 1 MB
 
@@ -22,6 +43,110 @@ const renderZpl = async (zpl: string): Promise<string> => {
 };
 
 export default function ChildWindowHandlers(): void {
+  ipcMain.handle(
+    "get-label-edit-permission",
+    (event) => isPreviewAuthorized(event) && canViewAuditLogs(),
+  );
+
+  ipcMain.handle(
+    "print-label-format-test",
+    async (event, name: unknown, input: unknown) => {
+      if (!isPreviewAuthorized(event)) {
+        return { status: false, message: "backend.audit.unauthorized" };
+      }
+      if (typeof name !== "string" || !normalizeTemplateFileName(name)) {
+        return {
+          status: false,
+          message: "backend.labels.INVALID_TEMPLATE_NAME",
+        };
+      }
+      const editable = canViewAuditLogs();
+      const formatName = name.trim();
+      let target = findPrinterForLabelFormat(formatName);
+      const baseName = formatName.replace(/\.(?:zpl|txt)$/i, "");
+      if (
+        !target.status &&
+        target.message === "backend.printer.format_not_assigned" &&
+        baseName !== formatName
+      ) {
+        target = findPrinterForLabelFormat(baseName);
+      }
+      if (!target.status) return target;
+
+      let finish: (() => void) | undefined;
+      try {
+        finish = await beginPrinterBatch();
+        const auditStorage = await checkAuditLogWritable();
+        if (!auditStorage.status) return auditStorage;
+
+        let template = input;
+        if (!editable || !canViewAuditLogs()) {
+          const saved = await getZplTemplate(formatName);
+          if (!saved.status) return saved;
+          template = saved.data;
+        }
+        if (
+          typeof template !== "string" ||
+          !/^\^XA[\s\S]*\^XZ$/i.test(template.trim()) ||
+          template.match(/\^X[AZ]/gi)?.length !== 2
+        ) {
+          return {
+            status: false,
+            message: "label_editor.print_invalid_format",
+          };
+        }
+        if (Buffer.byteLength(template, "utf8") > MAX_ZPL_SIZE) {
+          return {
+            status: false,
+            message: "backend.labeledit.template_too_large",
+          };
+        }
+
+        const julianDate = GetJulianDate("");
+        const zpl = disableReprintAfterError(
+          fillZplTemplate(template.trim(), {
+            PARTNUM: "TEST",
+            SERIALPREFIX: "TEST",
+            SERIALNUM1: "0001",
+            JDATE: julianDate,
+            CMCJDATE: GetCmcJulianDate(julianDate),
+            BMSCSTDATEF: GetBmsDate(""),
+            NUMCOPIES: 1,
+            DESCRIPTION: "TEST",
+            ID_LABEL: "TEST",
+          }),
+        )
+          .replace(/\^PQ[^^~\r\n]*/gi, "")
+          .replace(/\^XZ/i, "^PQ1,0,0,N^XZ");
+
+        const result = await sendToPrinter(zpl, target.printer);
+        const auditPersisted = await appendAuditLog({
+          category: "print",
+          action: result.status
+            ? "TEST_LABEL_DATA_SENT"
+            : "TEST_LABEL_DATA_FAILED",
+          status: result.status ? "success" : "failure",
+          details: {
+            labelFormat: formatName,
+            printMode: "test",
+            printerMessage: result.message,
+          },
+        });
+        return auditPersisted
+          ? result
+          : { ...result, rawError: "backend.audit.storage_unavailable" };
+      } catch (error) {
+        return {
+          status: false,
+          message: "backend.printer.send_error",
+          rawError: error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        finish?.();
+      }
+    },
+  );
+
   ipcMain.handle(
     "get-label-zpl",
     async (event: IpcMainInvokeEvent, formatName: string) => {
@@ -157,71 +282,107 @@ export default function ChildWindowHandlers(): void {
         };
       }
 
-      const previous = await getZplTemplate(formatName);
-      const response = await SaveZplTemplate(formatName, data);
+      const filename = normalizeTemplateFileName(formatName);
+      if (!filename)
+        return {
+          status: false,
+          message: "backend.labels.INVALID_TEMPLATE_NAME",
+        };
+      return queueTemplateWrite(async () => {
+        const auditStorage = await checkAuditLogWritable();
+        if (!auditStorage.status) return auditStorage;
+        const previous = await getZplTemplate(formatName);
+        if (!previous.status && !previous.templateMissing) return previous;
+        const response = await SaveZplTemplate(formatName, data);
 
-      if (!response.status) {
-        await appendAuditLog({
+        if (!response.status) {
+          await appendAuditLog({
+            category: "template",
+            action: "TEMPLATE_SAVED",
+            status: "failure",
+            details: {
+              name: formatName,
+              error: response.rawError || response.message,
+            },
+          });
+          return response;
+        }
+
+        const previousZpl = previous?.status ? previous.data : undefined;
+        const previousLines = previousZpl?.split(/\r?\n/) ?? [];
+        const nextLines = data.split(/\r?\n/);
+        let start = 0;
+        while (
+          start < previousLines.length &&
+          start < nextLines.length &&
+          previousLines[start] === nextLines[start]
+        )
+          start++;
+        let oldEnd = previousLines.length;
+        let newEnd = nextLines.length;
+        while (
+          oldEnd > start &&
+          newEnd > start &&
+          previousLines[oldEnd - 1] === nextLines[newEnd - 1]
+        ) {
+          oldEnd--;
+          newEnd--;
+        }
+        const snapshot = (
+          zpl: string,
+          lines: string[],
+        ): { sizeBytes: number; checksum: string; zplExcerpt: string } => {
+          const excerpt = lines.join("\n");
+          return {
+            sizeBytes: Buffer.byteLength(zpl, "utf8"),
+            checksum: createHash("sha256").update(zpl).digest("hex"),
+            zplExcerpt:
+              excerpt.length > 1800 ? `${excerpt.slice(0, 1800)}\n…` : excerpt,
+          };
+        };
+        const auditPersisted = await appendAuditLog({
           category: "template",
           action: "TEMPLATE_SAVED",
-          status: "failure",
+          status: "success",
           details: {
             name: formatName,
-            error: response.rawError || response.message,
+            sizeBytes: Buffer.byteLength(data, "utf8"),
+            before:
+              previousZpl === undefined
+                ? null
+                : snapshot(previousZpl, previousLines.slice(start, oldEnd)),
+            after: snapshot(data, nextLines.slice(start, newEnd)),
           },
         });
-        return response;
-      }
+        if (!auditPersisted) {
+          try {
+            if (previousZpl === undefined)
+              await unlink(path.join(getTemplatesPath(), filename));
+            else {
+              const rollback = await SaveZplTemplate(formatName, previousZpl);
+              if (!rollback.status)
+                throw new Error(rollback.rawError ?? rollback.message);
+            }
+          } catch (error) {
+            notifyTemplatesChanged();
+            return {
+              status: false,
+              message: "backend.audit.storage_unavailable",
+              rawError: `Template rollback failed: ${String(error)}`,
+            };
+          }
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+          };
+        }
 
-      const previousZpl = previous?.status ? previous.data : undefined;
-      const previousLines = previousZpl?.split(/\r?\n/) ?? [];
-      const nextLines = data.split(/\r?\n/);
-      let start = 0;
-      while (
-        start < previousLines.length &&
-        start < nextLines.length &&
-        previousLines[start] === nextLines[start]
-      )
-        start++;
-      let oldEnd = previousLines.length;
-      let newEnd = nextLines.length;
-      while (
-        oldEnd > start &&
-        newEnd > start &&
-        previousLines[oldEnd - 1] === nextLines[newEnd - 1]
-      ) {
-        oldEnd--;
-        newEnd--;
-      }
-      const snapshot = (zpl: string, lines: string[]) => {
-        const excerpt = lines.join("\n");
+        notifyTemplatesChanged();
         return {
-          sizeBytes: Buffer.byteLength(zpl, "utf8"),
-          checksum: createHash("sha256").update(zpl).digest("hex"),
-          zplExcerpt:
-            excerpt.length > 1800 ? `${excerpt.slice(0, 1800)}\n…` : excerpt,
+          status: true,
+          message: "backend.labeledit.saved",
         };
-      };
-      await appendAuditLog({
-        category: "template",
-        action: "TEMPLATE_SAVED",
-        status: "success",
-        details: {
-          name: formatName,
-          sizeBytes: Buffer.byteLength(data, "utf8"),
-          before:
-            previousZpl === undefined
-              ? null
-              : snapshot(previousZpl, previousLines.slice(start, oldEnd)),
-          after: snapshot(data, nextLines.slice(start, newEnd)),
-        },
       });
-
-      notifyTemplatesChanged();
-      return {
-        status: true,
-        message: "backend.labeledit.saved",
-      };
     },
   );
 }

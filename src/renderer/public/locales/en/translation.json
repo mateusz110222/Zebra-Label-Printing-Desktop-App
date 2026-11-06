@@ -1,4 +1,18 @@
 {
+  "settings_backup": {
+    "title": "Backup",
+    "description": "Export and import printers, format assignments, database, parts and monitoring configuration. The file contains the database password and monitoring token in plain text — store it securely. Label templates, history and external files are not included.",
+    "export": "Export",
+    "import": "Import",
+    "unsaved": "Save or cancel your changes first and wait for saving to finish.",
+    "export_confirm": "The JSON backup will contain the database password and monitoring token in plain text. Store it only in a secure location. Export saved settings?",
+    "import_confirm": "Import will replace the current printers, format assignments, database, parts and monitoring configuration, and the automatic updates setting. The view will refresh after import. Then restart the application to apply all settings. Continue?",
+    "export_success": "Settings backup saved.",
+    "import_success": "Settings restored. Restart the application to apply all settings.",
+    "export_error": "Could not save the settings backup. Check your configuration and file access.",
+    "import_error": "Could not restore settings. Check that this is a valid JSON backup from this application (max. 10 MB) and that you have write access.",
+    "busy": "This operation is unavailable while printing or another backup operation is running."
+  },
   "common": {
     "loading": "Loading...",
     "submit": "Submit",
@@ -184,8 +198,9 @@
     "db_tls": "Connection encryption (TLS)",
     "db_tls_default": "Automatic (default)",
     "db_tls_required": "Require TLS",
+    "db_tls_required_hint": "The connection requires TLS and successful server certificate verification.",
     "db_tls_disabled": "Without TLS (unencrypted connection)",
-    "db_tls_hint": "Automatic mode tries TLS first. If the connection fails, it retries without encryption. Use it on a trusted network. “Require TLS” always requires encryption.",
+    "db_tls_hint": "Automatic mode tries TLS first. For a self-signed certificate error, it retries over TLS without verifying the server identity. If the server does not support TLS, it connects without encryption.",
     "db_tls_disabled_hint": "The connection will not be encrypted. Use this option only on a trusted network."
   },
   "parts_config": {
@@ -297,12 +312,6 @@
     "child": {
       "formatName_empty": "The label format name cannot be empty."
     },
-    "github": {
-      "url_not_configured": "The URL used to check the latest application version is not configured.",
-      "fetch_error": "Failed to retrieve information about the latest application version.",
-      "invalid_response": "The server returned invalid application version information.",
-      "fetch_success": "The latest application version information was retrieved successfully."
-    },
     "printer": {
       "com_no_response": "No response from the printer via the COM port. Check the baud rate and transmission settings.",
       "com_close_error": "Failed to close the COM port.",
@@ -409,7 +418,7 @@
       "database_connection_timeout": "The database connection timed out. Check the host address, network or VPN and whether the firewall allows port 3306.",
       "database_host_unreachable": "The database server is unreachable. Check the host address and network or VPN connection.",
       "database_connection_lost": "The server closed the connection. Check the network and MySQL server status, then try again.",
-      "database_tls_failed": "Could not establish an encrypted TLS connection. Check server TLS support and the application's certificate configuration.",
+      "database_tls_failed": "Could not establish an encrypted TLS connection. Check that the server supports TLS and the application trusts the CA that signed the MySQL certificate.",
       "database_auth_unsupported": "Could not negotiate the MySQL login method. Check the account authentication method and server compatibility with the application driver.",
       "database_too_many_connections": "The server has reached its connection limit. Try again later or contact the database administrator.",
       "database_missing_config": "Required database configuration is missing.",
@@ -457,6 +466,7 @@
       "unauthorized": "You are not authorized to perform this operation.",
       "read_error": "Could not load audit history.",
       "export_error": "Could not export audit history.",
+      "export_limit": "CSV export supports up to 50,000 entries. Narrow the date range or add filters and try again.",
       "storage_ready": "The print history folder is writable.",
       "storage_unavailable": "Print history cannot be saved. Further printing is blocked."
     },
@@ -578,9 +588,9 @@
     "audit_tab": "Application audit",
     "audit_tab_description": "Logins and configuration or template changes.",
     "print_title": "Label print history",
-    "print_subtitle": "Label data is stored in separate print-*.jsonl files.",
+    "print_subtitle": "Label data is stored in the local history database.",
     "audit_title": "Audit history",
-    "audit_subtitle": "Application events are stored in separate audit-*.jsonl files.",
+    "audit_subtitle": "Application events are stored in the local history database.",
     "access_denied_title": "Access denied",
     "access_denied_message": "Audit history is available after signing in with an IT-authorized account.",
     "access_restricted_title": "Restricted access to history",
@@ -769,9 +779,36 @@
     "refresh": "Refresh",
     "refreshing": "Refreshing…"
   },
+  "monitoring": {
+    "paste_configuration": "Paste station configuration",
+    "paste_hint": "Paste the JSON copied using Copy configuration on the Stations page. Applying it replaces the form values; then save the settings.",
+    "paste_success": "Configuration loaded into the form. Save the settings.",
+    "apply_configuration": "Apply to form",
+    "tab": "Monitoring",
+    "title": "Station monitoring",
+    "description": "Connect this station to the central print and audit dashboard.",
+    "url": "Server URL",
+    "station": "Station ID",
+    "token": "Station token",
+    "token_saved": "Token saved",
+    "token_required": "Enter the token for this station configuration.",
+    "synthetic": "Test mode",
+    "synthetic_hint": "Sends a test heartbeat. Print history and audit data stay on this station.",
+    "restart_hint": "Changes take effect after you restart the application.",
+    "loading": "Loading monitoring settings…",
+    "saving": "Saving…",
+    "saved": "Monitoring settings saved. Restart the application.",
+    "read_error": "Could not read monitoring settings. You can save a new configuration.",
+    "save_error": "Could not save monitoring settings.",
+    "invalid": "Check the HTTP/HTTPS server URL, station ID and token.",
+    "access": "Sign in with IT permissions to configure monitoring."
+  },
   "label_editor": {
     "title": "ZPL Designer",
-    "refresh": "Refresh",
+    "print": "Print",
+    "print_test": "Print a test label",
+    "print_sent": "Test label sent to the printer.",
+    "print_invalid_format": "ZPL must contain one format from ^XA to ^XZ.",
     "code": "ZPL Code",
     "lines": "Lines: {{count}}",
     "chars": "Chars: {{count}}",
@@ -788,7 +825,6 @@
     "unsaved_title": "Unsaved template changes",
     "unsaved_message": "The ZPL template contains unsaved changes. If you continue, those changes will be lost.",
     "discard_and_close": "Discard and close",
-    "discard_and_reload": "Discard and reload",
     "continue_editing": "Continue editing",
     "example_part_load_error": "Failed to load the parts list for preview.",
     "example_part_not_found": "No part was found for format {{format}}.",

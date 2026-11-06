@@ -40,6 +40,21 @@ const labels = ["TEST01", "TEST02"].map((serial) => ({
   zpl: `^XA^FO10,10^BXN,4,200^FD${serial}^FS^PQ1^XZ`,
 }));
 
+it("attaches acknowledgement to the CMC barcode even when the same serial appears as text", () => {
+  const serial = "3555EA63080429";
+  const barcode = "^B3N,N,210,N,Y";
+  const text = "^A0N,67,67";
+  const batch = prepareAcknowledgedBatch([
+    {
+      serial,
+      zpl: `^XA${barcode}^FD${serial}^FS${text}^FD${serial}^FS^XZ`,
+    },
+  ]);
+  expect(batch?.labels[0].zpl).toContain(
+    `${barcode}^FN9999^FD${serial}^FS${text}^FD${serial}^FS`,
+  );
+});
+
 it("returns the existing barcode field and waits for both unique acknowledgements", async () => {
   const batch = prepareAcknowledgedBatch(labels)!;
   expect(batch.labels[0].zpl).toContain("^FN9999^FDTEST01^FS");
@@ -61,6 +76,14 @@ it("returns the existing barcode field and waits for both unique acknowledgement
     repeated: ["TEST01"],
     error: null,
   });
+});
+
+it("finds the barcode before a long suffix without field separators", () => {
+  const [label] = labels;
+  const suffix = " ".repeat(250_000);
+  const batch = prepareAcknowledgedBatch([{ ...label, zpl: label.zpl + suffix }]);
+  expect(batch?.labels[0].zpl).toContain("^FN9999^FDTEST01^FS");
+  expect(batch?.labels[0].zpl.endsWith(suffix)).toBe(true);
 });
 
 it("reports missing serials on timeout without resending", async () => {

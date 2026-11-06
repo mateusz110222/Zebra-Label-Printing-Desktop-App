@@ -4,6 +4,7 @@ import {
   isPrintQueueBusy,
   resetPrinterActivityForTests,
   runPrinterStatusQuery,
+  pausePrintsForUpdate,
   waitForPrintQueueIdle,
 } from "../printer/PrinterActivity";
 
@@ -22,7 +23,7 @@ describe("printer activity coordination", () => {
 
   it("uses the last ready result instead of querying during a print batch", async () => {
     await runPrinterStatusQuery(async () => readyStatus);
-    const finishPrinterBatch = await beginPrinterBatch(readyStatus);
+    const finishPrinterBatch = await beginPrinterBatch();
     const backgroundQuery = vi.fn(async () => ({
       status: false,
       reachable: false,
@@ -46,13 +47,13 @@ describe("printer activity coordination", () => {
   it("serializes parallel print batches in FIFO order without interleaving", async () => {
     const executionOrder: string[] = [];
 
-    const finishFirst = await beginPrinterBatch(readyStatus);
+    const finishFirst = await beginPrinterBatch();
     executionOrder.push("first-acquired");
 
     // Second batch attempts to start while first is active
     const secondBatchPromise = (async () => {
       executionOrder.push("second-requested");
-      const finishSecond = await beginPrinterBatch(readyStatus);
+      const finishSecond = await beginPrinterBatch();
       executionOrder.push("second-acquired");
       finishSecond();
       executionOrder.push("second-finished");
@@ -81,7 +82,7 @@ describe("printer activity coordination", () => {
   });
 
   it("waitForPrintQueueIdle resolves when queue becomes idle", async () => {
-    const finishBatch = await beginPrinterBatch(readyStatus);
+    const finishBatch = await beginPrinterBatch();
     expect(isPrintQueueBusy()).toBe(true);
 
     let idleResolved = false;
@@ -96,5 +97,16 @@ describe("printer activity coordination", () => {
     await waitPromise;
     expect(idleResolved).toBe(true);
     expect(isPrintQueueBusy()).toBe(false);
+  });
+
+  it("keeps printing paused until every owner releases its own pause", async () => {
+    const resumeImport = pausePrintsForUpdate();
+    const resumeUpdate = pausePrintsForUpdate();
+    resumeImport();
+    resumeImport();
+    await expect(beginPrinterBatch()).rejects.toThrow("backend.print.error");
+    resumeUpdate();
+    const finish = await beginPrinterBatch();
+    finish();
   });
 });

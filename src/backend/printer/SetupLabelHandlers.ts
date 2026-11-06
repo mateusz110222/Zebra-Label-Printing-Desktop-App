@@ -1,8 +1,5 @@
 import { ipcMain } from "electron";
 import { createHash } from "node:crypto";
-import IpConnection from "../PrinterConnections/IpConnection";
-import COMConnection from "../PrinterConnections/COMConnection";
-import USBConnection from "../PrinterConnections/USBConnection";
 
 import type { GeneratedLabel } from "../hooks/ZPLService";
 import { generatePrintZPL, generateReprintZPL } from "../hooks/ZPLService";
@@ -12,7 +9,10 @@ import {
   canViewAuditLogs,
   checkAuditLogWritable,
 } from "../audit/AuditLog";
-import { type PrinterStatusResult, queryPrinterStatus } from "./PrinterStatus";
+import {
+  type PrinterStatusResult,
+  queryPrinterStatusOnce,
+} from "./PrinterStatus";
 import { beginPrinterBatch } from "./PrinterActivity";
 import { measurePrinterCounter, readCounter } from "./PrinterDiagnostics";
 import {
@@ -22,6 +22,7 @@ import {
 import { resolveAuthoritativePart } from "../parts/PartsResolver";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { findPrinterForLabelFormat } from "./PrinterConfigs";
+import { sendToPrinter } from "./sendToPrinter";
 import { resolveScannedReprint } from "../parts/ScannedReprint";
 
 interface PrinterConfig {
@@ -152,7 +153,7 @@ const executeAndLogBatch = async ({
     printer.type === "COM" || printer.type === "IP"
       ? prepareAcknowledgedBatch(
           labels.map((label) => ({
-            serial: fullSerial(label),
+            serial: label.metadata.scanCode ?? fullSerial(label),
             zpl: label.zpl,
           })),
         )
@@ -192,7 +193,7 @@ const executeAndLogBatch = async ({
 
     if (deliveryState === "sent") {
       sentCount++;
-      if (label.metadata.scanCode)
+      if (mode === "reprint" && label.metadata.scanCode)
         verificationCodes.push(label.metadata.scanCode);
       lastSuccessfulResponse = response;
     } else {
@@ -327,49 +328,6 @@ const executeAndLogBatch = async ({
   };
 };
 
-async function sendToPrinter(
-  zpl: string,
-  printer: PrinterConfig,
-): Promise<ConnectionResult> {
-  switch (printer.type) {
-    case "IP":
-      if (!printer.ip || !printer.port) {
-        return {
-          status: false,
-          message: "backend.printer.no_ip_config",
-        };
-      }
-
-      return IpConnection(printer, zpl);
-
-    case "COM":
-      if (!printer.comPort) {
-        return {
-          status: false,
-          message: "backend.printer.no_com_config",
-        };
-      }
-
-      return COMConnection(printer, zpl);
-
-    case "USB":
-      if (!printer.usbPrinterName) {
-        return {
-          status: false,
-          message: "backend.printer.no_usb_config",
-        };
-      }
-
-      return USBConnection(printer, zpl);
-
-    default:
-      return {
-        status: false,
-        message: "backend.printer.unknown_connection",
-      };
-  }
-}
-
 const getPrinterStatusForReceipt = (
   printer: PrinterConfig,
   response: ConnectionResult,
@@ -494,16 +452,17 @@ export default function SetupLabelHandlers(): void {
         };
       }
       const printer = printerResolution.printer;
-      const printerBeforeReservation = await queryPrinterStatus(printer).catch(
-        (error) => ({
-          status: false,
-          reachable: false,
-          ready: false,
-          detailsAvailable: false,
-          message: "backend.printer.error",
-          rawError: error instanceof Error ? error.message : String(error),
-        }),
-      );
+      finishPrinterBatch = await beginPrinterBatch();
+      const printerBeforeReservation = await queryPrinterStatusOnce(
+        printer,
+      ).catch((error) => ({
+        status: false,
+        reachable: false,
+        ready: false,
+        detailsAvailable: false,
+        message: "backend.printer.error",
+        rawError: error instanceof Error ? error.message : String(error),
+      }));
 
       if (!printerBeforeReservation.ready) {
         const auditPersisted = await logPrintFailure(
@@ -528,7 +487,6 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
-      finishPrinterBatch = await beginPrinterBatch(printerBeforeReservation);
       const result = await generatePrintZPL(canonicalPart, quantity);
 
       if (!result.status || !result.labels) {
@@ -663,7 +621,8 @@ export default function SetupLabelHandlers(): void {
         };
       }
       const printer = printerResolution.printer;
-      const printerBeforeSend = await queryPrinterStatus(printer).catch(
+      finishPrinterBatch = await beginPrinterBatch();
+      const printerBeforeSend = await queryPrinterStatusOnce(printer).catch(
         (error) => ({
           status: false,
           reachable: false,
@@ -697,7 +656,6 @@ export default function SetupLabelHandlers(): void {
         };
       }
 
-      finishPrinterBatch = await beginPrinterBatch(printerBeforeSend);
       const result = await generateReprintZPL(
         canonicalPart,
         date,

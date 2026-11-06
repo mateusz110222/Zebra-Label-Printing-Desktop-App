@@ -1,4 +1,18 @@
 {
+  "settings_backup": {
+    "title": "Kopia zapasowa",
+    "description": "Eksport i import konfiguracji drukarek, przypisań formatów, bazy danych, części i monitoringu. Plik zawiera jawne hasło bazy i token monitoringu — przechowuj go w bezpiecznym miejscu. Kopia nie zawiera szablonów etykiet, historii ani plików zewnętrznych.",
+    "export": "Eksportuj",
+    "import": "Importuj",
+    "unsaved": "Najpierw zapisz lub anuluj zmiany i poczekaj na zakończenie zapisu.",
+    "export_confirm": "Kopia JSON będzie zawierała hasło bazy danych i token monitoringu w postaci jawnej. Zapisz ją wyłącznie w bezpiecznym miejscu. Wyeksportować zapisane ustawienia?",
+    "import_confirm": "Import zastąpi bieżącą konfigurację drukarek, przypisań formatów, bazy danych, części i monitoringu oraz ustawienie automatycznych aktualizacji. Po imporcie widok zostanie odświeżony. Następnie uruchom ponownie aplikację, aby zastosować wszystkie ustawienia. Kontynuować?",
+    "export_success": "Kopia ustawień została zapisana.",
+    "import_success": "Ustawienia zostały przywrócone. Uruchom ponownie aplikację, aby zastosować wszystkie ustawienia.",
+    "export_error": "Nie udało się zapisać kopii ustawień. Sprawdź konfigurację i dostęp do pliku.",
+    "import_error": "Nie udało się przywrócić ustawień. Sprawdź, czy to prawidłowa kopia JSON tej aplikacji (maks. 10 MB) i czy masz dostęp do zapisu.",
+    "busy": "Operacja jest niedostępna podczas drukowania lub wykonywania innej operacji kopii zapasowej."
+  },
   "common": {
     "loading": "Ładowanie...",
     "submit": "Wyślij",
@@ -184,8 +198,9 @@
     "db_tls": "Szyfrowanie połączenia (TLS)",
     "db_tls_default": "Automatycznie (domyślnie)",
     "db_tls_required": "Wymagaj TLS",
+    "db_tls_required_hint": "Połączenie wymaga TLS oraz poprawnej weryfikacji certyfikatu serwera.",
     "db_tls_disabled": "Bez TLS (połączenie nieszyfrowane)",
-    "db_tls_hint": "Tryb automatyczny najpierw próbuje TLS. Jeśli połączenie się nie uda, ponawia próbę bez szyfrowania. Używaj go w zaufanej sieci. Tryb „Wymagaj TLS” zawsze wymaga szyfrowania.",
+    "db_tls_hint": "Tryb automatyczny próbuje użyć TLS. Przy błędzie certyfikatu samopodpisanego ponawia próbę przez TLS bez weryfikacji tożsamości serwera. Jeśli serwer nie obsługuje TLS, używa połączenia nieszyfrowanego.",
     "db_tls_disabled_hint": "Połączenie nie będzie szyfrowane. Używaj tej opcji wyłącznie w zaufanej sieci."
   },
   "parts_config": {
@@ -297,12 +312,6 @@
     "child": {
       "formatName_empty": "Nazwa formatu etykiety nie może być pusta."
     },
-    "github": {
-      "url_not_configured": "Adres do sprawdzania najnowszej wersji aplikacji nie jest skonfigurowany.",
-      "fetch_error": "Nie udało się pobrać informacji o najnowszej wersji aplikacji.",
-      "invalid_response": "Serwer zwrócił nieprawidłowe informacje o wersji aplikacji.",
-      "fetch_success": "Informacje o najnowszej wersji aplikacji zostały pobrane."
-    },
     "printer": {
       "com_no_response": "Brak odpowiedzi drukarki przez port COM. Sprawdź szybkość transmisji (baud rate) i ustawienia transmisji.",
       "com_close_error": "Nie udało się zamknąć portu COM.",
@@ -409,7 +418,7 @@
       "database_connection_timeout": "Przekroczono czas połączenia z bazą. Sprawdź adres hosta, sieć lub VPN i czy zapora przepuszcza port 3306.",
       "database_host_unreachable": "Serwer bazy jest nieosiągalny. Sprawdź adres hosta i połączenie z siecią lub VPN.",
       "database_connection_lost": "Serwer przerwał połączenie. Sprawdź sieć oraz stan serwera MySQL i spróbuj ponownie.",
-      "database_tls_failed": "Nie udało się zestawić szyfrowanego połączenia TLS. Sprawdź obsługę TLS na serwerze i konfigurację certyfikatu w aplikacji.",
+      "database_tls_failed": "Nie udało się zestawić szyfrowanego połączenia TLS. Sprawdź, czy serwer obsługuje TLS i czy aplikacja ufa certyfikatowi CA, który podpisał certyfikat MySQL.",
       "database_auth_unsupported": "Nie udało się uzgodnić metody logowania MySQL. Sprawdź metodę uwierzytelniania konta i zgodność serwera ze sterownikiem aplikacji.",
       "database_too_many_connections": "Serwer osiągnął limit połączeń. Spróbuj ponownie później lub skontaktuj się z administratorem bazy.",
       "database_missing_config": "Brakuje wymaganej konfiguracji bazy danych.",
@@ -452,6 +461,7 @@
       "unauthorized": "Brak uprawnień do wykonania tej operacji.",
       "read_error": "Nie udało się wczytać historii audytu.",
       "export_error": "Nie udało się wyeksportować historii audytu.",
+      "export_limit": "Eksport CSV obsługuje do 50 000 wpisów. Zawęź zakres dat lub użyj dodatkowych filtrów i spróbuj ponownie.",
       "storage_ready": "Folder historii wydruków jest dostępny do zapisu.",
       "storage_unavailable": "Nie można zapisać historii wydruku. Kolejne wydruki są zablokowane."
     },
@@ -578,9 +588,9 @@
     "audit_tab": "Audyt aplikacji",
     "audit_tab_description": "Logowania oraz zmiany konfiguracji i szablonów.",
     "print_title": "Historia wydruków etykiet",
-    "print_subtitle": "Dane etykiet są przechowywane w oddzielnych plikach print-*.jsonl.",
+    "print_subtitle": "Dane etykiet są przechowywane w lokalnej bazie historii.",
     "audit_title": "Historia audytu",
-    "audit_subtitle": "Zdarzenia aplikacji są przechowywane w oddzielnych plikach audit-*.jsonl.",
+    "audit_subtitle": "Zdarzenia aplikacji są przechowywane w lokalnej bazie historii.",
     "access_denied_title": "Brak dostępu",
     "access_denied_message": "Historia audytu jest dostępna po zalogowaniu kontem z uprawnieniami IT.",
     "access_restricted_title": "Ograniczony dostęp do historii",
@@ -769,9 +779,36 @@
     "refresh": "Odśwież",
     "refreshing": "Odświeżanie…"
   },
+  "monitoring": {
+    "paste_configuration": "Wklej konfigurację stanowiska",
+    "paste_hint": "Wklej JSON skopiowany przyciskiem „Kopiuj konfigurację” w panelu Stanowiska. Zastosowanie zastąpi dane formularza; następnie zapisz ustawienia.",
+    "paste_success": "Konfiguracja została wczytana do formularza. Zapisz ustawienia.",
+    "apply_configuration": "Zastosuj do formularza",
+    "tab": "Monitoring",
+    "title": "Monitoring stanowiska",
+    "description": "Połącz stanowisko z centralnym panelem wydruków i audytu.",
+    "url": "Adres serwera",
+    "station": "Identyfikator stanowiska",
+    "token": "Token stanowiska",
+    "token_saved": "Token zapisany",
+    "token_required": "Wprowadź token dla tej konfiguracji stanowiska.",
+    "synthetic": "Tryb testowy",
+    "synthetic_hint": "Wysyła testowy sygnał połączenia. Historia wydruków i audyt pozostają lokalnie.",
+    "restart_hint": "Zmiany zaczną działać po ponownym uruchomieniu aplikacji.",
+    "loading": "Wczytywanie ustawień monitoringu…",
+    "saving": "Zapisywanie…",
+    "saved": "Zapisano ustawienia monitoringu. Uruchom ponownie aplikację.",
+    "read_error": "Nie udało się odczytać ustawień monitoringu. Możesz zapisać nową konfigurację.",
+    "save_error": "Nie udało się zapisać ustawień monitoringu.",
+    "invalid": "Sprawdź adres serwera HTTP/HTTPS, identyfikator i token.",
+    "access": "Do konfiguracji monitoringu zaloguj się na konto z uprawnieniami IT."
+  },
   "label_editor": {
     "title": "Projektant ZPL",
-    "refresh": "Odśwież",
+    "print": "Wydrukuj",
+    "print_test": "Wydrukuj etykietę testową",
+    "print_sent": "Wysłano etykietę testową do drukarki.",
+    "print_invalid_format": "Kod ZPL musi zawierać jeden format od ^XA do ^XZ.",
     "code": "Kod ZPL",
     "lines": "Wiersze: {{count}}",
     "chars": "Znaki: {{count}}",
@@ -788,7 +825,6 @@
     "unsaved_title": "Niezapisane zmiany szablonu",
     "unsaved_message": "Szablon ZPL zawiera niezapisane zmiany. Jeśli będziesz kontynuować, zmiany zostaną utracone.",
     "discard_and_close": "Odrzuć i zamknij",
-    "discard_and_reload": "Odrzuć i odśwież",
     "continue_editing": "Wróć do edycji",
     "example_part_load_error": "Nie udało się pobrać listy części do podglądu.",
     "example_part_not_found": "Nie znaleziono części przypisanej do formatu {{format}}.",

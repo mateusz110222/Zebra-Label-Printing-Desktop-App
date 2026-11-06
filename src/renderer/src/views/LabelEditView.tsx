@@ -1,20 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BsFileEarmarkCode, BsPrinter, BsSave } from "react-icons/bs";
-import { FiMinus, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { FiMinus, FiPlus } from "react-icons/fi";
 import { useLabelEdit } from "../hooks/useLabelEdit";
 import { CriticalErrorState, LoadingWrapper } from "@renderer/components";
 import { useTranslation } from "react-i18next";
 import { ConfirmationModal, StatusBanner } from "@renderer/components/common";
-
-type PendingExitAction = "close" | "reload";
 
 export function LabelEditView(): React.JSX.Element {
   const { t } = useTranslation();
   const { data, actions } = useLabelEdit();
   const [editorWidth, setEditorWidth] = useState(50);
   const [zoom, setZoom] = useState(100);
-  const [pendingExitAction, setPendingExitAction] =
-    useState<PendingExitAction | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const allowExitRef = useRef(false);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
@@ -49,28 +46,15 @@ export function LabelEditView(): React.JSX.Element {
       if (allowExitRef.current) return;
       event.preventDefault();
       event.returnValue = "";
-      setPendingExitAction("close");
+      setConfirmClose(true);
     };
     window.addEventListener("beforeunload", preventClose);
     return () => window.removeEventListener("beforeunload", preventClose);
   }, [data.isDirty]);
 
-  const requestReload = (): void => {
-    if (data.isDirty) {
-      setPendingExitAction("reload");
-      return;
-    }
-    window.location.reload();
-  };
-
   const confirmExit = (): void => {
-    const action = pendingExitAction;
     allowExitRef.current = true;
-    setPendingExitAction(null);
-    if (action === "reload") {
-      window.location.reload();
-      return;
-    }
+    setConfirmClose(false);
     window.close();
   };
 
@@ -124,6 +108,7 @@ export function LabelEditView(): React.JSX.Element {
             <StatusBanner
               type={data.uiMessage.type}
               message={data.uiMessage.text}
+              details={data.uiMessage.details}
               onClose={actions.dismissUiMessage}
             />
           </div>
@@ -142,7 +127,7 @@ export function LabelEditView(): React.JSX.Element {
                 )}
                 {t("label_editor.title")}
               </h1>
-              {data.isNewTemplate ? (
+              {data.isNewTemplate && data.canEdit ? (
                 <input
                   value={data.cleanName}
                   onChange={(event) => actions.setCleanName(event.target.value)}
@@ -187,21 +172,36 @@ export function LabelEditView(): React.JSX.Element {
                 )}
               </div>
             </div>
-            <button
-              onClick={actions.handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md shadow-indigo-200 dark:shadow-none font-medium text-sm active:scale-95"
-              title={`${t("common.save")} (Ctrl+S)`}
-            >
-              <BsSave size={16} />
-              <span>{t("common.save")}</span>
-            </button>
+            {data.canEdit && (
+              <button
+                onClick={actions.handleSave}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all shadow-md shadow-indigo-200 dark:shadow-none font-medium text-sm active:scale-95"
+                title={`${t("common.save")} (Ctrl+S)`}
+              >
+                <BsSave size={16} />
+                <span>{t("common.save")}</span>
+              </button>
+            )}
 
             <button
-              onClick={requestReload}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-600 dark:text-slate-400"
-              title={t("label_editor.refresh")}
+              type="button"
+              onClick={actions.handlePrint}
+              disabled={
+                data.isPrinting ||
+                !data.parsedData.trim() ||
+                !data.cleanName.trim()
+              }
+              className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:text-slate-200 dark:hover:bg-slate-800"
+              title={t("label_editor.print_test")}
             >
-              <FiRefreshCw size={18} />
+              <BsPrinter size={16} />
+              <span>
+                {t(
+                  data.isPrinting
+                    ? "print_view.printing"
+                    : "label_editor.print",
+                )}
+              </span>
             </button>
           </div>
         </header>
@@ -238,7 +238,9 @@ export function LabelEditView(): React.JSX.Element {
                 ))}
               </div>
               <textarea
+                aria-label={t("label_editor.code")}
                 value={data.parsedData}
+                readOnly={!data.canEdit}
                 onChange={(e) => actions.setParsedData(e.target.value)}
                 onScroll={(event) => {
                   if (lineNumbersRef.current) {
@@ -345,17 +347,13 @@ export function LabelEditView(): React.JSX.Element {
           </div>
         </main>
         <ConfirmationModal
-          isOpen={pendingExitAction !== null}
+          isOpen={confirmClose}
           title={t("label_editor.unsaved_title")}
           message={t("label_editor.unsaved_message")}
-          confirmLabel={t(
-            pendingExitAction === "reload"
-              ? "label_editor.discard_and_reload"
-              : "label_editor.discard_and_close",
-          )}
+          confirmLabel={t("label_editor.discard_and_close")}
           cancelLabel={t("label_editor.continue_editing")}
           onConfirm={confirmExit}
-          onCancel={() => setPendingExitAction(null)}
+          onCancel={() => setConfirmClose(false)}
         />
       </div>
     </LoadingWrapper>

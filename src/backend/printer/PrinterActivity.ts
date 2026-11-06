@@ -1,13 +1,27 @@
 import type { PrinterStatusResult } from "./PrinterStatus";
 
+const MAX_SHUTDOWN_WAIT_MS = 180000;
+
 let activePrintBatches = 0;
 let pendingPrintBatches = 0;
 let lastKnownStatus: PrinterStatusResult | undefined;
 const activeStatusQueries = new Set<Promise<void>>();
 
 let queueTail: Promise<void> = Promise.resolve();
+let printBatchGeneration = 0;
+const printPauses = new Set<symbol>();
 
-export const getStatusWithoutQuery = (): PrinterStatusResult =>
+export const pausePrintsForUpdate = (): (() => void) => {
+  const pause = Symbol();
+  printPauses.add(pause);
+  return () => {
+    printPauses.delete(pause);
+  };
+};
+
+export const getPrintBatchGeneration = (): number => printBatchGeneration;
+
+const getStatusWithoutQuery = (): PrinterStatusResult =>
   lastKnownStatus || {
     status: true,
     reachable: true,
@@ -26,16 +40,19 @@ export const isPrintQueueBusy = (): boolean =>
   activePrintBatches > 0 || pendingPrintBatches > 0;
 
 export const waitForPrintQueueIdle = async (
-  timeoutMs: number = 30000,
+  timeoutMs = MAX_SHUTDOWN_WAIT_MS,
 ): Promise<boolean> => {
   if (!isPrintQueueBusy()) return true;
 
-  const startTime = Date.now();
+  const deadline = Date.now() + timeoutMs;
   while (isPrintQueueBusy()) {
-    if (Date.now() - startTime >= timeoutMs) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
       return false;
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(100, remaining)),
+    );
   }
   return true;
 };
@@ -68,9 +85,9 @@ export const runPrinterStatusQuery = async (
   }
 };
 
-export const beginPrinterBatch = async (
-  statusBeforeSend: PrinterStatusResult,
-): Promise<() => void> => {
+export const beginPrinterBatch = async (): Promise<() => void> => {
+  if (printPauses.size) throw new Error("backend.print.error");
+  printBatchGeneration++;
   pendingPrintBatches += 1;
 
   let releaseLock: () => void = () => undefined;
@@ -88,7 +105,6 @@ export const beginPrinterBatch = async (
       await Promise.allSettled([...activeStatusQueries]);
     }
 
-    lastKnownStatus = statusBeforeSend;
     activePrintBatches += 1;
   } finally {
     pendingPrintBatches = Math.max(0, pendingPrintBatches - 1);
@@ -109,4 +125,6 @@ export const resetPrinterActivityForTests = (): void => {
   lastKnownStatus = undefined;
   activeStatusQueries.clear();
   queueTail = Promise.resolve();
+  printPauses.clear();
+  printBatchGeneration = 0;
 };

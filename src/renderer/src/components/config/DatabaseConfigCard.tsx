@@ -91,9 +91,9 @@ export default function DatabaseConfigCard({
               className="mt-2 text-sm text-slate-500 dark:text-slate-400"
             >
               {t(
-                dbSslMode === "disabled"
-                  ? "config_view.db_tls_disabled_hint"
-                  : "config_view.db_tls_hint",
+                dbSslMode === "default"
+                  ? "config_view.db_tls_hint"
+                  : `config_view.db_tls_${dbSslMode}_hint`,
               )}
             </p>
           </div>

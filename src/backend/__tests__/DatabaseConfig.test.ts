@@ -83,51 +83,58 @@ describe("database TLS mode", () => {
     expect(decryptDatabasePassword("legacy-plain")).toBe("legacy-plain");
   });
 
-  it("does not retry when TLS succeeds", async () => {
-    const connect = vi.fn().mockResolvedValue("connected");
-    expect(await connectWithTlsFallback("default", connect)).toBe("connected");
-    expect(connect).toHaveBeenCalledOnce();
-    expect(connect.mock.calls[0][0]).toBeDefined();
+  it("verifies the server certificate and identity in TLS modes", () => {
+    for (const mode of ["default", "required"] as const) {
+      expect(getMysqlSslOptions(mode)).toMatchObject({
+        rejectUnauthorized: true,
+        verifyIdentity: true,
+      });
+    }
   });
 
-  it.each(["HANDSHAKE_NO_SSL_SUPPORT", "CERT_HAS_EXPIRED", "ECONNRESET"])(
-    "retries without TLS after %s in automatic mode",
-    async (code) => {
-      const connect = vi
-        .fn()
-        .mockRejectedValueOnce(Object.assign(new Error(code), { code }))
-        .mockResolvedValueOnce("connected without TLS");
-      expect(await connectWithTlsFallback(undefined, connect)).toBe(
-        "connected without TLS",
-      );
-      expect(connect).toHaveBeenCalledTimes(2);
-      expect(connect.mock.calls[0][0]).toBeDefined();
-      expect(connect.mock.calls[1][0]).toBeUndefined();
-    },
-  );
-
-  it.each(["required", "disabled"] as const)(
-    "does not retry a failed connection in %s mode",
-    async (mode) => {
-      const error = new Error("Connection failed");
-      const connect = vi.fn().mockRejectedValue(error);
-      await expect(connectWithTlsFallback(mode, connect)).rejects.toBe(error);
-      expect(connect).toHaveBeenCalledOnce();
-    },
-  );
-
-  it("returns the error from the unencrypted attempt when both attempts fail", async () => {
-    const lastError = new Error("Access denied");
+  it("falls back only when the server does not support TLS in automatic mode", async () => {
+    const error = Object.assign(new Error("TLS unsupported"), {
+      code: "HANDSHAKE_NO_SSL_SUPPORT",
+    });
     const connect = vi
       .fn()
-      .mockRejectedValueOnce(new Error("TLS failed"))
-      .mockRejectedValueOnce(lastError);
-    await expect(connectWithTlsFallback("default", connect)).rejects.toBe(
-      lastError,
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce("legacy server");
+    await expect(connectWithTlsFallback("default", connect)).resolves.toBe(
+      "legacy server",
     );
+    expect(connect).toHaveBeenNthCalledWith(2, undefined);
+
+    connect.mockReset().mockRejectedValue(error);
+    await expect(connectWithTlsFallback("required", connect)).rejects.toBe(
+      error,
+    );
+    expect(connect).toHaveBeenCalledOnce();
   });
 
-  it("closes the failed TLS pool and shares the fallback pool between concurrent callers", async () => {
+  it("retries the reported self-signed chain error in automatic mode", async () => {
+    const error = Object.assign(
+      new Error("self signed certificate in certificate chain"),
+      { code: "HANDSHAKE_SSL_ERROR" },
+    );
+    const connect = vi.fn().mockRejectedValueOnce(error).mockResolvedValueOnce("TLS");
+
+    await expect(connectWithTlsFallback("default", connect)).resolves.toBe("TLS");
+    expect(connect).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ rejectUnauthorized: true, verifyIdentity: true }),
+    );
+    expect(connect).toHaveBeenNthCalledWith(2, {
+      rejectUnauthorized: false,
+      verifyIdentity: false,
+    });
+
+    connect.mockReset().mockRejectedValue(error);
+    await expect(connectWithTlsFallback("required", connect)).rejects.toBe(error);
+    expect(connect).toHaveBeenCalledOnce();
+  });
+
+  it("shares the TLS connection attempt and never downgrades after a certificate failure", async () => {
     mocks.get.mockReturnValue({
       host: "db",
       user: "usr",
@@ -135,24 +142,16 @@ describe("database TLS mode", () => {
       database: "labels",
     });
     const failedPool = {
-      getConnection: vi.fn().mockRejectedValue(new Error("TLS not supported")),
+      getConnection: vi.fn().mockRejectedValue(new Error("CERT_HAS_EXPIRED")),
       end: vi.fn().mockResolvedValue(undefined),
     };
-    const release = vi.fn();
-    const fallbackPool = {
-      getConnection: vi.fn().mockResolvedValue({ release }),
-      end: vi.fn().mockResolvedValue(undefined),
-    };
-    mocks.createPool
-      .mockReturnValueOnce(failedPool)
-      .mockReturnValueOnce(fallbackPool);
-    const pools = await Promise.all([getDatabase(), getDatabase()]);
-    expect(pools).toEqual([fallbackPool, fallbackPool]);
+    mocks.createPool.mockReturnValue(failedPool);
+    const results = await Promise.allSettled([getDatabase(), getDatabase()]);
+    expect(results.map(({ status }) => status)).toEqual([
+      "rejected",
+      "rejected",
+    ]);
     expect(failedPool.end).toHaveBeenCalledOnce();
-    expect(release).toHaveBeenCalledOnce();
-    expect(mocks.createPool.mock.calls[0][0].ssl).toBeDefined();
-    expect(mocks.createPool.mock.calls[1][0]).not.toHaveProperty("ssl");
-    expect(await getDatabase()).toBe(fallbackPool);
-    expect(mocks.createPool).toHaveBeenCalledTimes(2);
+    expect(mocks.createPool).toHaveBeenCalledOnce();
   });
 });

@@ -1,12 +1,17 @@
 import { ipcMain } from "electron";
-import { readdir, readFile, unlink } from "node:fs/promises";
+import { readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import {
   getTemplatesPath,
   normalizeTemplateFileName,
+  queueTemplateWrite,
 } from "../system/TemplatePaths";
-import { appendAuditLog, canViewAuditLogs } from "../audit/AuditLog";
+import {
+  appendAuditLog,
+  canViewAuditLogs,
+  checkAuditLogWritable,
+} from "../audit/AuditLog";
 import { isMainRendererAuthorized } from "../auth/IsAutorized";
 import { notifyTemplatesChanged } from "./TemplateEvents";
 
@@ -84,43 +89,61 @@ export default function GetLabelsFormats(): void {
       return { status: false, message: "backend.labels.INVALID_TEMPLATE_NAME" };
     }
 
-    try {
-      const filePath = path.join(getTemplatesPath(), filename);
-      const previous = await readFile(filePath).catch(() => null);
-      await unlink(filePath);
-      await appendAuditLog({
-        category: "template",
-        action: "TEMPLATE_DELETED",
-        status: "success",
-        details: {
-          name: filename,
-          before: {
+    return queueTemplateWrite(async () => {
+      const auditStorage = await checkAuditLogWritable();
+      if (!auditStorage.status) return auditStorage;
+      try {
+        const filePath = path.join(getTemplatesPath(), filename);
+        const previous = await readFile(filePath);
+        await unlink(filePath);
+        const auditPersisted = await appendAuditLog({
+          category: "template",
+          action: "TEMPLATE_DELETED",
+          status: "success",
+          details: {
             name: filename,
-            sizeBytes: previous?.length,
-            checksum: previous
-              ? createHash("sha256").update(previous).digest("hex")
-              : undefined,
+            before: {
+              name: filename,
+              sizeBytes: previous.length,
+              checksum: createHash("sha256").update(previous).digest("hex"),
+            },
+            after: null,
           },
-          after: null,
-        },
-      });
-      notifyTemplatesChanged();
-      return { status: true, message: "backend.labels.TEMPLATE_DELETED" };
-    } catch (error) {
-      await appendAuditLog({
-        category: "template",
-        action: "TEMPLATE_DELETED",
-        status: "failure",
-        details: {
-          name: filename,
+        });
+        if (!auditPersisted) {
+          try {
+            await writeFile(filePath, previous);
+          } catch (error) {
+            notifyTemplatesChanged();
+            return {
+              status: false,
+              message: "backend.audit.storage_unavailable",
+              rawError: `Template rollback failed: ${String(error)}`,
+            };
+          }
+          return {
+            status: false,
+            message: "backend.audit.storage_unavailable",
+          };
+        }
+        notifyTemplatesChanged();
+        return { status: true, message: "backend.labels.TEMPLATE_DELETED" };
+      } catch (error) {
+        await appendAuditLog({
+          category: "template",
+          action: "TEMPLATE_DELETED",
+          status: "failure",
+          details: {
+            name: filename,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        return {
+          status: false,
+          message: "backend.labels.ERROR_DELETING_TEMPLATE",
           error: error instanceof Error ? error.message : String(error),
-        },
-      });
-      return {
-        status: false,
-        message: "backend.labels.ERROR_DELETING_TEMPLATE",
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
+        };
+      }
+    });
   });
 }

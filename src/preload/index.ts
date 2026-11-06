@@ -82,22 +82,24 @@ export interface PrinterRoutingConfig {
 }
 
 const api = {
-  SetLabelEditorDirty: (dirty: boolean): void =>
-    ipcRenderer.send("label-editor-dirty", dirty),
+  ExportSettingsBackup: () => ipcRenderer.invoke("export-settings-backup"),
+  ImportSettingsBackup: () => ipcRenderer.invoke("import-settings-backup"),
   // Parts and ZPL
   GetParts: (Label_Format?: string) =>
     ipcRenderer.invoke("get-parts", Label_Format),
 
   GetPartsConfig: (): Promise<PartsConfigResponse> =>
     ipcRenderer.invoke("get-parts-config"),
+  GetMonitoringConfig: () => ipcRenderer.invoke("get-monitoring-config"),
+  SaveMonitoringConfig: (input: {
+    url: string;
+    stationId: string;
+    token: string;
+    synthetic: boolean;
+  }) => ipcRenderer.invoke("save-monitoring-config", input),
 
   SavePartsConfig: (config: PartsConfig): Promise<SavePartsConfigResponse> =>
     ipcRenderer.invoke("save-parts-config", config),
-
-  GetLabelZPL: (name: string) => ipcRenderer.invoke("get-label-zpl", name),
-
-  GetLabelPreview: (nameOrZpl: string) =>
-    ipcRenderer.invoke("get-labelFormat-preview", nameOrZpl),
 
   GetPrintPreview: (payload: {
     part: PartPayload;
@@ -107,9 +109,6 @@ const api = {
   }) => ipcRenderer.invoke("get-label-preview", payload),
 
   GetLabelsFormats: () => ipcRenderer.invoke("get-labels-formats"),
-
-  SaveLabelFormat: (name: string, data: string) =>
-    ipcRenderer.invoke("save-labelformat", name, data),
 
   DeleteLabelFormat: (name: string) =>
     ipcRenderer.invoke("delete-label-format", name),
@@ -162,8 +161,6 @@ const api = {
   // App/Settings
   GetAppVersion: () => ipcRenderer.invoke("get-app-version"),
 
-  GetGithubVersion: () => ipcRenderer.invoke("get-github-version"),
-
   CheckForUpdates: (): Promise<UpdateCheckResponse> =>
     ipcRenderer.invoke("check-for-updates"),
 
@@ -190,6 +187,16 @@ const api = {
     ipcRenderer.invoke("handle-login", payload),
 
   Logout: (): Promise<void> => ipcRenderer.invoke("handle-logout"),
+  HasActiveSession: (): Promise<boolean | undefined> =>
+    ipcRenderer.invoke("has-active-session"),
+  OnSessionExpired: (callback: (expiresAt: number) => void): (() => void) => {
+    const listener = (_event: unknown, expiresAt: number): void =>
+      callback(expiresAt);
+    ipcRenderer.on("audit-session-expired", listener);
+    return () => {
+      ipcRenderer.removeListener("audit-session-expired", listener);
+    };
+  },
 
   // Audit history
   GetAuditLogs: (query: Record<string, unknown>) =>

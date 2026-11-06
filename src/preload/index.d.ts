@@ -68,7 +68,25 @@ declare global {
 
   interface Window {
     api: {
+      ExportSettingsBackup: () => Promise<{
+        status: boolean;
+        canceled?: boolean;
+        message?: string;
+      }>;
+      ImportSettingsBackup: () => Promise<{
+        status: boolean;
+        canceled?: boolean;
+        message?: string;
+      }>;
       SetLabelEditorDirty: (dirty: boolean) => void;
+      GetLabelEditPermission: () => Promise<boolean>;
+      OnLabelEditPermissionChanged: (
+        callback: (canEdit: boolean) => void,
+      ) => () => void;
+      PrintLabelFormatTest: (
+        name: string,
+        zpl: string,
+      ) => Promise<{ status: boolean; message: string; rawError?: string }>;
       // Parts and ZPL
       GetParts: (Label_Format?: string) => Promise<{
         status: boolean;
@@ -78,6 +96,22 @@ declare global {
       }>;
 
       GetPartsConfig: () => Promise<PartsConfigResponse>;
+      GetMonitoringConfig: () => Promise<{
+        status: boolean;
+        message?: string;
+        data?: {
+          url: string;
+          stationId: string;
+          synthetic: boolean;
+          hasToken: boolean;
+        } | null;
+      }>;
+      SaveMonitoringConfig: (input: {
+        url: string;
+        stationId: string;
+        token: string;
+        synthetic: boolean;
+      }) => Promise<{ status: boolean; message?: string }>;
 
       SavePartsConfig: (
         config: PartsConfig,
@@ -238,13 +272,6 @@ declare global {
       // App / Settings
       GetAppVersion: () => Promise<string | { status: false; message: string }>;
 
-      GetGithubVersion: () => Promise<{
-        status: boolean;
-        message: string;
-        rawError?: string;
-        data?: string;
-      }>;
-
       CheckForUpdates: () => Promise<{
         status?: boolean;
         updateAvailable?: boolean;
@@ -290,6 +317,8 @@ declare global {
       }>;
 
       Logout: () => Promise<void>;
+      HasActiveSession: () => Promise<boolean | undefined>;
+      OnSessionExpired: (callback: (expiresAt: number) => void) => () => void;
 
       // Audit history
       GetAuditLogs: (query: AuditLogQuery) => Promise<{

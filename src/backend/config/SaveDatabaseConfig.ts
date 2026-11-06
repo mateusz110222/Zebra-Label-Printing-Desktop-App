@@ -127,7 +127,10 @@ export default function SaveDatabaseConfig(): void {
         password: "",
         hasPassword: Boolean(plainPassword && plainPassword.length > 0),
         database: config.database || "",
-        sslMode: config.sslMode || "default",
+        sslMode:
+          config.sslMode === "self_signed"
+            ? "default"
+            : config.sslMode || "default",
       },
     };
   });

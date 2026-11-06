@@ -1,8 +1,9 @@
 import { app } from "electron";
-import { mkdir, open, readdir, readFile, unlink } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import path from "node:path";
 import os from "node:os";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getAuditActor } from "./AuditSession";
 
 export {
@@ -175,13 +176,6 @@ const sanitizeDetails = (
 const getLogsDirectory = (): string =>
   path.join(app.getPath("userData"), "logs");
 
-const getCurrentLogPath = (category: AuditCategory): string => {
-  const day = new Date().toISOString().slice(0, 10);
-  const prefix = category === "print" ? "print" : "audit";
-
-  return path.join(getLogsDirectory(), `${prefix}-${day}.jsonl`);
-};
-
 const rememberWriteFailure = (error: unknown): void => {
   lastWriteError = error instanceof Error ? error.message : String(error);
 
@@ -209,19 +203,7 @@ export const appendAuditLog = async (
 
   writeQueue = writeQueue.then(async () => {
     try {
-      await mkdir(getLogsDirectory(), {
-        recursive: true,
-      });
-
-      const file = await open(getCurrentLogPath(entry.category), "a");
-
-      try {
-        await file.appendFile(`${JSON.stringify(entry)}\n`, "utf8");
-
-        await file.sync();
-      } finally {
-        await file.close();
-      }
+      insertEntries(await getDatabase(), [entry]);
 
       persisted = true;
       lastWriteError = null;
@@ -247,29 +229,14 @@ export interface AuditStorageStatus {
 export const checkAuditLogWritable = async (): Promise<AuditStorageStatus> => {
   await writeQueue;
 
-  const logsPath = getLogsDirectory();
-
-  const probePath = path.join(
-    logsPath,
-    `.audit-write-probe-${process.pid}-${randomUUID()}`,
-  );
+  const logsPath = getDatabasePath();
 
   try {
-    await mkdir(logsPath, {
-      recursive: true,
-    });
-
-    const probe = await open(probePath, "wx");
-
-    try {
-      await probe.writeFile(new Date().toISOString(), "utf8");
-
-      await probe.sync();
-    } finally {
-      await probe.close();
-    }
-
-    await unlink(probePath);
+    const db = await getDatabase();
+    db.prepare("INSERT OR REPLACE INTO metadata VALUES (?, ?)").run(
+      "last_write_probe",
+      new Date().toISOString(),
+    );
 
     lastWriteError = null;
     lastWriteFailureAt = null;
@@ -282,8 +249,6 @@ export const checkAuditLogWritable = async (): Promise<AuditStorageStatus> => {
     };
   } catch (error) {
     rememberWriteFailure(error);
-
-    await unlink(probePath).catch(() => undefined);
 
     return {
       status: false,
@@ -301,76 +266,188 @@ const INTERNAL_ACTIONS = new Set([
   "LABEL_BATCH_REQUESTED",
 ]);
 
-const matchesQuery = (entry: AuditLogEntry, query: AuditLogQuery): boolean => {
-  if (INTERNAL_ACTIONS.has(entry.action)) {
-    return false;
+const getDatabasePath = (): string =>
+  path.join(getLogsDirectory(), "history.sqlite");
+
+export async function readMonitoringBatch(
+  key: string,
+  since: string,
+): Promise<{ through: number; events: AuditLogEntry[] }> {
+  const db = await getDatabase();
+  const cursor = Number(
+    db.prepare("SELECT value FROM metadata WHERE key = ?").get(key)?.value ?? 0,
+  );
+  const rows = db
+    .prepare(
+      "SELECT rowid, payload FROM entries WHERE rowid > ? AND timestamp >= ? ORDER BY rowid LIMIT 100",
+    )
+    .all(cursor, since);
+  const events: AuditLogEntry[] = [];
+  let through = cursor;
+  let bytes = 0;
+  for (const row of rows) {
+    const payload = String(row.payload);
+    bytes += Buffer.byteLength(payload, "utf8") + 1;
+    if (events.length && bytes > 1024 * 1024) break;
+    events.push(JSON.parse(payload) as AuditLogEntry);
+    through = Number(row.rowid);
   }
+  return { through, events };
+}
 
-  if (query.scope === "print" && entry.category !== "print") {
-    return false;
-  }
+export async function acknowledgeMonitoringBatch(
+  key: string,
+  through: number,
+): Promise<void> {
+  const db = await getDatabase();
+  db.prepare("INSERT OR REPLACE INTO metadata VALUES (?, ?)").run(
+    key,
+    String(through),
+  );
+}
 
-  if (query.scope === "audit" && entry.category === "print") {
-    return false;
-  }
+let database: Promise<DatabaseSync> | undefined;
 
-  if (
-    query.category &&
-    query.category !== "all" &&
-    entry.category !== query.category
-  ) {
-    return false;
-  }
+function getDatabase(): Promise<DatabaseSync> {
+  database ??= openDatabase().catch((error) => {
+    database = undefined;
+    throw error;
+  });
+  return database;
+}
 
-  if (query.status && query.status !== "all" && entry.status !== query.status) {
-    return false;
-  }
-
-  const timestamp = new Date(entry.timestamp);
-
-  const localDate =
-    `${timestamp.getFullYear()}-` +
-    `${String(timestamp.getMonth() + 1).padStart(2, "0")}-` +
-    `${String(timestamp.getDate()).padStart(2, "0")}`;
-
-  if (query.dateFrom && localDate < query.dateFrom) {
-    return false;
-  }
-
-  if (query.dateTo && localDate > query.dateTo) {
-    return false;
-  }
-
-  const search = query.search?.trim().toLocaleLowerCase();
-
-  if (search) {
-    const searchable = [
-      entry.action,
-      entry.actor,
-      entry.workstation,
-      JSON.stringify(entry.details),
-    ]
-      .join(" ")
-      .toLocaleLowerCase();
-
-    if (!searchable.includes(search)) {
-      return false;
+async function openDatabase(): Promise<DatabaseSync> {
+  await mkdir(getLogsDirectory(), { recursive: true });
+  const db = new DatabaseSync(getDatabasePath());
+  try {
+    db.exec(
+      "PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;",
+    );
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);" +
+        "CREATE TABLE IF NOT EXISTS entries (" +
+        "id TEXT NOT NULL UNIQUE, timestamp TEXT NOT NULL, category TEXT NOT NULL, " +
+        "status TEXT NOT NULL, visible INTEGER NOT NULL, payload TEXT NOT NULL, search_text TEXT NOT NULL);" +
+        "CREATE INDEX IF NOT EXISTS entries_by_time ON entries(timestamp DESC) WHERE visible = 1;" +
+        "CREATE INDEX IF NOT EXISTS entries_by_category ON entries(category, timestamp DESC) WHERE visible = 1;" +
+        "CREATE INDEX IF NOT EXISTS entries_by_status ON entries(status, timestamp DESC) WHERE visible = 1;" +
+        "CREATE VIRTUAL TABLE IF NOT EXISTS entry_search USING fts5(search_text, content='', tokenize='trigram case_sensitive 1');",
+    );
+    const getMarker = db.prepare("SELECT 1 FROM metadata WHERE key = ?");
+    if (!getMarker.get("jsonl-import-v1")) {
+      const files = await readdir(getLogsDirectory());
+      for (const file of files) {
+        if (!/^(?:audit|print)-\d{4}-\d{2}(?:-\d{2})?\.jsonl$/.test(file))
+          continue;
+        const marker = "imported:" + file;
+        if (getMarker.get(marker)) continue;
+        const content = await readFile(
+          path.join(getLogsDirectory(), file),
+          "utf8",
+        );
+        insertEntries(db, legacyEntries(content), marker);
+      }
+      db.prepare("INSERT OR IGNORE INTO metadata VALUES (?, ?)").run(
+        "jsonl-import-v1",
+        "1",
+      );
     }
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
   }
+}
 
-  return true;
-};
+function* legacyEntries(content: string): Generator<AuditLogEntry> {
+  for (const line of content.split("\n")) {
+    if (!line.trim()) continue;
+    let entry: AuditLogEntry;
+    try {
+      entry = JSON.parse(line) as AuditLogEntry;
+    } catch {
+      continue;
+    }
+    if (
+      typeof entry?.timestamp !== "string" ||
+      !Number.isFinite(Date.parse(entry.timestamp))
+    ) {
+      continue;
+    }
+    if (typeof entry.id !== "string" || !entry.id) {
+      entry.id = createHash("sha256").update(line).digest("hex");
+    }
+    entry.details = sanitizeDetails(
+      entry.details &&
+        typeof entry.details === "object" &&
+        !Array.isArray(entry.details)
+        ? entry.details
+        : {},
+    );
+    yield entry;
+  }
+}
 
-const shiftIsoDateByDays = (
-  isoDate: string | undefined,
-  deltaDays: number,
-): string | null => {
-  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
-  const parsed = new Date(`${isoDate}T12:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  parsed.setUTCDate(parsed.getUTCDate() + deltaDays);
-  return parsed.toISOString().slice(0, 10);
-};
+function insertEntries(
+  db: DatabaseSync,
+  entries: Iterable<AuditLogEntry>,
+  marker?: string,
+): void {
+  const insert = db.prepare(
+    "INSERT INTO entries (id, timestamp, category, status, visible, payload, search_text) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING RETURNING rowid",
+  );
+  const index = db.prepare(
+    "INSERT INTO entry_search (rowid, search_text) VALUES (?, ?)",
+  );
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const entry of entries) {
+      const visible = !INTERNAL_ACTIONS.has(entry.action);
+      const searchText = visible
+        ? [
+            entry.action,
+            entry.actor,
+            entry.workstation,
+            JSON.stringify(entry.details),
+          ]
+            .join(" ")
+            .toLocaleLowerCase()
+        : "";
+      const row = insert.get(
+        entry.id,
+        new Date(entry.timestamp).toISOString(),
+        String(entry.category ?? ""),
+        String(entry.status ?? ""),
+        Number(visible),
+        JSON.stringify(entry),
+        searchText,
+      );
+      if (row && visible) index.run(row.rowid, searchText);
+    }
+    if (marker) {
+      db.prepare("INSERT OR IGNORE INTO metadata VALUES (?, ?)").run(
+        marker,
+        "1",
+      );
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    if (db.isTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function localDateBoundary(
+  value: string | undefined,
+  nextDay = false,
+): string | undefined {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
+  const date = new Date(value + "T00:00:00");
+  if (!Number.isFinite(date.getTime())) return;
+  if (nextDay) date.setDate(date.getDate() + 1);
+  return date.toISOString();
+}
 
 export const readAuditLogs = async (
   query: AuditLogQuery = {},
@@ -381,87 +458,67 @@ export const readAuditLogs = async (
   pageSize: number;
 }> => {
   await writeQueue;
+  const db = await getDatabase();
+  const conditions = ["visible = 1"];
+  const parameters: SQLInputValue[] = [];
+  const filter = (condition: string, value: SQLInputValue): void => {
+    conditions.push(condition);
+    parameters.push(value);
+  };
+  if (query.scope === "print") conditions.push("category = 'print'");
+  if (query.scope === "audit") conditions.push("category <> 'print'");
+  if (query.category && query.category !== "all")
+    filter("category = ?", query.category);
+  if (query.status && query.status !== "all")
+    filter("status = ?", query.status);
 
-  await mkdir(getLogsDirectory(), {
-    recursive: true,
-  });
+  const from = localDateBoundary(query.dateFrom);
+  const until = localDateBoundary(query.dateTo, true);
+  if (from) filter("timestamp >= ?", from);
+  if (until) filter("timestamp < ?", until);
 
-  const filePattern = /^(?:audit|print)-(\d{4}-\d{2}(?:-\d{2})?)\.jsonl$/;
-  const minFileDate = shiftIsoDateByDays(query.dateFrom, -1);
-  const maxFileDate = shiftIsoDateByDays(query.dateTo, 1);
-
-  const files = (await readdir(getLogsDirectory()))
-    .filter((name) => {
-      const match = filePattern.exec(name);
-      if (!match) {
-        return false;
-      }
-
-      const fileDate = match[1];
-      if (fileDate.length === 10) {
-        if (minFileDate && fileDate < minFileDate) return false;
-        if (maxFileDate && fileDate > maxFileDate) return false;
-      }
-
-      if (query.scope === "audit") {
-        return name.startsWith("audit-");
-      }
-
-      if (query.scope === "print") {
-        return name.startsWith("print-") || name.startsWith("audit-");
-      }
-
-      return true;
-    })
-    .sort()
-    .reverse()
-    .slice(0, 1460);
-
-  const entries: AuditLogEntry[] = [];
-
-  for (const file of files) {
-    const fullPath = path.join(getLogsDirectory(), file);
-
-    const content = await readFile(fullPath, "utf8");
-
-    for (const line of content.split("\n")) {
-      if (!line.trim()) {
-        continue;
-      }
-
-      try {
-        const entry = JSON.parse(line) as AuditLogEntry;
-
-        const rawDetails =
-          typeof entry.details === "object" &&
-          entry.details !== null &&
-          !Array.isArray(entry.details)
-            ? entry.details
-            : {};
-
-        entry.details = sanitizeDetails(rawDetails as Record<string, unknown>);
-
-        if (matchesQuery(entry, query)) {
-          entries.push(entry);
-        }
-      } catch {
-        // A damaged line must not make the remaining
-        // audit history unavailable.
-      }
+  const search = query.search?.trim().toLocaleLowerCase();
+  if (search) {
+    if ([...search].length >= 3 && !search.includes("\0")) {
+      filter(
+        "rowid IN (SELECT rowid FROM entry_search WHERE entry_search MATCH ?)",
+        '"' + search.replaceAll('"', '""') + '"',
+      );
+    } else {
+      filter("instr(search_text, ?) > 0", search);
     }
   }
 
-  entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-
-  const page = Math.max(1, query.page || 1);
-
-  const pageSize = Math.min(50000, Math.max(1, query.pageSize || 100));
-
-  const start = (page - 1) * pageSize;
-
+  const page = Math.max(
+    1,
+    Math.min(Number.MAX_SAFE_INTEGER, Math.floor(query.page || 1)),
+  );
+  const pageSize = Math.min(
+    50000,
+    Math.max(1, Math.floor(query.pageSize || 100)),
+  );
+  const offset = Math.min(Number.MAX_SAFE_INTEGER, (page - 1) * pageSize);
+  const where = conditions.join(" AND ");
+  const total = Number(
+    db
+      .prepare("SELECT count(*) AS total FROM entries WHERE " + where)
+      .get(...parameters)?.total,
+  );
+  const rows =
+    offset >= total
+      ? []
+      : db
+          .prepare(
+            "SELECT payload FROM entries WHERE " +
+              where +
+              " ORDER BY timestamp DESC, rowid DESC LIMIT ? OFFSET ?",
+          )
+          .all(...parameters, pageSize, offset);
   return {
-    entries: entries.slice(start, start + pageSize),
-    total: entries.length,
+    entries: rows.map(
+      (row) => JSON.parse(String(row.payload)) as AuditLogEntry,
+    ),
+    total,
     page,
     pageSize,
   };
