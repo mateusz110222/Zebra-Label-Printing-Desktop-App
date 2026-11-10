@@ -804,6 +804,19 @@
     "access": "Do konfiguracji monitoringu zaloguj się na konto z uprawnieniami IT."
   },
   "label_editor": {
+    "variables_title": "Zmienne ZPL",
+    "variables_hint": "Wstaw nazwę zmiennej z gwiazdkami do kodu ZPL.",
+    "variables": {
+      "JDATE": "Data juliańska YYDDD, np. 26001.",
+      "CMCJDATE": "Data juliańska YDDD, np. 6001.",
+      "BMSCSTDATEF": "Data BMS: dzień, litera miesiąca i ostatnia cyfra roku, np. 01A6.",
+      "PARTNUM": "Numer części.",
+      "DESCRIPTION": "Opis części.",
+      "SERIALPREFIX": "Prefiks numeru seryjnego.",
+      "SERIALNUM1": "Licznik numeru seryjnego.",
+      "ID_LABEL": "Identyfikator etykiety.",
+      "NUMCOPIES": "Liczba kopii w poleceniu ^PQ."
+    },
     "title": "Projektant ZPL",
     "print": "Wydrukuj",
     "print_test": "Wydrukuj etykietę testową",

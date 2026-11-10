@@ -1,5 +1,6 @@
 import { loadAuthoritativeParts } from "./PartsResolver";
-import { generateReprintZPL } from "../hooks/ZPLService";
+import { generateReprintZPL, getZplTemplate } from "../hooks/ZPLService";
+import { serialBarcodeFields } from "../hooks/LabelProcessor";
 import { type LocalPart, store } from "../utils/store";
 
 type ScannedReprintResult =
@@ -23,7 +24,7 @@ const usesBulkcapFormat = (labelFormat: string): boolean =>
 const usesNoDateFormat = (labelFormat: string): boolean =>
   /^6x6$/i.test(labelFormat.trim().replace(/\.(zpl|txt)$/i, ""));
 
-const resolveCmcYear = (yearDigit: number): number => {
+const resolveJulianYear = (yearDigit: number): number => {
   const currentYear = new Date().getUTCFullYear();
   const baseDecade = Math.floor(currentYear / 10) * 10;
   const candidateYear = baseDecade + yearDigit;
@@ -33,6 +34,7 @@ const resolveCmcYear = (yearDigit: number): number => {
 export function decodeScannedSerial(
   input: unknown,
   parts: LocalPart[],
+  shortJulianFormats: ReadonlySet<string> = new Set(),
 ): ScannedReprintResult {
   if (typeof input !== "string" || input.length > 256) {
     return { status: false as const, message: "reprint.scan_invalid" };
@@ -79,11 +81,14 @@ export function decodeScannedSerial(
       ];
     }
 
-    if (usesCmcJulianFormat(part.Label_Format)) {
+    if (
+      usesCmcJulianFormat(part.Label_Format) ||
+      shortJulianFormats.has(part.Label_Format)
+    ) {
       if (!/^\d{4}[A-Z0-9]+$/.test(remainder)) return [];
-      const cmcJulian = remainder.slice(0, 4);
-      const year = resolveCmcYear(Number(cmcJulian.slice(0, 1)));
-      const day = Number(cmcJulian.slice(1));
+      const julian = remainder.slice(0, 4);
+      const year = resolveJulianYear(Number(julian.slice(0, 1)));
+      const day = Number(julian.slice(1));
       const calendarDate = new Date(Date.UTC(year, 0, day));
       if (day < 1 || calendarDate.getUTCFullYear() !== year) return [];
       return [
@@ -153,22 +158,64 @@ export async function resolveScannedReprint(
         (part) => part.Operation.trim().toLowerCase() === operation,
       )
     : loaded.data;
-  const decoded = decodeScannedSerial(input, parts);
-  if (!decoded.status) return decoded;
-
-  // Validate the decoded number and template without reserving a serial or printing.
-  const validation = await generateReprintZPL(
-    decoded.data.part,
-    decoded.data.date,
-    decoded.data.serialNumber,
-    1,
+  const scanned = input.trim().toUpperCase();
+  const formats = new Set(
+    parts.flatMap(({ Serial_Prefix, Label_Format }) => {
+      const prefix = Serial_Prefix.trim().toUpperCase();
+      return prefix && scanned.startsWith(prefix) ? [Label_Format] : [];
+    }),
   );
-  if (!validation.status) {
-    return {
-      status: false as const,
-      message: validation.message,
-      rawError: validation.rawError,
-    };
+  const shortJulianFormats = new Set<string>();
+  await Promise.all(
+    [...formats].map(async (format) => {
+      const template = await getZplTemplate(format);
+      if (
+        template.status &&
+        template.data &&
+        serialBarcodeFields(template.data).some(
+          (field) => field.trim() === "*SERIALPREFIX**CMCJDATE**SERIALNUM1*",
+        )
+      ) {
+        shortJulianFormats.add(format);
+      }
+    }),
+  );
+  // Validate the decoded number and template without reserving a serial or printing.
+  const validate = async (
+    decoded: ScannedReprintResult,
+  ): Promise<ScannedReprintResult> => {
+    if (!decoded.status) return decoded;
+    const { part, date, serialNumber } = decoded.data;
+    const result = await generateReprintZPL(part, date, serialNumber, 1);
+    return result.status
+      ? decoded
+      : { status: false, message: result.message, rawError: result.rawError };
+  };
+  const decoded = decodeScannedSerial(input, parts, shortJulianFormats);
+  if (!shortJulianFormats.size) return validate(decoded);
+
+  const legacy = decodeScannedSerial(input, parts);
+  if (!legacy.status && legacy.message === "reprint.scan_ambiguous")
+    return legacy;
+  if (
+    legacy.status &&
+    decoded.status &&
+    legacy.data.part !== decoded.data.part &&
+    shortJulianFormats.has(legacy.data.part.Label_Format)
+  )
+    return { status: false, message: "reprint.scan_ambiguous" };
+
+  const result = await validate(decoded);
+  if (
+    !result.status &&
+    legacy.status &&
+    shortJulianFormats.has(legacy.data.part.Label_Format) &&
+    (result.message === "reprint.scan_not_found" ||
+      (result.message === "backend.print.invalid_serial_length" &&
+        decoded.status &&
+        decoded.data.part === legacy.data.part))
+  ) {
+    return validate(legacy);
   }
-  return decoded;
+  return result;
 }

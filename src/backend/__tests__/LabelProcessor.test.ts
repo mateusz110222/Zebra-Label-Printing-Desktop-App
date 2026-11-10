@@ -8,11 +8,20 @@ import {
   parseSerialValue,
 } from "../hooks/LabelProcessor";
 
-import GetJulianDate from "../hooks/GetJulianDate";
+import GetJulianDate, { GetJulianDateVariables } from "../hooks/GetJulianDate";
 import GetCmcJulianDate from "../hooks/GetCmcJulianDate";
 import GetBmsDate from "../hooks/GetBmsDate";
 
 describe("fillZplTemplate", () => {
+  it("supports both the YYDDD and CMC YDDD tokens", () => {
+    expect(
+      fillZplTemplate(
+        "*JDATE* / *CMCJDATE*",
+        GetJulianDateVariables("2026-01-01"),
+      ),
+    ).toBe("26001 / 6001");
+  });
+
   it("zastępuje pojedynczy placeholder", () => {
     const template = "^FD*PARTNUM*^FS";
 

@@ -145,7 +145,9 @@ export function ScannedReprintView({
       }
       if (response.status) {
         requiresScan = true;
-        setExpectedScan(label.fullSerialNumber);
+        setExpectedScan(
+          response.verificationCodes?.[0] ?? label.fullSerialNumber,
+        );
         setLabel(null);
         setPreview(null);
         setInput("");

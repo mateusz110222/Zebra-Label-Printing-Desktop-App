@@ -1,5 +1,4 @@
-import GetJulianDate from "./GetJulianDate";
-import GetCmcJulianDate from "./GetCmcJulianDate";
+import { GetJulianDateVariables } from "./GetJulianDate";
 import { applyBatchCutting } from "./BatchCutting";
 import {
   calculateSerial,
@@ -7,6 +6,7 @@ import {
   disableReprintAfterError,
   fillZplTemplate,
   parseSerialValue,
+  serialBarcodeFields,
 } from "./LabelProcessor";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import path from "node:path";
@@ -61,15 +61,6 @@ interface EngineRow extends RowDataPacket {
 
 const hashZpl = (zpl: string): string =>
   createHash("sha256").update(zpl, "utf8").digest("hex");
-
-const serialBarcodeFields = (template: string): string[] =>
-  template.split(/\^FS/i).flatMap((field) => {
-    const match = /\^FD([^^]*)/i.exec(field);
-    return match?.[1].includes("*SERIALNUM1*") &&
-      /\^B(?!Y)[A-Z0-9]/i.test(field.slice(0, match.index))
-      ? [match[1]]
-      : [];
-  });
 
 const getScanCode = (
   fields: string[],
@@ -276,7 +267,7 @@ export async function generatePrintZPL(
       for (let i = 0; i < quantity; i++) {
         const currentSerial = calculateSerial(currentNext, i, serialType);
 
-        const julianDate = GetJulianDate("");
+        const julianDates = GetJulianDateVariables("");
 
         const bmsDate = GetBmsDate("");
 
@@ -292,9 +283,7 @@ export async function generatePrintZPL(
 
           SERIALNUM1: currentSerial,
 
-          JDATE: julianDate,
-
-          CMCJDATE: GetCmcJulianDate(julianDate),
+          ...julianDates,
 
           BMSCSTDATEF: bmsDate,
 
@@ -316,7 +305,7 @@ export async function generatePrintZPL(
           metadata: {
             serialNumber: currentSerial,
 
-            julianDate,
+            julianDate: julianDates.JDATE,
             bmsDate,
 
             zplSha256: hashZpl(labelZpl),
@@ -555,7 +544,7 @@ async function generateReprintZPLInternal(
     for (let i = 0; i < quantity; i++) {
       const currentSerial = calculateSerial(baseSerial, i, type_name);
 
-      const julianDate = GetJulianDate(normalizedDate);
+      const julianDates = GetJulianDateVariables(normalizedDate);
 
       const bmsDate = GetBmsDate(normalizedDate);
 
@@ -568,9 +557,7 @@ async function generateReprintZPLInternal(
 
         SERIALNUM1: currentSerial,
 
-        JDATE: julianDate,
-
-        CMCJDATE: GetCmcJulianDate(julianDate),
+        ...julianDates,
 
         BMSCSTDATEF: bmsDate,
 
@@ -592,7 +579,7 @@ async function generateReprintZPLInternal(
         metadata: {
           serialNumber: currentSerial,
 
-          julianDate,
+          julianDate: julianDates.JDATE,
           bmsDate,
 
           zplSha256: hashZpl(labelZpl),
@@ -686,7 +673,7 @@ export async function generatePreviewZPL(
       };
     }
 
-    const julianDate = GetJulianDate("");
+    const julianDates = GetJulianDateVariables("");
     const labelId = Math.random().toString(36).substring(2, 7).toUpperCase();
 
     const printData = {
@@ -696,9 +683,7 @@ export async function generatePreviewZPL(
 
       SERIALNUM1: next,
 
-      JDATE: julianDate,
-
-      CMCJDATE: GetCmcJulianDate(julianDate),
+      ...julianDates,
 
       BMSCSTDATEF: GetBmsDate(""),
 

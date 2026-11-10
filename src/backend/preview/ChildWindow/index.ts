@@ -4,8 +4,7 @@ import { createHash } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { getZplTemplate, SaveZplTemplate } from "../../hooks/ZPLService";
-import GetJulianDate from "../../hooks/GetJulianDate";
-import GetCmcJulianDate from "../../hooks/GetCmcJulianDate";
+import { GetJulianDateVariables } from "../../hooks/GetJulianDate";
 import GetBmsDate from "../../hooks/GetBmsDate";
 import {
   disableReprintAfterError,
@@ -102,14 +101,13 @@ export default function ChildWindowHandlers(): void {
           };
         }
 
-        const julianDate = GetJulianDate("");
+        const julianDates = GetJulianDateVariables("");
         const zpl = disableReprintAfterError(
           fillZplTemplate(template.trim(), {
             PARTNUM: "TEST",
             SERIALPREFIX: "TEST",
             SERIALNUM1: "0001",
-            JDATE: julianDate,
-            CMCJDATE: GetCmcJulianDate(julianDate),
+            ...julianDates,
             BMSCSTDATEF: GetBmsDate(""),
             NUMCOPIES: 1,
             DESCRIPTION: "TEST",

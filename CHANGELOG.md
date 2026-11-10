@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.1](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/1.5.0...1.5.1) (2026-11-10)
+
+- Add a ZPL variable reference to the label editor.
+- Use the existing `*CMCJDATE*` variable for the YDDD date in the bundled GEN4 template.
+- Support scanned reprints of both current and older GEN4 barcodes.
+- Existing stations with a saved GEN4 template can switch by replacing both `*JDATE*` occurrences with `*CMCJDATE*`.
+
 ## [1.5.0](https://github.com/mateusz110222/Zebra-Label-Printing-Desktop-App/compare/1.4.7...1.5.0) (2026-11-06)
 
 ### Features

@@ -804,6 +804,19 @@
     "access": "Sign in with IT permissions to configure monitoring."
   },
   "label_editor": {
+    "variables_title": "ZPL variables",
+    "variables_hint": "Include the asterisks when adding a variable to your ZPL code.",
+    "variables": {
+      "JDATE": "Julian date in YYDDD format, e.g. 26001.",
+      "CMCJDATE": "Julian date in YDDD format, e.g. 6001.",
+      "BMSCSTDATEF": "BMS date: day, month letter, and last digit of the year, e.g. 01A6.",
+      "PARTNUM": "Part number.",
+      "DESCRIPTION": "Part description.",
+      "SERIALPREFIX": "Serial number prefix.",
+      "SERIALNUM1": "Serial number counter.",
+      "ID_LABEL": "Label identifier.",
+      "NUMCOPIES": "Copy count in the ^PQ command."
+    },
     "title": "ZPL Designer",
     "print": "Print",
     "print_test": "Print a test label",

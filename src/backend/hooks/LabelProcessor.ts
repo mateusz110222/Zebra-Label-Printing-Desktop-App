@@ -18,6 +18,15 @@ export const fillZplTemplate = (
   );
 };
 
+export const serialBarcodeFields = (template: string): string[] =>
+  template.split(/\^FS/i).flatMap((field) => {
+    const match = /\^FD([^^]*)/i.exec(field);
+    return match?.[1].includes("*SERIALNUM1*") &&
+      /\^B(?!Y)[A-Z0-9]/i.test(field.slice(0, match.index))
+      ? [match[1]]
+      : [];
+  });
+
 export const BASE34_ALPHABET = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 export const parseSerialValue = (value: string, typeName: string): bigint => {

@@ -7,12 +7,16 @@ import {
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
   generate: vi.fn(),
+  template: vi.fn(),
   get: vi.fn(),
 }));
 vi.mock("../parts/PartsResolver", () => ({
   loadAuthoritativeParts: mocks.load,
 }));
-vi.mock("../hooks/ZPLService", () => ({ generateReprintZPL: mocks.generate }));
+vi.mock("../hooks/ZPLService", () => ({
+  generateReprintZPL: mocks.generate,
+  getZplTemplate: mocks.template,
+}));
 vi.mock("../utils/store", () => ({ store: { get: mocks.get } }));
 
 const part = {
@@ -35,6 +39,7 @@ describe("scanned reprint", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.load.mockResolvedValue({ status: true, data: [part] });
+    mocks.template.mockResolvedValue({ status: false });
     mocks.generate.mockResolvedValue({ status: true });
     mocks.get.mockReturnValue({ operation: "LINE_A" });
   });
@@ -68,6 +73,42 @@ describe("scanned reprint", () => {
       true,
     );
   });
+
+  it.each([
+    ["500160010009", "2026-01-01"],
+    ["5001260010009", "2026-01-01"],
+    ["5001211010009", "2021-04-11"],
+  ])(
+    "validates the serial width for a template using YDDD (%s)",
+    async (code, date) => {
+      const shortDatePart = {
+        ...part,
+        Serial_Prefix: "5001",
+        Label_Format: "custom",
+      };
+      mocks.load.mockResolvedValue({ status: true, data: [shortDatePart] });
+      mocks.template.mockResolvedValue({
+        status: true,
+        data: "^XA^BXN,13^FD*SERIALPREFIX**CMCJDATE**SERIALNUM1*^FS^XZ",
+      });
+      mocks.generate.mockImplementation(async (_part, _date, serial) =>
+        serial.length === 4
+          ? { status: true }
+          : { status: false, message: "backend.print.invalid_serial_length" },
+      );
+
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-11-10T12:00:00Z"));
+        expect(await resolveScannedReprint(code)).toMatchObject({
+          status: true,
+          data: { serialNumber: "0009", date },
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it.each([
     "",

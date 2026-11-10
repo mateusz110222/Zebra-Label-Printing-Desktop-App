@@ -1,3 +1,5 @@
+import GetCmcJulianDate from "./GetCmcJulianDate";
+
 export default function GetJulianDate(date: string | undefined): string {
   let now: Date;
   const normalizedDate = date?.trim();
@@ -26,4 +28,13 @@ export default function GetJulianDate(date: string | undefined): string {
   const day = Math.floor((calendarDayUtc - yearStartUtc) / 86_400_000);
   const year = fullYear.toString().slice(-2);
   return `${year}${day.toString().padStart(3, "0")}`;
+}
+
+export function GetJulianDateVariables(date: string | undefined): {
+  JDATE: string;
+  CMCJDATE: string;
+} {
+  const julianDate = GetJulianDate(date);
+
+  return { JDATE: julianDate, CMCJDATE: GetCmcJulianDate(julianDate) };
 }

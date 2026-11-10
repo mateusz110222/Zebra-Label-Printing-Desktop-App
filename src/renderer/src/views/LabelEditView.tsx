@@ -1,10 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BsFileEarmarkCode, BsPrinter, BsSave } from "react-icons/bs";
-import { FiMinus, FiPlus } from "react-icons/fi";
+import { FiCode, FiMinus, FiPlus } from "react-icons/fi";
 import { useLabelEdit } from "../hooks/useLabelEdit";
 import { CriticalErrorState, LoadingWrapper } from "@renderer/components";
 import { useTranslation } from "react-i18next";
 import { ConfirmationModal, StatusBanner } from "@renderer/components/common";
+
+const templateVariables = [
+  "JDATE",
+  "CMCJDATE",
+  "BMSCSTDATEF",
+  "PARTNUM",
+  "DESCRIPTION",
+  "SERIALPREFIX",
+  "SERIALNUM1",
+  "ID_LABEL",
+  "NUMCOPIES",
+];
 
 export function LabelEditView(): React.JSX.Element {
   const { t } = useTranslation();
@@ -213,10 +225,20 @@ export function LabelEditView(): React.JSX.Element {
             className="relative flex flex-col bg-slate-900 dark:bg-[#0d1117]"
             style={{ width: `${editorWidth}%` }}
           >
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-950 border-b border-white/5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                {t("label_editor.code")}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 bg-slate-950 px-4 py-1 border-b border-white/5">
+              <div className="flex flex-wrap items-center gap-x-3">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  {t("label_editor.code")}
+                </span>
+                <button
+                  type="button"
+                  popoverTarget="zpl-variables"
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded px-2 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-slate-300 [anchor-name:--zpl-variables]"
+                >
+                  <FiCode aria-hidden="true" size={14} />
+                  {t("label_editor.variables_title")}
+                </button>
+              </div>
               <div className="flex items-center gap-3 text-[10px] font-mono text-slate-500">
                 <span>
                   {t("label_editor.lines", {
@@ -226,6 +248,35 @@ export function LabelEditView(): React.JSX.Element {
                 <span>{t("label_editor.chars", { count: charCount })}</span>
               </div>
             </div>
+
+            <section
+              id="zpl-variables"
+              popover="auto"
+              aria-labelledby="zpl-variables-title"
+              className="fixed inset-auto left-4 top-24 m-0 max-h-[65dvh] w-[min(31rem,calc(100vw-2rem))] overflow-auto rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-900 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 [top:calc(anchor(bottom)_+_0.375rem)] [position-anchor:--zpl-variables]"
+            >
+              <h2 id="zpl-variables-title" className="font-semibold">
+                {t("label_editor.variables_title")}
+              </h2>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                {t("label_editor.variables_hint")}
+              </p>
+              <dl className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+                {templateVariables.map((variable) => (
+                  <div
+                    key={variable}
+                    className="grid items-baseline gap-x-3 gap-y-0.5 py-2 sm:grid-cols-[8rem_1fr]"
+                  >
+                    <dt className="text-xs font-semibold">
+                      <code>{`*${variable}*`}</code>
+                    </dt>
+                    <dd className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                      {t(`label_editor.variables.${variable}`)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
 
             <div className="flex min-h-0 flex-1 overflow-hidden">
               <div
